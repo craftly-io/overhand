@@ -177,3 +177,20 @@ test("the coverage table says how the guard reaches every runtime; the claims wi
   const flat = (f: string) => readFileSync(join(import.meta.dir, "..", "..", "..", f), "utf8").replace(/\s+/g, " ");
   for (const f of ["README.md", "SECURITY.md"]) expect([f, flat(f).includes(GUARD_REACH)]).toEqual([f, true]);
 });
+
+test("a Cursor Agent edit is checked as an edit: Write and Delete of a protected file are refused, an unknown shape too", () => {
+  const cursor = (tool_name: string, tool_input: Record<string, unknown>) =>
+    eventOf("cursor", { hook_event_name: "preToolUse", tool_name, tool_input, workspace_roots: ["/r"] }).calls;
+  const [write] = cursor("Write", { file_path: "/Users/sam/.claude/settings.json", contents: "x" });
+  expect(write).toEqual({ tool: "Edit", input: { file_path: "/Users/sam/.claude/settings.json" } });
+  expect(check(write?.tool ?? "", write?.input ?? {}, [])).not.toBeNull();
+  const [del] = cursor("Delete", { path: "/Users/sam/.claude/settings.json" });
+  expect(del).toEqual({ tool: "Edit", input: { file_path: "/Users/sam/.claude/settings.json" } });
+  expect(check(del?.tool ?? "", del?.input ?? {}, [])).not.toBeNull();
+  // an edit whose file the guard can't tell is never let through
+  const [unknown] = cursor("Write", { contents: "x" });
+  expect(check(unknown?.tool ?? "", unknown?.input ?? {}, [])).toContain("can't tell which file");
+  // ordinary source still edits
+  const [src] = cursor("Write", { file_path: "/r/src/app.ts" });
+  expect(check(src?.tool ?? "", src?.input ?? {}, [])).toBeNull();
+});

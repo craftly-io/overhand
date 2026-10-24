@@ -34,7 +34,7 @@ import { redactSecrets } from "./corners";
 import { BUNDLED, CFG, CLIENTS, CODE, HOME, OPS, SELF_EXEC, SRC } from "./env";
 import { govern, type Heavy, protectedHit, readMachine, riskyScript, unwrapHeavy, type Verdict } from "./governor";
 import { leadPushBranches, windowsFor } from "./groups";
-import { type Dialect, dialectOf, type Event, eventOf, TOO_WIDE } from "./guard-dialects";
+import { type Dialect, dialectOf, type Event, eventOf, TOO_WIDE, UNKNOWN_FILE } from "./guard-dialects";
 import { cleared, type FirewallConfig, scanOutward } from "./outward";
 
 /** A push naming a protected branch; a lead may push to the ones its config lists (`pushBranches`), nothing else may. */
@@ -486,6 +486,7 @@ export function check(
   // a memory a later run would read as its instructions (Gemini CLI's save_memory): the instructions are Overhand's
   if (tool === "save_memory") return "agents don't write memories that later runs would follow";
   if (tool === TOO_WIDE.tool) return "that read names more files than the guard can check one by one; name the files or a narrower pattern";
+  if (tool === UNKNOWN_FILE.tool) return "the guard can't tell which file that edit changes, so it doesn't let it through";
   if (tool === "Bash") {
     const raw = typeof input.command === "string" ? input.command : "";
     // a governor wrap the agent was told to run: what it runs is checked, not Overhand's own path in front of it

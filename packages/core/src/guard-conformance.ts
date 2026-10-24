@@ -64,7 +64,8 @@ export const PAYLOADS: Record<Dialect, Payloads> = {
   cursor: {
     shell: (command) => ({ hook_event_name: "beforeShellExecution", command, cwd: CWD, workspace_roots: [CWD] }),
     read: (file_path) => ({ hook_event_name: "beforeReadFile", file_path, content: "", workspace_roots: [CWD] }),
-    edit: (file_path) => ({ hook_event_name: "preToolUse", tool_name: "Edit", tool_input: { file_path }, workspace_roots: [CWD] }),
+    // Cursor's preToolUse names its edits Write (and Delete): cursor.com/docs/hooks
+    edit: (file_path) => ({ hook_event_name: "preToolUse", tool_name: "Write", tool_input: { file_path }, workspace_roots: [CWD] }),
   },
   // OpenCode's plugin (agent-home.ts) hands the guard its tool and args as they are
   opencode: {

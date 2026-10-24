@@ -51,6 +51,8 @@ const MANY_MS = 5000;
 
 /** The call the guard refuses when a read names more than it can check (guard.ts). */
 export const TOO_WIDE: Call = { tool: "ReadTooWide", input: {} };
+/** An edit, write or delete whose file the guard can't tell (a tool input shaped another way): refused, never let through. */
+export const UNKNOWN_FILE: Call = { tool: "EditUnknownFile", input: {} };
 
 /**
  * Gemini CLI's read_many_files: each pattern, then every file it matches under `cwd` (dotfiles too), each a Read the
@@ -94,8 +96,9 @@ function byName(dialect: Dialect, name: string, input: Record<string, unknown>, 
   if (/^(bash|shell|run_shell_command|exec_command|local_shell|terminal)$/.test(n))
     return [{ tool: "Bash", input: { command: str(input.command ?? input.cmd) } }];
   if (/^(apply_patch|patch)$/.test(n)) return patchEdits(str(input.command ?? input.patchText ?? input.patch ?? input.input), cwd);
+  // Cursor Agent's preToolUse names its edits Write and Delete (cursor.com/docs/hooks); every CLI's edit names its file
   if (/^(write|write_file|edit|replace|multiedit|edit_file|search_replace|str_replace|delete|delete_file)$/.test(n))
-    return [{ tool: "Edit", input: file ? { file_path: resolve(cwd, file) } : {} }];
+    return [file ? { tool: "Edit", input: { file_path: resolve(cwd, file) } } : UNKNOWN_FILE];
   if (/^(read|read_file|view)$/.test(n)) return [{ tool: "Read", input: file ? { file_path: resolve(cwd, file) } : {} }];
   if (n === "read_many_files") return manyReads(input, cwd);
   if (/^(glob|list|ls|list_directory|list_dir)$/.test(n))
