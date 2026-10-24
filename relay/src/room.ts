@@ -141,8 +141,12 @@ export class TeamRoom {
 
   /** The timer: checks again, and keeps checking while anyone is connected. */
   async alarm(): Promise<void> {
-    await this.check();
-    if (this.members().length) await this.ctx.storage.setAlarm(this.clock() + ROOM_CHECK_MS);
+    // a failed check (a D1 blip) keeps everyone connected, and the next tick still comes while anyone is here
+    try {
+      await this.check();
+    } finally {
+      if (this.members().length) await this.ctx.storage.setAlarm(this.clock() + ROOM_CHECK_MS);
+    }
   }
 
   /** Every member socket with its tag. */
