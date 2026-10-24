@@ -32,6 +32,10 @@ export const SETUP_PROMPT = `Set up Overhand from ${SETUP_GUIDE}. Ask me before 
  * REPO's GitHub releases; clients never link those directly, so the files can move without a client update.
  */
 export const DOWNLOAD = `${INSTALLER}/download`;
+/** The Docker image the Dockerfile builds, tagged with each release's version and `latest` (release/launch.ts pushes it). */
+export const IMAGE = `ghcr.io/${REPO}`;
+/** The ready-made server setups in release/server, served by the site at `${SERVER_FILES}/<file>`. */
+export const SERVER_FILES = `${SITE}/server`;
 /** The hosted dashboard and its relay (one Worker, one origin: relay/). A daemon or test can point elsewhere with OVERHAND_RELAY_URL. */
 export const APP = "https://app.overhand.dev";
 /** Overhand's own page on each computer: `http://localhost:LOCAL_PORT` (OVERHAND_PORT moves it). */

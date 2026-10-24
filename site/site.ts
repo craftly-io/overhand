@@ -8,7 +8,7 @@ import {
   SANDBOX_PROJECT_OFF,
   SANDBOX_STOPS,
 } from "@overhand/contract";
-import { APP, COMPANY, EMAIL, INSTALLER, REPO_URL, SITE as SITE_URL } from "@overhand/contract/links";
+import { APP, COMPANY, EMAIL, IMAGE, INSTALLER, REPO_URL, SERVER_FILES, SITE as SITE_URL } from "@overhand/contract/links";
 
 /**
  * The public site's name and addresses. Every page, the link preview and the meta tags read these through
@@ -24,6 +24,9 @@ export const SITE = {
   get: INSTALLER,
   repo: REPO_URL,
   releases: `${REPO_URL}/releases`,
+  // the Docker image, and where the ready-made server setups (release/server) are served
+  image: IMAGE,
+  serverFiles: SERVER_FILES,
   email: EMAIL,
   // who makes Overhand: named once in the footer, and where the law needs it (terms, privacy, refund)
   company: COMPANY,

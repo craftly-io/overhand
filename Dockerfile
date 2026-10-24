@@ -17,9 +17,10 @@ RUN p="linux-$([ "$TARGETARCH" = amd64 ] && echo x64 || echo arm64)" \
 FROM debian:bookworm-slim
 # links the GHCR package to its repo (release/launch.ts pushes it)
 LABEL org.opencontainers.image.source="https://github.com/craftly-io/overhand"
-# git and gh for the agents' work, curl for the agents' own installers and the healthcheck, tini to reap what agents leave
+# git and gh for the agents' work, curl for the agents' own installers and the healthcheck, ps for the process tree (the
+# governor, the guard), tini to reap what agents leave
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl git gh tini \
+  && apt-get install -y --no-install-recommends ca-certificates curl git gh procps tini \
   && rm -rf /var/lib/apt/lists/* \
   && useradd --create-home --uid 1000 --shell /bin/bash overhand
 COPY --from=build /out/pkg /opt/overhand

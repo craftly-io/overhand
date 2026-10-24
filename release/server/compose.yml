@@ -1,0 +1,17 @@
+# Overhand in Docker on a Linux server, everything it keeps on one volume: docker compose up -d
+# It listens on 127.0.0.1 only, so on the host network it's the server's own loopback and opens no port.
+# Reach it over an SSH tunnel or your tailnet: site/pages/docs/server.html#oneclick
+# Update: docker compose pull && docker compose up -d
+name: overhand
+services:
+  overhand:
+    image: ghcr.io/craftly-io/overhand:latest
+    container_name: overhand
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - overhand:/home/overhand
+volumes:
+  overhand:
+    # the same volume as the plain docker run, so switching between them keeps everything
+    name: overhand

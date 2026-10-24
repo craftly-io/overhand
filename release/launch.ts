@@ -7,7 +7,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { INSTALLER as GET, REPO, REPO_URL, SITE as WWW } from "../packages/contract/src/links";
+import { INSTALLER as GET, IMAGE, REPO, REPO_URL, SITE as WWW } from "../packages/contract/src/links";
 import { safeCmd } from "../packages/core/src/runtimes/runtime";
 import { formula } from "./formula";
 
@@ -16,8 +16,7 @@ const DRY = process.argv.includes("--dry-run");
 const TAP = "craftly-io/homebrew-tap";
 const WRANGLER = ["bunx", "wrangler@4.151.1", "deploy"];
 const PLATFORMS = ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"];
-// the Dockerfile's image, for both Linux platforms; nothing pushes it but step 8 of a real run
-const IMAGE = `ghcr.io/${REPO}`;
+// the Dockerfile's image (IMAGE), for both Linux platforms; nothing pushes it but step 8 of a real run
 const IMAGE_PLATFORMS = ["linux/amd64", "linux/arm64"];
 const { version } = (await Bun.file(join(ROOT, "package.json")).json()) as { version: string };
 const TAG = `v${version}`;

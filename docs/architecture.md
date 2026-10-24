@@ -111,7 +111,10 @@ Relay changes go to staging first. Both are set in `relay/wrangler.jsonc` and `s
 ## Docker and servers
 
 The `Dockerfile` builds the release binary for Linux and runs it as a non-root user, all state on one volume, still on
-loopback only. How to reach it: `/docs/server` on the site (`site/pages/docs/server.html`).
+loopback only. How to reach it: `/docs/server` on the site (`site/pages/docs/server.html`). `release/server` holds the
+ready-made setups for your own server, served by the site under `/server/`: `user-data.sh`, a first-boot script that
+runs the installer as a user service, and `compose.yml`, the published image on the host network
+(`release/server.test.ts` keeps both on the same facts).
 
 ## How a release goes out
 

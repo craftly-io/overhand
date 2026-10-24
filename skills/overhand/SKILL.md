@@ -22,6 +22,10 @@ Follow https://overhand.dev/setup.md step by step, asking the person before each
 curl -fsSL https://get.overhand.dev | sh
 ```
 
+On a new Debian or Ubuntu server, `https://overhand.dev/server/user-data.sh` is the same install as first-boot user data, and
+`https://overhand.dev/server/compose.yml` runs the Docker image; both stay on 127.0.0.1, reached over an SSH tunnel
+(https://overhand.dev/docs/server.md).
+
 ## Check it
 
 - `overhand status`: running or not, port, version, agents at work, free disk.

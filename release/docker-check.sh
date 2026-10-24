@@ -1,8 +1,8 @@
 #!/bin/sh
 # Checks the Docker image the way a server runs it (--network host, a volume for the home): the version, a non-root user,
-# doctor naming what's missing, the healthcheck, sign-ins answering with the command to run instead of running an agent,
-# setup refusing Claude without a sign-in, a project added from a local git repo, the Host check and pairing, and a
-# restart keeping it all. Nothing signs in and no agent runs.
+# doctor naming what's missing, the link overhand open prints, the healthcheck, sign-ins answering with the command to
+# run instead of running an agent, setup refusing Claude without a sign-in, a project added from a local git repo, the
+# Host check and pairing, and a restart keeping it all. Nothing signs in and no agent runs.
 #   sh release/docker-check.sh            build the image from the Dockerfile, check it, remove it
 #   sh release/docker-check.sh <image>    check an image you built
 # CHECK_PORT picks the port (default 4497), never 4317. On a Linux host it also checks the host's own 127.0.0.1 reaches it.
@@ -68,6 +68,9 @@ doctor="$(docker exec "$NAME" overhand doctor || true)"
 echo "$doctor" | grep -q "✗ a coding agent on PATH" || fail "doctor doesn't name the missing agent: $doctor"
 echo "$doctor" | grep -q "✓ gh on PATH" || fail "no gh in the image: $doctor"
 echo "✓ doctor names what's missing"
+# the server docs send you to the link `overhand open` prints, through the tunnel
+docker exec "$NAME" overhand open | grep -q "http://127.0.0.1:${PORT}/?open=" || fail "overhand open prints no link"
+echo "✓ overhand open prints the sign-in link"
 
 r="$(post /api/agent/connect '{"agent":"claude-code"}')"
 echo "$r" | grep -q 'claude auth login' || fail "connect answered $r"

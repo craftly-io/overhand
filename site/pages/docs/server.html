@@ -9,6 +9,25 @@
 <main id="main" class="docs">
 {{> dochero}}
   <div class="wrap">
+    <section class="block hood" id="oneclick" aria-labelledby="h-oneclick">
+      <h2 id="h-oneclick">Your own server, set up in a minute.</h2>
+      <ul class="facts">
+        <li><b>For running your own server</b> {{name}} runs on your own computer, and that's all most people need. If you'd rather keep it on a server you rent and look after, these setups do the work.</li>
+        <li><b>Paste it when you create the server</b> On a new Debian or Ubuntu server, put these two lines in the user data field, and pick your SSH key as usual:
+          <pre><code>#!/bin/sh
+curl -fsSL {{serverFiles}}/user-data.sh | sh</code></pre></li>
+        <li><b>Where the field is</b> DigitalOcean: Advanced options → Add initialization scripts. Hetzner: Cloud config. AWS Lightsail: Add launch script. AWS EC2: Advanced details → User data. Any other host that runs cloud-init has a user data field too.</li>
+        <li><b>What it does</b> At first boot it adds the user <code>overhand</code> with the SSH keys the host put on the server, installs <code>git</code>, <code>gh</code> and <code>ps</code>, and runs the installer as that user, with linger on, so {{name}} starts at every boot. It opens no port. Read the whole <a href="{{serverFiles}}/user-data.sh">user-data.sh</a> before you paste it. It's done a minute or two after the server boots; <code>/var/log/cloud-init-output.log</code> shows how far it got.</li>
+        <li><b>Then sign in</b> From your laptop, sign in as <code>overhand</code> with a tunnel, run <code>overhand open</code> there, and open the link it prints in your laptop's browser:
+          <pre><code>ssh -L {{port}}:127.0.0.1:{{port}} overhand@your-server</code></pre>
+          Setup then signs your agents in from the app, as <a href="#signin">Agent sign-ins without a desktop</a> shows.</li>
+        <li><b>Docker instead</b> On a server that has Docker, the same setup as a compose file, everything on one volume:
+          <pre><code>curl -fsSLO {{serverFiles}}/compose.yml &amp;&amp; docker compose up -d</code></pre>
+          Then tunnel in as any user and run <code>docker exec overhand overhand open</code>. To update: <code>docker compose pull &amp;&amp; docker compose up -d</code>.</li>
+        <li><b>No deploy button</b> A hosting platform's deploy button puts an app on a public web address, and {{name}} never opens to the internet. A plain server, reached over SSH or your tailnet, keeps it yours.</li>
+      </ul>
+    </section>
+
     <section class="block hood" id="linux" aria-labelledby="h-linux">
       <h2 id="h-linux">On a Linux server.</h2>
       <ul class="facts">
@@ -22,15 +41,14 @@
     <section class="block hood" id="docker" aria-labelledby="h-docker">
       <h2 id="h-docker">In Docker.</h2>
       <ul class="facts">
-        <li><b>Build the image</b> There's no published image yet; build it from the repository:
-          <pre><code>git clone {{repo}}.git &amp;&amp; cd overhand
-docker build -t overhand .
-docker run -d --name overhand --network host --restart unless-stopped \
-  -v overhand:/home/overhand overhand</code></pre></li>
+        <li><b>The image</b> Each release is published for arm64 and x64 as <code>{{image}}</code>. Run it, or use the compose file above:
+          <pre><code>docker run -d --name overhand --network host --restart unless-stopped \
+  -v overhand:/home/overhand {{image}}</code></pre>
+          To build it yourself instead, run <code>docker build -t overhand .</code> in a clone of the repository.</li>
         <li><b>Host network, loopback only</b> With <code>--network host</code> it listens on the server's own 127.0.0.1, like the plain install. Publishing a port with <code>-p</code> reaches nothing, because inside the container it listens on loopback too. On Docker Desktop the host network is its VM's, so this setup is for a Linux server.</li>
         <li><b>One volume</b> It runs as the user <code>overhand</code>, not root. Its home is the volume: {{name}}'s state, the agents you install, their sign-ins, GitHub's login and your projects. API keys go to a file only that user can read.</li>
         <li><b>Day to day</b> <code>docker ps</code> shows it healthy once it answers on its port. Run commands with <code>docker exec overhand overhand doctor</code>; its log is <code>docker logs overhand</code>. Another port: <code>-e OVERHAND_PORT=4400</code>.</li>
-        <li><b>Turning it off and updating</b> Turn off in {{name}} restarts the container; <code>docker stop overhand</code> stops it. To update, pull the repository, build again, then remove the container and run it again. The volume keeps everything.</li>
+        <li><b>Turning it off and updating</b> Turn off in {{name}} restarts the container; <code>docker stop overhand</code> stops it. To update, <code>docker pull {{image}}</code>, then remove the container and run it again. The volume keeps everything.</li>
       </ul>
     </section>
 
@@ -44,6 +62,7 @@ docker run -d --name overhand --network host --restart unless-stopped \
         <li><b>Tailscale for your phone</b> On the server, serve {{name}} on your tailnet, then add that https address in Settings → Extra origins:
           <pre><code>tailscale serve --bg --https=8443 http://127.0.0.1:4317</code></pre>
           A request through it gets nothing until that device is paired: open Settings → Phone through the tunnel and add the device there. See <a href="anywhere.html">Phone and Access from anywhere</a>.</li>
+        <li><b>Access from anywhere</b> On Pro and Team, set it up once in Settings → Phone through the tunnel; after that {{relayHost}} reaches the server from any device, with no tunnel and no open port. See <a href="anywhere.html#link">How linking works</a>.</li>
         <li><b>Never the open internet</b> Don't publish the port or put it behind a public proxy or Tailscale Funnel. The tunnel or your tailnet is the way in.</li>
       </ul>
     </section>

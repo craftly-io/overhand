@@ -17,15 +17,16 @@
  *                 the docs' pieces: {{docsList}} / {{docsNav}} (DOCS, site/site.ts), and on a docs page {{docTitle}} /
  *                 {{docLine}}; {{cli}}: the CLI's own help; {{guardTable}}: the guard's coverage; {{leadTemplates}}: the
  *                 ready-made leads; {{also}}: the home page's features (packages/contract/src/features.ts); {{wayOfWorking}}: how every lead works (WAY_OF_WORKING); {{firstDayCap}}, {{shipPerDay}}, {{shipProtect}}, {{localUrl}}, {{freshMin}}: the defaults they name;
+ *                 {{image}} / {{serverFiles}}: the Docker image and where release/server is served; {{port}}: the local port;
  *                 {{w.key}}: a control's or message's name from the app's words; {{cfg.a.b}}: a config default (config.ts)
  * The header link to the page itself (on a docs page, Docs) gets aria-current. /llms.txt lists the docs (`llmsTxt`). Markdown in site/pages (setup.md, for agents) is filled the
  * same way and served as it is. For agents, every docs page is also written as Markdown beside it (`docMarkdown`), all of
- * them in one /llms-full.txt (`llmsFullTxt`), and skills/overhand/SKILL.md is served as /skill.md. It also bundles the home page's script (`bundleHome`), the attention map, the
+ * them in one /llms-full.txt (`llmsFullTxt`), and skills/overhand/SKILL.md is served as /skill.md, release/server as /server/. It also bundles the home page's script (`bundleHome`), the attention map, the
  * dashboard's own drawing, into public/map.js and map.css (`bundleMap`). Every other page's live pieces are frames of the
  * dashboard itself (public/pieces.js). Run: bun site/build.ts (the deploy runs it,
  * site/wrangler.jsonc)
  */
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import {
   FEATURES,
@@ -238,6 +239,9 @@ export function leadTemplatesHtml(): string {
 /** The skill any coding agent can load (Agent Skills format), kept in the repo and served as /skill.md. */
 export const SKILL_PATH = join(here, "../skills/overhand/SKILL.md");
 
+/** The ready-made server setups (a first-boot script, a compose file), served as they are under /server/. */
+export const SERVER_DIR = join(here, "../release/server");
+
 /** What the docs, the skill and the llms files are licensed under, said the same in each. */
 const DOCS_LICENSE = `The docs, the agent skill and these llms files are CC0 1.0 (${SITE.repo}/blob/main/LICENSE-docs): copy them freely. The code is FSL-1.1-ALv2.`;
 
@@ -384,6 +388,7 @@ export function render(src: string, root: string, self: string, prices: PriceTab
     shipPerDay: String(SHIP_DEFAULTS.perDay),
     shipProtect: SHIP_DEFAULTS.protect.map((p) => `<code>${p}</code>`).join(" and "),
     localUrl: `http://127.0.0.1:${LOCAL_PORT}`,
+    port: String(LOCAL_PORT),
     freshMin: String(FRESH_MIN),
     ...Object.fromEntries(moments),
   };
@@ -516,7 +521,9 @@ if (import.meta.main) {
   writeFileSync(join(out, "llms.txt"), llmsTxt());
   writeFileSync(join(out, "llms-full.txt"), llmsFullTxt(docsMd));
   writeFileSync(join(out, "skill.md"), readFileSync(SKILL_PATH, "utf8"));
-  console.log("public/llms.txt, public/llms-full.txt, public/skill.md, public/docs/*.md");
+  // the ready-made server setups, as the server docs fetch them: {{serverFiles}}/user-data.sh and compose.yml
+  cpSync(SERVER_DIR, join(out, "server"), { recursive: true });
+  console.log("public/llms.txt, public/llms-full.txt, public/skill.md, public/docs/*.md, public/server/*");
   writeFileSync(join(out, "_headers"), siteHeaders(Boolean(process.env.OVERHAND_STAGING)));
   mkdirSync(join(out, ".well-known"), { recursive: true });
   writeFileSync(join(out, ".well-known", "security.txt"), securityTxt(Date.now()));
