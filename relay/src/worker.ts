@@ -297,7 +297,10 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
     const team = workspace && (await env.DB.prepare("SELECT id FROM teams WHERE billing_ws = ?").bind(workspace).first());
     // the webhook is already applied: a room that can't be told now re-checks on its own within ROOM_CHECK_MS, and
     // a 500 here would only make Paddle's retry a duplicate that pokes nothing
-    if (team) await tellRoom(env, String(team.id), "check").catch((e) => console.error(`team room check: ${e instanceof Error ? e.message : String(e)}`));
+    if (team)
+      await tellRoom(env, String(team.id), "check").catch((e) =>
+        console.error(`team room check: ${e instanceof Error ? e.message : String(e)}`),
+      );
     return json({ ok: true, result });
   }
 
