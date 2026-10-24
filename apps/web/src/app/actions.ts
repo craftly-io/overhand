@@ -426,6 +426,15 @@ export function useActions() {
         await navigator.clipboard.writeText(link);
         toast(fmt(w.saidGuideCopied, { link }));
       }),
+    /** Lets the daemon run git in a checkout a run flagged, after you looked and confirmed. */
+    gitAllow: (dir: string) =>
+      guard(false, async () => {
+        const at = dir === "*" ? w.alGitBlockedAll : dir;
+        if (!(await ui.confirm({ title: w.confirmGitAllowTitle, body: fmt(w.confirmGitAllow, { dir: at }), go: w.alGitAllow }))) return;
+        await post("/api/git/allow", { path: dir }, Ok);
+        toast(fmt(w.saidGitAllowed, { dir: at }));
+        refresh();
+      }),
     selfUpdate: () =>
       guard(false, async () => {
         if (!(await ui.confirm({ title: w.confirmUpdateTitle, body: w.confirmUpdate, go: w.confirmUpdateGo, tone: "primary" }))) return;

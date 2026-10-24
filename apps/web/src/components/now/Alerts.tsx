@@ -176,7 +176,7 @@ function QuickActions({ a }: { a: Alert }) {
 function Actions({ a }: { a: Alert }) {
   const w = useWords();
   const ui = useUi();
-  const { heldDismiss, heldPost, leadAnswer, leadStart, ruleAdd, ruleDismiss, run, selfUpdate } = useActions();
+  const { gitAllow, heldDismiss, heldPost, leadAnswer, leadStart, ruleAdd, ruleDismiss, run, selfUpdate } = useActions();
   const save = useQuickSave();
   const [open, setOpen] = useState(false);
   const [elsewhere, setElsewhere] = useState(false);
@@ -192,6 +192,8 @@ function Actions({ a }: { a: Alert }) {
   );
   if (t.kind === "card") return <CardButtons card={t.card} />;
   if (t.kind === "restart") return one(w.confirmRestartGo, () => void run({ name: "restart" }));
+  if (t.kind === "replan") return one(w.signInRetry, () => void run({ name: "plan" }));
+  if (t.kind === "git") return one(w.alGitAllow, () => void gitAllow(t.dir), "outline");
   if (t.kind === "raise") return one(fmt(w.alBudgetRaiseTo, { cap: `$${t.usd}` }), () => void save({ budgetUsd: t.usd }));
   if (t.kind === "update") return one(a.go ?? w.open, () => void selfUpdate());
   if (t.kind === "link") return one(a.go ?? w.open, () => void window.open(t.url, "_blank", "noopener,noreferrer"));

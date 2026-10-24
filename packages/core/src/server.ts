@@ -148,7 +148,7 @@ import { closePr, markReady, readPr } from "./review";
 import { RUNTIMES } from "./runtimes";
 import { claudeSignedIn, existingClaudeSignIn } from "./runtimes/claude-code";
 import { codexSignedIn } from "./runtimes/codex";
-import { hostTool, sandboxState } from "./sandbox";
+import { allowGit, gitFlagged, hostTool, sandboxState } from "./sandbox";
 import { liveDeps, runSelfCheck, writeDiagnostic } from "./selfcheck";
 import { requestStop, restartIfRequested, START_AGAIN, updateOps } from "./selfupdate";
 import { leadLog, liveSessions } from "./sessions";
@@ -1024,6 +1024,13 @@ export async function handle(req: Request): Promise<Response> {
       if (!ch) return json({ error: "no such channel; save it first" }, 404);
       const error = await sendUpdate(ch, await channelSummary(ch), Date.now());
       return error ? json({ error }, 502) : json({ ok: true });
+    }
+    case "/api/git/allow": {
+      // Needs you's Allow again, after you looked: only a checkout that's on the list (or "*" for an unreadable list)
+      const dir = typeof body.path === "string" ? body.path : "";
+      if (!gitFlagged().includes(dir)) return json({ error: "that checkout isn't blocked" }, 404);
+      allowGit(dir);
+      return json({ ok: true });
     }
     case "/api/cleanup/plan":
     case "/api/cleanup/run": {

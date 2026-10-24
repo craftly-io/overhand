@@ -34,6 +34,10 @@ type AlertTarget =
   | { kind: "signin"; account: string; tool: string }
   /** The daemon's work loop stopped: Restart Overhand. */
   | { kind: "restart" }
+  /** Today's plan failed: plan again. */
+  | { kind: "replan" }
+  /** No daemon git in `dir` ("*" = every checkout) until you allow it again, after looking. */
+  | { kind: "git"; dir: string }
   /** A lead that crashed out: Start it again, or open its log. */
   | { kind: "crashed"; key: string }
   /** Today's budget is used up: raise it to `usd` in one click. */
@@ -419,6 +423,28 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       say: w.alDiskWarnSay,
       item: "disk",
       target: { kind: "sweep" },
+    });
+  if (s.sandboxRefuse)
+    a.push({
+      sev: 3,
+      broken: true,
+      title: w.alSandboxRefuse,
+      sub: s.sandboxRefuse,
+      say: w.alSandboxRefuseSay,
+      go: w.alSandboxFix,
+      target: { kind: "settings", tab: "system" },
+    });
+  // today's plan failed when its newest word is a failure, not "plan written"
+  const planned = s.reports.findLastIndex((l) => l.includes("plan written"));
+  if (s.reports.findLastIndex((l) => l.includes("plan failed")) > planned)
+    a.push({ sev: 2, broken: true, title: w.alPlanFailed, sub: w.alPlanFailedSub, say: w.alPlanFailedSay, target: { kind: "replan" } });
+  for (const dir of s.gitBlocked)
+    a.push({
+      sev: 3,
+      broken: true,
+      title: dir === "*" ? w.alGitBlockedAll : fmt(w.alGitBlocked, { dir }),
+      sub: w.alGitBlockedSub,
+      target: { kind: "git", dir },
     });
   if (!s.daemon)
     a.push({
