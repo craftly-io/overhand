@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { blankConfig } from "../src/config";
@@ -174,6 +174,23 @@ test("slots: separate processes share them, at most `max` at once; a dead holder
   expect(acquire(ops, "suite", 1, { pid: process.pid, pgid: 0, run: "", cmd: "", since: 0 })).toBe(0);
   expect(acquire(ops, "suite", 1, { pid: process.pid, pgid: 0, run: "", cmd: "", since: 0 })).toBeNull();
 }, 20_000);
+
+test("a lock its writer left empty is held for a moment, then freed: the slot isn't lost for good", () => {
+  const ops = scratch();
+  const dir = join(ops, "slots", "build");
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, "0.lock");
+  const me = { pid: process.pid, pgid: 0, run: "", cmd: "", since: 0 };
+  writeFileSync(path, "");
+  expect(acquire(ops, "build", 1, me)).toBeNull(); // maybe being written right now
+  const past = new Date(Date.now() - 60_000);
+  utimesSync(path, past, past);
+  expect(holders(ops)).toEqual([]);
+  expect(existsSync(path)).toBe(false); // expired on the way
+  writeFileSync(path, '{"pid": 1');
+  utimesSync(path, past, past);
+  expect(acquire(ops, "build", 1, me)).toBe(0); // taken over directly too
+});
 
 const fast = (o: Partial<Governor> = {}): Governor => ({ ...GOV, silentMin: 0.004, ...o }); // ~240 ms of silence
 

@@ -19,9 +19,10 @@ import {
 } from "@overhand/contract";
 import { INSTALL_COMMAND, PERMISSIONS, SETUP_PROMPT } from "@overhand/contract/links";
 import { plainWords } from "@overhand/themes/words";
-import { BILLING_FAILED, billingPage, CHECKOUT_SETTINGS, publicPage } from "../src/billing";
+import { BILLING_FAILED, billingPage, CHECKOUT_SETTINGS, ON_A_PLAN, publicPage } from "../src/billing";
 import { EUR_PER_USD, monthlyCost, TEN_K } from "../src/cost";
 import {
+  activeEntitlement,
   applyEvent,
   type D1,
   type Entitlement,
@@ -208,7 +209,17 @@ async function linkedDaemon(ws: string) {
 
 /** A subscription webhook body, as Paddle sends one. */
 function subscriptionEvent(
-  o: { id?: string; ws?: string; status?: string; plan?: string; qty?: number; at?: string; type?: string; scheduled?: string } = {},
+  o: {
+    id?: string;
+    sub?: string;
+    ws?: string;
+    status?: string;
+    plan?: string;
+    qty?: number;
+    at?: string;
+    type?: string;
+    scheduled?: string;
+  } = {},
 ) {
   return {
     event_id: o.id ?? `evt_${crypto.randomUUID()}`,
@@ -216,7 +227,7 @@ function subscriptionEvent(
     occurred_at: o.at ?? "2026-10-20T10:00:00.000000Z",
     notification_id: "ntf_1",
     data: {
-      id: "sub_1",
+      id: o.sub ?? "sub_1",
       status: o.status ?? "active",
       customer_id: "ctm_1",
       custom_data: { workspace: o.ws ?? "user_A" },
@@ -420,6 +431,18 @@ describe("entitlements", () => {
     expect(await applyEvent(db, subscriptionEvent({ id: "evt_10", ws: "" }), 0)).toBe("bad");
   });
 
+  test("an event for another subscription never turns a paid one off; the same one still can", async () => {
+    const at = (d: number) => `2026-10-2${d}T10:00:00.000000Z`;
+    expect(await applyEvent(db, subscriptionEvent({ sub: "sub_pro", at: at(0) }), 0)).toBe("applied");
+    expect(await applyEvent(db, subscriptionEvent({ sub: "sub_team", plan: "team", qty: 3, at: at(1) }), 0)).toBe("applied");
+    const pro = { sub: "sub_pro", type: "subscription.canceled", status: "canceled", at: at(2) };
+    expect(await applyEvent(db, subscriptionEvent(pro), 0)).toBe("stale");
+    expect(await activeEntitlement(db, "user_A")).toMatchObject({ plan: "team", subscription_id: "sub_team" });
+    const team = { sub: "sub_team", type: "subscription.canceled", status: "canceled", plan: "team", at: at(3) };
+    expect(await applyEvent(db, subscriptionEvent(team), 0)).toBe("applied");
+    expect(await activeEntitlement(db, "user_A")).toBeNull();
+  });
+
   test("a cancel or pause at period end says until, never renewing; undoing it says renewing again", async () => {
     const status = async () => {
       const entitlement = await entitlementOf(db, "user_A");
@@ -600,6 +623,31 @@ describe("checkout", () => {
     } finally {
       globalThis.fetch = real;
     }
+  });
+});
+
+describe("checkout while on a plan", () => {
+  test("is refused with one plain line and never reaches Paddle, so a stale tab can't start a second subscription", async () => {
+    expect(await applyEvent(db, subscriptionEvent({ ws: "user_A" }), 0)).toBe("applied");
+    const urls: string[] = [];
+    const r = await withFetch(
+      async (input) => {
+        urls.push(String(input instanceof Request ? input.url : input));
+        return new Response(null, { status: 500 });
+      },
+      async () =>
+        route(
+          new Request(`${APP}/relay/checkout`, {
+            method: "POST",
+            headers: { origin: APP, cookie: await sessionCookie("user_A") },
+            body: JSON.stringify({ plan: "team", cycle: "month", seats: 2 }),
+          }),
+          env(),
+        ),
+    );
+    expect(r.status).toBe(409);
+    expect(await r.json()).toEqual({ error: ON_A_PLAN });
+    expect(urls).toEqual([]);
   });
 });
 

@@ -16,6 +16,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
   writeSync,
 } from "node:fs";
@@ -23,6 +24,7 @@ import { cpus, loadavg } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import type { Config } from "./config";
+import { writeAtomic } from "./control";
 
 /** Heavy job kinds, in the order a command is matched against them. */
 export const HEAVY = ["browser", "simulator", "suite", "build", "devserver"] as const;
@@ -253,6 +255,17 @@ function readLock(path: string): Lock | null {
 
 const slotDir = (ops: string, kind: Heavy) => join(ops, "slots", kind);
 
+/** How long a lock may read as unreadable while it's being written; past that its writer was killed mid-write. */
+const HALF_WRITTEN_MS = 5_000;
+/** True when a lock that doesn't parse is a leftover, not one being written right now (or it's gone already). */
+const halfWritten = (path: string, now = Date.now()): boolean => {
+  try {
+    return now - statSync(path).mtimeMs > HALF_WRITTEN_MS;
+  } catch {
+    return true;
+  }
+};
+
 /**
  * Removes a dead holder's lock, killing what's left of its job first: its process group, only while a process in it
  * still carries OVERHAND_HEAVY (every job `runHeavy` starts does). A lock is only a file, and one an agent planted could
@@ -293,8 +306,8 @@ export function acquire(
         return i;
       } catch {
         const held = readLock(path);
-        // a lock being written right now reads empty: count it as held
-        if (!held || alive(held.pid)) break;
+        // a lock being written right now reads empty: held, until it has read that way too long
+        if (held ? alive(held.pid) : !halfWritten(path)) break;
         expire(path, held, env);
       }
     }
@@ -305,7 +318,7 @@ export function acquire(
 /** Updates a slot this process holds (e.g. with the job's process group once it started). */
 function updateSlot(ops: string, kind: Heavy, slot: number, lock: z.input<typeof LockSchema>): void {
   const path = join(slotDir(ops, kind), `${slot}.lock`);
-  if (readLock(path)?.pid === lock.pid) writeFileSync(path, JSON.stringify(lock), { mode: 0o600 });
+  if (readLock(path)?.pid === lock.pid) writeAtomic(path, JSON.stringify(lock));
 }
 
 /** Lets a slot go, only if `pid` still holds it. */
@@ -325,7 +338,7 @@ export function holders(ops: string): (Lock & { kind: Heavy; slot: number })[] {
       const path = join(dir, f);
       const lock = readLock(path);
       if (lock && alive(lock.pid)) return [{ ...lock, kind, slot: Number(m[1]) }];
-      if (lock) expire(path, lock); // an unreadable one may be mid-write: left alone
+      if (lock || halfWritten(path)) expire(path, lock); // an unreadable one may be mid-write: left alone a moment
       return [];
     });
   });

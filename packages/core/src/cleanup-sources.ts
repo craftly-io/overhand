@@ -587,7 +587,7 @@ export const SOURCES: Source[] = [
     id: "playwright-browsers",
     tool: "Playwright",
     category: "caches",
-    what: "an older Playwright browser build",
+    what: "an older Playwright browser build no installed Playwright pins",
     type: "download",
     back: "downloaded again by `npx playwright install` if a project still pins it",
     mac: ["~/Library/Caches/ms-playwright"],
