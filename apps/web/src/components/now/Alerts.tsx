@@ -137,7 +137,7 @@ function AlertCard({ a, brief, className }: { a: Alert; brief?: string; classNam
     );
   const onClick = () => {
     if (t.kind === "ticket") ui.openDrawer({ kind: "ticket", key: t.key });
-    else if (t.kind === "lead" || t.kind === "crashed") ui.openDrawer({ kind: "lead", key: t.key });
+    else if (t.kind === "lead" || t.kind === "crashed" || t.kind === "cantstart") ui.openDrawer({ kind: "lead", key: t.key });
     else if (t.kind === "review") ui.openDrawer({ kind: "review", key: t.key });
     else if (t.kind === "notes" || t.kind === "sweep") ui.openDrawer({ kind: t.kind });
     else if (t.kind === "settings") ui.openDrawer({ kind: "settings", tab: t.tab, project: t.project });
@@ -198,6 +198,17 @@ function Actions({ a }: { a: Alert }) {
   if (t.kind === "settings")
     return one(a.go ?? w.decOpenSettings, () => ui.openDrawer({ kind: "settings", tab: t.tab, project: t.project }), "outline");
   if (t.kind === "notes" || t.kind === "sweep") return one(a.go ?? w.open, () => ui.openDrawer({ kind: t.kind }), "outline");
+  if (t.kind === "cantstart")
+    return (
+      <div className="flex flex-wrap justify-end gap-1">
+        <Button variant="outline" size="xs" onClick={() => ui.openDrawer({ kind: "settings", tab: "accounts" })}>
+          {fmt(w.alFixAccount, { account: t.account })}
+        </Button>
+        <Button size="xs" onClick={() => void leadStart(t.key)}>
+          {w.signInRetry}
+        </Button>
+      </div>
+    );
   if (t.kind === "crashed")
     return (
       <div className="flex flex-wrap justify-end gap-1">

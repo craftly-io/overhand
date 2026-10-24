@@ -888,6 +888,7 @@ export const plainWords = {
   alLeadCantStart: "{lead} can't start",
   alLeadCantStartSay: "{lead} can't start",
   alFixAccount: "Fix {account}",
+  leadCantStart: "Can't start on {account}: {why}",
   alLeadCrashedSay: "{lead} keeps crashing",
   alReview: "Review requested: {repo} #{n}",
   alReviewMany: "{n} reviews requested in {repo}",

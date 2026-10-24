@@ -45,6 +45,7 @@ export function leadState(g: Lead, w: Words, now: number): string {
   if (!g.supervised) return w.leadOff;
   if (g.stopped) return fmt(w.leadStopped, { reason: g.reason });
   if (g.waiting) return w.leadWaiting;
+  if (g.cantStart) return fmt(w.leadCantStart, { account: g.cantStart.account, why: g.cantStart.why });
   if (g.capHeld) return w.leadWaitingCap; // the daemon's heldByCap: the cap, not a usage limit, is what it waits on
   const back = g.limitBack ?? 0;
   if (back > now) return fmt(w.leadWaitingLimitUntil, { account: g.limitAccount ?? g.account, t: until(back, now) });

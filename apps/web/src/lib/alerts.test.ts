@@ -398,3 +398,31 @@ test("every problem's card carries its fix: restart when offline, start a crashe
   ])
     expect(computeAlerts(s, parsePlan([]), plainWords, NOW).filter((a) => a.target.kind === "none")).toEqual([]);
 });
+
+test("a lead whose start fails before it runs says why, with Fix the account and Try again", () => {
+  const base = state({});
+  const g = {
+    key: "shop",
+    label: "Online shop lead",
+    name: "",
+    project: "Online shop",
+    supervised: true,
+    onDemand: false,
+    running: false,
+    mine: true,
+    since: 0,
+    stopped: false,
+    reason: "",
+    waiting: false,
+    waitingLimit: false,
+    cantStart: { account: "work", why: "no Anthropic API key for work" },
+    nextAt: 0,
+    account: "work",
+    inbox: null,
+    open: false,
+    ask: null,
+  };
+  const card = computeAlerts({ ...base, godmode: [g] }, parsePlan([]), plainWords, NOW).find((a) => a.target.kind === "cantstart");
+  expect(card?.sub).toBe("no Anthropic API key for work");
+  expect(card?.target).toEqual({ kind: "cantstart", key: g.key, account: "work" });
+});
