@@ -1,9 +1,9 @@
 /** Self-update, restart and shutdown between work passes. This module owns the restart/shutdown flags. */
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { INSTALLER, REPO } from "@overhand/contract";
 import pkg from "../../../package.json";
-import { BUNDLED, CFG, INSTALL, type InstallKind, OPS, SELF_EXEC, SRC, sh, shAsync } from "./env";
+import { BUNDLED, CFG, type InstallKind, OPS, SELF_EXEC, SRC, sh, shAsync } from "./env";
 import { leadChildren } from "./leads";
 import { report } from "./notify";
 import { startAgainCommand, stopService } from "./platform";
@@ -110,7 +110,15 @@ export async function checkOpsUpdate(dir = SRC): Promise<void> {
 
 /** Fast-forwards main and reinstalls dependencies if the lockfile changed; the restart waits for any running agent. `dir` is for tests. */
 export function updateOps(dir = SRC): { ok: boolean; message: string } {
-  if (BUNDLED) return { ok: false, message: `Update from a terminal: ${updateRoute(INSTALL).say}` };
+  if (BUNDLED) {
+    // an installed copy updates exactly as `overhand update` would, in a process of its own that outlives this one's
+    // restart; its output goes to the logs folder, and it asks this daemon to restart once the new version is in place
+    const log = join(OPS, "logs", `update-${Date.now()}.log`);
+    mkdirSync(join(OPS, "logs"), { recursive: true });
+    Bun.spawn([SELF_EXEC, "update"], { detached: true, stdin: "ignore", stdout: Bun.file(log), stderr: Bun.file(log) }).unref();
+    report(`⬆ updating Overhand from the dashboard (${log})`);
+    return { ok: true, message: "Updating. Overhand restarts on the new version as soon as no agent is running." };
+  }
   if (sh(["git", "branch", "--show-current"], dir).out !== "main")
     return { ok: false, message: "ops isn't on main; switch back before updating" };
   if (sh(["git", "status", "--porcelain", "--untracked-files=no"], dir).out)

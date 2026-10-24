@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { gitRefused, OPS, sh } from "../src/env";
 import { codexSignedIn } from "../src/runtimes/codex";
 import { gitEnv, gitPointersOk } from "../src/runtimes/runtime";
-import { flagRepo, projectCommand, real, sandboxPolicy } from "../src/sandbox";
+import { allowGit, flagRepo, gitFlagged, projectCommand, real, sandboxPolicy } from "../src/sandbox";
 
 const scratch = () => real(mkdtempSync(join(tmpdir(), "overhand-review2-")));
 const git = (cwd: string, ...args: string[]) =>
@@ -118,4 +118,17 @@ test("Codex counts as signed in only when `codex login status` says so in that f
   expect(await codexSignedIn(home, fake)).toBe(false);
   writeFileSync(join(home, "ok"), "");
   expect(await codexSignedIn(home, fake)).toBe(true);
+});
+
+test("a flagged checkout is listed until you allow it again; an unreadable list is everywhere, until allowed as a whole", () => {
+  const ops = scratch();
+  flagRepo(join(ops, "a"), "L-1", ops);
+  flagRepo(join(ops, "b"), "L-1", ops);
+  expect(gitFlagged(ops)).toEqual([real(join(ops, "a")), real(join(ops, "b"))]);
+  allowGit(real(join(ops, "a")), ops);
+  expect(gitFlagged(ops)).toEqual([real(join(ops, "b"))]);
+  writeFileSync(join(ops, "control", "git-tampered.json"), "{cut");
+  expect(gitFlagged(ops)).toEqual(["*"]);
+  allowGit("*", ops);
+  expect(gitFlagged(ops)).toEqual([]);
 });

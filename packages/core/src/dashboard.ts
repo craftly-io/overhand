@@ -45,7 +45,7 @@ import { menubarHelper } from "./menubar";
 import { diskFree, report } from "./notify";
 import { reviewRound } from "./onpreview";
 import { loadActions, room, toCard, toSession } from "./room";
-import { waitsForSignIn } from "./sandbox";
+import { gitFlagged, projectSandbox, waitsForSignIn } from "./sandbox";
 import { lastSelfCheck } from "./selfcheck";
 import { latestRelease, opsBehind, updateRoute, VERSION } from "./selfupdate";
 import { type LiveSession, liveSessions } from "./sessions";
@@ -345,6 +345,8 @@ export async function dashboardState(): Promise<DashboardState> {
     budgetSpent: budgeted, // what the daily budget checks: billed, and accounts whose billing isn't known yet
     budgetUsd: CFG.limits.dailyBudgetUsd,
     paceWeekly: CFG.limits.paceWeekly,
+    gitBlocked: gitFlagged(),
+    sandboxRefuse: projectSandbox("").refuse ? projectSandbox("").why || "the OS sandbox can't run here" : "",
     menubar: menubarHelper() ? CFG.menubar : null,
     dayOne: firstDay(),
     sessions,
