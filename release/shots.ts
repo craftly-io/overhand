@@ -25,6 +25,7 @@ import type { BrowserContext, Page, Route } from "playwright-core";
 import { demoGet } from "../apps/web/src/demo/fixtures";
 import { nightAt } from "../apps/web/src/demo/night";
 import { SYSTEM } from "../packages/themes/src/system";
+import { DOCS } from "../site/site";
 
 const ROOT = resolve(import.meta.dir, "..");
 
@@ -87,7 +88,8 @@ export const SITE_PAGES = [
   "terms",
   "refund",
   "docs/index",
-  "docs/install",
+  // every docs page, from the site's own list, so a new page is swept from its first day
+  ...DOCS.map((d) => `docs/${d.slug}`),
 ];
 /** The site follows the computer's light or dark (no toggle), so its every frame is shot in both. */
 export const SITE_SCHEMES = ["light", "dark"] as const;
