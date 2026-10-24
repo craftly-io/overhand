@@ -207,6 +207,7 @@ export type Entitlement = z.infer<typeof EntitlementSchema>;
 
 /** Statuses that keep hosted features on. past_due keeps them while Paddle retries the card; a cancel lands at period end. */
 const PAID = new Set(["active", "trialing", "past_due"]);
+const PAID_SQL = [...PAID].map((st) => `'${st}'`).join(", ");
 
 /** The workspace's entitlement when it's paid for, else null. */
 export async function activeEntitlement(db: D1, workspace: string): Promise<Entitlement | null> {
@@ -255,8 +256,8 @@ export type Applied = "applied" | "duplicate" | "ignored" | "stale" | "bad";
 /**
  * Applies one verified webhook. Subscription events upsert the workspace's entitlement (the workspace rides in
  * custom_data, set server-side on the checkout's transaction and copied by Paddle to the subscription). The event id is
- * recorded in the same transaction, so a replay or retry is a no-op, and an event older than the stored one never
- * overwrites it (Paddle doesn't promise order).
+ * recorded in the same transaction, so a replay or retry is a no-op, an event older than the stored one never
+ * overwrites it (Paddle doesn't promise order), and an event for another subscription never turns a paid one off.
  */
 export async function applyEvent(db: D1, event: unknown, now: number): Promise<Applied> {
   const head = z.object({ event_id: z.string(), event_type: z.string() }).safeParse(event);
@@ -288,7 +289,9 @@ export async function applyEvent(db: D1, event: unknown, now: number): Promise<A
            status = excluded.status, subscription_id = excluded.subscription_id, customer_id = excluded.customer_id,
            price_id = excluded.price_id, period_end = excluded.period_end, occurred_at = excluded.occurred_at,
            scheduled_change = excluded.scheduled_change, scheduled_at = excluded.scheduled_at
-         WHERE excluded.occurred_at > entitlements.occurred_at`,
+         WHERE excluded.occurred_at > entitlements.occurred_at
+           AND (excluded.subscription_id = entitlements.subscription_id OR excluded.status IN (${PAID_SQL})
+             OR entitlements.status NOT IN (${PAID_SQL}))`,
       )
       .bind(
         workspace,

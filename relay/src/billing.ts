@@ -296,7 +296,10 @@ export async function prices(env: Env, now = Date.now()): Promise<Catalog> {
 }
 
 /** What the billing page says when Paddle refuses or fails an action. */
+/** Checkout while a plan is on: a second subscription would bill twice, and canceling either would muddle access. */
 export const BILLING_FAILED = `Paddle couldn't do that just now. Try again in a minute; if it keeps failing, write to ${EMAIL}.`;
+/** Checkout while a plan is on: a second subscription would bill twice, and canceling either would muddle access. */
+export const ON_A_PLAN = `You're on a plan already. To switch plans, write to ${EMAIL}.`;
 
 /** Headers for a page that runs Paddle.js under a nonce. */
 const checkoutHeaders = (nonce: string): Record<string, string> => ({
@@ -397,6 +400,7 @@ export async function billingRoute(req: Request, env: Env, url: URL, s: SessionC
       // a draft transaction for the tagged price, with the workspace set here, never by the browser
       const b = z.object({ plan: z.enum(PLANS), cycle: z.enum(CYCLES), seats: z.number().int().optional() }).safeParse(body);
       if (!b.success) return json({ error: "pick a plan and a billing cycle" }, 400);
+      if (await activeEntitlement(env.DB, s.ws)) return json({ error: ON_A_PLAN }, 409);
       const price = (await prices(env, now))[b.data.plan][b.data.cycle];
       if (!price) return json({ error: `no ${b.data.plan} ${b.data.cycle} price in Paddle` }, 404);
       // Team's seats within the price's own quantity limits (2–500 in the catalog)
