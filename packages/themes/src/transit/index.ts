@@ -41,7 +41,7 @@ const night = [
 export default defineTheme({
   id: "transit",
   name: "Transit",
-  tagline: "A living metro map on paper",
+  tagline: "A living metro map, by day and by night",
   ink: night,
   lightInk: paper,
   tokens: fromInk(night, { you: "#ff8a3d", youFill: "#f26b1d", youInk: "#141414", ok: "#62c486", bad: "#ff6b66", destructive: "#b8232b" }),
