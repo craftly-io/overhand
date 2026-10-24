@@ -2,6 +2,7 @@
  * The relay's monthly cost as a function of usage, so COST.md's numbers are computed, not typed, and a test keeps the
  * 10,000-concurrent estimate under the €100 cap. Prices checked 2026-10-20 (sources in COST.md).
  */
+import { ROOM_CHECK_MS } from "./room";
 
 /** Cloudflare list prices, USD. */
 const PRICES = {
@@ -129,18 +130,21 @@ function teamVolumes(t: TeamUsage) {
   const connects = t.members * t.reconnectsPerDay * DAYS;
   const presence = t.members * t.presencePerDay * DAYS;
   const events = t.members * t.eventsPerDay * DAYS;
+  // every room's seat check (ROOM_CHECK_MS), as if every team had someone connected all day
+  const checks = (t.members / t.perTeam) * (86_400_000 / ROOM_CHECK_MS) * DAYS;
   return {
     connects,
     presence,
     events,
     // the upgrade plus roster reads and admin actions
     workerRequests: connects + t.members * t.workerPerDay * DAYS,
-    doRequests: connects + (presence + events) / PRICES.wsRatio,
-    // presence needs no I/O; an event waits on its D1 insert, a connect on its catch-up read
-    gbs: ((presence * t.handlerMs + (events + connects) * (t.handlerMs + t.d1Ms)) * PRICES.doGb) / 1000,
+    doRequests: connects + checks + (presence + events) / PRICES.wsRatio,
+    // presence needs no I/O; an event waits on its D1 insert, a connect on its catch-up read, a check on its seat reads
+    gbs: ((presence * t.handlerMs + (events + connects + checks) * (t.handlerMs + t.d1Ms)) * PRICES.doGb) / 1000,
     // insert plus its primary-key index, and the trim deleting as many again
     d1Writes: events * 4,
-    d1Reads: connects * t.catchupRows + t.members * t.workerPerDay * DAYS * 20,
+    // a check reads the team, its members and the plan
+    d1Reads: connects * t.catchupRows + t.members * t.workerPerDay * DAYS * 20 + checks * (t.perTeam + 2),
   };
 }
 

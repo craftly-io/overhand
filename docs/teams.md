@@ -120,7 +120,9 @@ member A's daemon ──signed WebSocket──▶ Team room (Durable Object, one
   - reading the roster: members;
   - inviting, withdrawing invites, roles and project ownership: admins;
   - changing or removing an admin: the owner;
-  - the room socket: a member's daemon with a seat.
+  - the room socket: a member's daemon with a seat. The room checks this again every 5 minutes and on every plan or
+    seat change from Paddle, and closes a socket that no longer qualifies (code 4001, like a removal). The daemon then
+    reads its roster and shows why.
 
   Browsers authenticate by session, and their writes must come from the hosted origin. Daemons authenticate by device
   key.
@@ -142,8 +144,6 @@ member A's daemon ──signed WebSocket──▶ Team room (Durable Object, one
 - **A compromised relay** could forge or drop feed messages, but it can never reach anyone's code. The feed carries no
   commands, and a hand-off still needs the recipient's click.
 - **Known limits.**
-  - A member who loses their seat after the grace keeps a socket that's already open until it reconnects (at most a
-    day, when the daemon's entitlement refreshes).
   - Comments and questions are retained in D1 for up to 500 events per team.
 
 ## Billing
@@ -176,15 +176,16 @@ deliberately busy:
 | Presence messages (no I/O, no writes) | 45M incoming (billed 20:1) | in DO requests |
 | Events (logged) | 6M incoming, 24M D1 rows written | D1: within 50M included |
 | Worker requests (teams) | 3.3M | in Workers |
-| DO requests (teams) | 4.35M | +0.65 |
-| DO duration (teams) | 57,375 GB-s | within 400k included |
-| D1 reads | 138M rows | within 25B included |
+| Seat checks (every 5 minutes per room) | 17.28M | in DO requests |
+| DO requests (teams) | 21.63M | +3.24 |
+| DO duration (teams) | 122,175 GB-s | within 400k included |
+| D1 reads | 259M rows | within 25B included |
 | **Relay alone at 10k** | | **10.80** |
-| **Relay with Teams at 10k** | | **12.58 ≈ €11.95** |
-| **One active team of 5, marginal at list prices** | | **≈ $0.013 ≈ €0.013 / month** |
+| **Relay with Teams at 10k** | | **15.17 ≈ €14.41** |
+| **One active team of 5, marginal at list prices** | | **≈ $0.015 ≈ €0.014 / month** |
 
 What moves it: D1 writes. At 100 events per member per day (5× the busy case), D1 writes pass the included 50M
-($70), for a total of $83.77, still under the cap. The levers, in order:
+($70), for a total of $86.36, still under the cap. The levers, in order:
 
 1. Log only questions, answers and hand-offs (results become presence).
 2. Trim less often.

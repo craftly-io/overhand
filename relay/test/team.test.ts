@@ -14,10 +14,10 @@ import {
 } from "@overhand/contract";
 import { EUR_PER_USD, monthlyCostWithTeams, TEAM_TEN_K, TEN_K } from "../src/cost";
 import type { D1 } from "../src/paddle";
-import { RATE_PER_MINUTE, TeamRoom } from "../src/room";
+import { RATE_PER_MINUTE, ROOM_CHECK_MS, TeamRoom } from "../src/room";
 import { access } from "../src/team";
 import { type Env, relayKeys, route } from "../src/worker";
-import { type FakeSocket, fakeD1, fakeState, socket } from "./fakes";
+import { type FakeSocket, fakeD1, fakeRoomState, socket } from "./fakes";
 
 const keys = await newKeyPair();
 const APP = "https://app.example";
@@ -172,6 +172,34 @@ describe("creating a team", () => {
   test("one team per person", async () => {
     const { owner } = await teamOf();
     expect((await owner.browser("POST", "/relay/team/create", { name: "Again" })).status).toBe(409);
+  });
+
+  test("two creates at once make one team; the other answers 409 and its organisation is deleted again", async () => {
+    const owner = await person("user_owner", "owner@x.dev");
+    await plan(owner.user, 3);
+    // WorkOS answers both only once both asked: each create passed the "in a team already?" check before either wrote
+    const fake = globalThis.fetch;
+    let release = () => {};
+    const bothAsked = new Promise<void>((r) => {
+      release = r;
+    });
+    let asked = 0;
+    globalThis.fetch = Object.assign(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        if (String(input).endsWith("/organizations") && ++asked === 2) release();
+        if (String(input).endsWith("/organizations")) await bothAsked;
+        return fake(input, init);
+      },
+      { preconnect: fake.preconnect },
+    );
+    const both = await Promise.all([
+      owner.browser("POST", "/relay/team/create", { name: "Crew" }),
+      owner.browser("POST", "/relay/team/create", { name: "Crew" }),
+    ]);
+    expect(both.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect((await db.prepare("SELECT COUNT(*) AS n FROM teams").first())?.n).toBe(1);
+    expect(workosCalls.filter((c) => c.startsWith("POST /organizations")).length).toBe(2);
+    expect(workosCalls.filter((c) => c.startsWith("DELETE /organizations/")).length).toBe(1);
   });
 });
 
@@ -386,14 +414,62 @@ const question = (id: string, text = "Which payment provider should the checkout
 });
 
 function room(clock = () => Date.now()) {
-  const st = fakeState<TeamIncoming>();
+  const st = fakeRoomState<TeamIncoming>();
   return { st, r: new TeamRoom(st, { DB: db }, clock) };
 }
-const join = async (r: TeamRoom, user: string, since = 0): Promise<Sock> => {
+const join = async (r: TeamRoom, user: string, since = 0, team = "team_1"): Promise<Sock> => {
   const s = socket<TeamIncoming>();
-  await r.accept(s, user, "team_1", since);
+  await r.accept(s, user, team, since);
   return s;
 };
+
+describe("access while connected", () => {
+  /** A team of the owner, Ann and Bob, each with a room socket. */
+  async function connected(seats: number, clock: () => number) {
+    const { owner, roster } = await teamOf(3);
+    const ann = await member(owner, "user_ann");
+    const bob = await member(owner, "user_bob");
+    await plan(owner.user, seats);
+    const { st, r } = room(clock);
+    const [o, a, b] = [
+      await join(r, owner.user, 0, roster.team.id),
+      await join(r, ann.user, 0, roster.team.id),
+      await join(r, bob.user, 0, roster.team.id),
+    ];
+    return { owner, st, r, o, a, b };
+  }
+
+  test("a lapsed plan closes every socket on the billing check, with the reason", async () => {
+    const { owner, r, o, a, b } = await connected(3, () => Date.now());
+    await r.check();
+    expect([o.closed, a.closed, b.closed]).toEqual([null, null, null]);
+    await plan(owner.user, 3, "team", "canceled");
+    const res = await r.fetch(new Request("https://room/control", { method: "POST", headers: { "x-room": "check" } }));
+    expect(res.status).toBe(204);
+    expect([o.closed, a.closed, b.closed]).toEqual([4001, 4001, 4001]);
+  });
+
+  test("fewer seats: everyone stays through the grace; when it ends the timer closes the newest member only", async () => {
+    let t = Date.now();
+    const { st, r, o, a, b } = await connected(2, () => t);
+    expect(st.alarm).toBe(t + ROOM_CHECK_MS);
+    await r.alarm();
+    expect([o.closed, a.closed, b.closed]).toEqual([null, null, null]);
+    t += SEAT_GRACE_MS + 1;
+    await r.alarm();
+    expect([o.closed, a.closed, b.closed]).toEqual([null, null, 4001]);
+    expect(o.sent.at(-1)).toMatchObject({ k: "leave", by: "user_bob" });
+    // still connected members keep the timer going
+    expect(st.alarm).toBe(t + ROOM_CHECK_MS);
+  });
+
+  test("a member removed from D1 is closed on the next check; a valid member stays", async () => {
+    const { r, o, a, b } = await connected(3, () => Date.now());
+    await db.prepare("DELETE FROM team_members WHERE user = ?").bind("user_ann").run();
+    await r.check();
+    expect([o.closed, a.closed, b.closed]).toEqual([null, 4001, null]);
+  });
+});
 
 describe("the team room", () => {
   test("presence fans out to the others, stamped, and is never logged; events are logged and reach everyone", async () => {

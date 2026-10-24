@@ -243,6 +243,12 @@ const SubscriptionEvent = z.object({
   }),
 });
 
+/** The workspace a subscription event is for, or null. */
+export function eventWorkspace(event: unknown): string | null {
+  const ws = SubscriptionEvent.safeParse(event).data?.data.custom_data?.workspace;
+  return typeof ws === "string" && ws ? ws : null;
+}
+
 /** What a webhook did: applied, a duplicate (replayed or retried event id), ignored (not a subscription event), or bad. */
 export type Applied = "applied" | "duplicate" | "ignored" | "stale" | "bad";
 
@@ -264,10 +270,10 @@ export async function applyEvent(db: D1, event: unknown, now: number): Promise<A
   const e = SubscriptionEvent.safeParse(event);
   if (!e.success) return "bad";
   const s = e.data.data;
-  const workspace = s.custom_data?.workspace;
+  const workspace = eventWorkspace(event);
   const item = s.items[0];
   const plan = PLANS.find((p) => p === item?.price.custom_data?.plan);
-  if (typeof workspace !== "string" || !workspace || !item || !plan) return "bad";
+  if (!workspace || !item || !plan) return "bad";
   const cycle = CYCLES.find((c) => c === item.price.custom_data?.cycle) ?? null;
   // only a cancel or pause changes what billing says; Paddle sends null once the customer undoes it, which clears it
   const change = SCHEDULED.find((a) => a === s.scheduled_change?.action) ?? null;

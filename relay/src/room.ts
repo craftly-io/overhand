@@ -6,7 +6,8 @@
  * catches up on connect. Every message is checked against the contract's allowlist (parseTeamSend) before anything else
  * happens to it, and stamped with who sent it here, never by the client. Keep-alive pings are answered by the runtime.
  *
- * Only the Worker reaches the object: it authenticated the member, checked their seat and set x-user and x-team.
+ * Only the Worker reaches the object: it authenticated the member, checked their seat and set x-user and x-team. The room
+ * checks seats again while members stay connected (check), so access lost later closes the socket too.
  */
 import {
   CATCHUP_MAX,
@@ -21,6 +22,15 @@ import {
 } from "@overhand/contract";
 import type { D1 } from "./paddle";
 import type { HibernatingSocket, SignalState } from "./signal";
+import { roomRule } from "./team";
+
+/** The parts of DurableObjectState the room uses: the sockets, and an alarm for checking them again. */
+export type RoomState = SignalState & {
+  storage: { getAlarm(): Promise<number | null>; setAlarm(at: number): Promise<void> };
+};
+
+/** How often a room with members checks each one against roomRule again: grace endings land within this. */
+export const ROOM_CHECK_MS = 5 * 60_000;
 
 /** A member's socket attachment (≤ 16 KiB): who, which team, their presence, and a per-minute message budget. */
 export type MemberTag = { user: string; team: string; at: number; presence: Presence | null; minute: number; sent: number };
@@ -58,7 +68,7 @@ const send = (ws: HibernatingSocket, m: RoomSays | TeamEvent): void => {
 /** The team's room. */
 export class TeamRoom {
   constructor(
-    private readonly ctx: SignalState,
+    private readonly ctx: RoomState,
     private readonly env: { DB: D1 },
     private readonly clock: () => number = Date.now,
   ) {
@@ -70,6 +80,7 @@ export class TeamRoom {
     const control = req.headers.get("x-room");
     if (control && req.headers.get("upgrade") !== "websocket") {
       if (control === "roster") this.broadcast({ k: "roster", at: this.clock() });
+      else if (control === "check") await this.check();
       else if (control.startsWith("kick:")) this.kick(control.slice(5));
       return new Response(null, { status: 204 });
     }
@@ -109,6 +120,29 @@ export class TeamRoom {
       .reverse();
     send(ws, { k: "hello", online, log, truncated: got.results.length > CATCHUP_MAX });
     this.broadcast({ k: "join", by: user, at: now }, user);
+    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(now + ROOM_CHECK_MS);
+  }
+
+  /**
+   * Checks every socket against roomRule, the rule the Worker admitted it by, and closes the ones it no longer admits
+   * (a lapsed plan, an ended seat grace, fewer seats): code 4001, like a removal, so the daemon reads its roster again
+   * and shows why.
+   */
+  async check(): Promise<void> {
+    const sockets = this.members();
+    const team = sockets[0]?.tag.team;
+    if (!team) return;
+    const refused = await roomRule(this.env.DB, team, this.clock());
+    for (const { tag } of sockets) {
+      const why = refused(tag.user);
+      if (why) this.kick(tag.user, why);
+    }
+  }
+
+  /** The timer: checks again, and keeps checking while anyone is connected. */
+  async alarm(): Promise<void> {
+    await this.check();
+    if (this.members().length) await this.ctx.storage.setAlarm(this.clock() + ROOM_CHECK_MS);
   }
 
   /** Every member socket with its tag. */
@@ -123,10 +157,10 @@ export class TeamRoom {
     for (const x of this.members()) if (x.tag.user !== except) send(x.ws, m);
   }
 
-  /** Closes a removed member's socket (code 4001), and tells the others they left. */
-  kick(user: string): void {
+  /** Closes the socket of a member no longer let in (code 4001, and why), and tells the others they left. */
+  kick(user: string, why = "removed from the team"): void {
     for (const ws of this.ctx.getWebSockets(user)) {
-      ws.close(4001, "removed from the team");
+      ws.close(4001, why);
       this.webSocketClose(ws, 4001, "", true);
     }
   }

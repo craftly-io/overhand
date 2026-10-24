@@ -155,7 +155,15 @@ const env = (): Env => ({
       },
     }),
   },
-  TEAM: { idFromName: (name) => name, get: () => ({ fetch: async () => new Response(null, { status: 204 }) }) },
+  TEAM: {
+    idFromName: (name) => name,
+    get: (id) => ({
+      fetch: async (req) => {
+        forwarded.push({ ws: String(id), headers: req.headers });
+        return new Response(null, { status: 204 });
+      },
+    }),
+  },
   DB: db,
   SIGNING_KEY: keys.priv,
   WORKOS_CLIENT_ID: "client_test",
@@ -364,6 +372,17 @@ describe("entitlements", () => {
     const claim = await readToken(await verifyingKey((await relayKeys(env())).pub), token, "ent");
     expect(claim).toMatchObject({ ws: "user_A", plan: "team", seats: 3 });
     expect((claim?.exp ?? 0) - (claim?.iat ?? 0)).toBe(ENTITLEMENT_TTL_MS);
+  });
+
+  test("a plan change for a team's paying workspace makes its room check who stays connected", async () => {
+    await db.prepare("INSERT INTO teams (id, name, billing_ws, created_at, over_since) VALUES ('org_1', 'Crew', 'user_A', 0, NULL)").run();
+    forwarded.length = 0;
+    await webhook(subscriptionEvent({ ws: "user_A", plan: "team", qty: 3, status: "canceled" }));
+    expect(forwarded.map((f) => [f.ws, f.headers.get("x-room")])).toEqual([["org_1", "check"]]);
+    // a workspace with no team tells no room
+    forwarded.length = 0;
+    await webhook(subscriptionEvent({ ws: "user_B", plan: "team" }));
+    expect(forwarded).toEqual([]);
   });
 
   test("invalid signatures, wrong secrets and stale timestamps are refused", async () => {

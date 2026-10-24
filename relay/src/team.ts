@@ -75,6 +75,28 @@ async function seating(db: D1, team: TeamRow, now: number) {
   return { members, seats, plan, seated, over: since === null ? null : { since, until: since + SEAT_GRACE_MS } };
 }
 
+/** A team by its id, or null. */
+async function teamById(db: D1, id: string): Promise<TeamRow | null> {
+  const t = TeamRowSchema.safeParse(await db.prepare("SELECT id, name, billing_ws, over_since FROM teams WHERE id = ?").bind(id).first());
+  return t.success ? t.data : null;
+}
+
+/**
+ * Who may hold a socket in a team's room: a member with a seat while the team's plan is active. Returns, per user, null
+ * when they may, or why not. The one rule for connecting (/relay/team/ws) and for staying connected: the room checks it
+ * again on a timer and whenever the team's billing changes, and closes the sockets it no longer admits.
+ */
+export async function roomRule(db: D1, team: string, now: number): Promise<(user: string) => string | null> {
+  const t = await teamById(db, team);
+  if (!t) return () => "The team no longer exists.";
+  const s = await seating(db, t, now);
+  return (user) => {
+    if (!s.members.some((m) => m.user === user)) return "removed from the team";
+    if (!s.plan) return "The team's plan isn't active.";
+    return s.seated.has(user) ? null : "The team has more members than seats.";
+  };
+}
+
 /**
  * Hosted access for a person: their own Pro or Team plan, or a seat on a team whose plan is active. The Team plan pays
  * per seat, so a seated member gets Access from anywhere too; removing them (or the grace ending) takes it away.
@@ -125,8 +147,11 @@ async function roster(db: D1, team: TeamRow, me: MemberRow, now: number): Promis
   };
 }
 
-/** The team's room: tells online members the roster changed, or closes one member's socket ("kick:<user>"). */
-async function tellRoom(env: Env, team: string, what: "roster" | `kick:${string}`): Promise<void> {
+/**
+ * The team's room: tells online members the roster changed, closes one member's socket ("kick:<user>"), or checks every
+ * socket against roomRule again ("check").
+ */
+export async function tellRoom(env: Env, team: string, what: "roster" | "check" | `kick:${string}`): Promise<void> {
   await env.TEAM.get(env.TEAM.idFromName(team)).fetch(new Request("https://room/control", { method: "POST", headers: { "x-room": what } }));
 }
 
@@ -212,17 +237,25 @@ export async function teamRoute(req: Request, env: Env, url: URL, now: number): 
       if (!org.success) return json({ error: "Couldn't create the organisation at WorkOS; try again." }, 502);
       id = org.data.id;
     }
+    // one team per workspace when two creates race: the later rows are ignored (billing_ws and the member are unique),
+    // its organisation is deleted again, and it answers as a second create does
     await db.batch([
       db
-        .prepare("INSERT INTO teams (id, name, billing_ws, created_at, over_since) VALUES (?, ?, ?, ?, NULL)")
+        .prepare("INSERT OR IGNORE INTO teams (id, name, billing_ws, created_at, over_since) VALUES (?, ?, ?, ?, NULL)")
         .bind(id, b.data.name, actor.user, now),
       db
-        .prepare("INSERT INTO team_members (user, team, email, role, joined_at) VALUES (?, ?, ?, 'owner', ?)")
+        .prepare("INSERT OR IGNORE INTO team_members (user, team, email, role, joined_at) VALUES (?, ?, ?, 'owner', ?)")
         .bind(actor.user, id, actor.email, now),
     ]);
-    await mirrorMembership(env, url, id, actor.user, true);
     const m = await membershipOf(db, actor.user);
-    return m ? json(await roster(db, m.team, m.me, now)) : json({ error: "not created" }, 500);
+    if (m?.team.id !== id) {
+      await db.prepare("DELETE FROM teams WHERE id = ?").bind(id).run();
+      if (!devOnly(env, url) && !(await workos(env, `/organizations/${encodeURIComponent(id)}`, { method: "DELETE" })))
+        console.error(`workos: couldn't delete the unused organisation ${id}`);
+      return json({ error: "You're in a team already." }, 409);
+    }
+    await mirrorMembership(env, url, id, actor.user, true);
+    return json(await roster(db, m.team, m.me, now));
   }
 
   const m = await membershipOf(db, actor.user);
@@ -234,9 +267,8 @@ export async function teamRoute(req: Request, env: Env, url: URL, now: number): 
   if (req.method === "GET" && p === "/relay/team/ws") {
     // only a member's daemon holds a room socket; their browsers read the team from their own daemon
     if (actor.via !== "daemon") return json({ error: "daemons only" }, 403);
-    const s = await seating(db, team, now);
-    if (!s.plan) return json({ error: "The team's plan isn't active." }, 402);
-    if (!s.seated.has(actor.user)) return json({ error: "The team has more members than seats." }, 402);
+    const refused = (await roomRule(db, team.id, now))(actor.user);
+    if (refused) return json({ error: refused }, 402);
     if (req.headers.get("upgrade") !== "websocket") return json({ error: "expected a websocket" }, 426);
     // the room trusts only these headers; nothing the client sent is forwarded
     const h = new Headers({
@@ -396,11 +428,9 @@ async function join(req: Request, env: Env, url: URL, now: number): Promise<Resp
 <form method="post" action="/relay/join"><input type="hidden" name="t" value="${secret}"><button class="primary">Join</button></form>`,
     );
   if (!sameOrigin(req, url)) return html("Invite", "<p>Join from the invite page itself.</p>", 403);
-  const teamRow = TeamRowSchema.safeParse(
-    await env.DB.prepare("SELECT id, name, billing_ws, over_since FROM teams WHERE id = ?").bind(inv.team).first(),
-  );
-  if (!teamRow.success) return html("Invite", "<p>That team no longer exists.</p>", 410);
-  const seat = await seating(env.DB, teamRow.data, now);
+  const teamRow = await teamById(env.DB, inv.team);
+  if (!teamRow) return html("Invite", "<p>That team no longer exists.</p>", 410);
+  const seat = await seating(env.DB, teamRow, now);
   // the invite held its seat; a plan shrunk since may still leave none
   if (seat.members.length >= seat.seats) return html("Invite", "<p>The team has no free seat. Ask its owner to add one.</p>", 402);
   await env.DB.batch([

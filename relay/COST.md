@@ -101,13 +101,13 @@ Inputs (`TEAM_TEN_K`), deliberately busy:
 
 | Line | Teams' volume | USD/month |
 | --- | --- | --- |
-| DO requests | 1.8M connects + 51M incoming messages ÷ 20 = 4.35M | +0.65 |
-| DO duration | 57,375 GB-s (114,750 with the relay's, within 400k) | 0.00 |
+| DO requests | 1.8M connects + 17.28M seat checks (every 5 minutes per room) + 51M incoming messages ÷ 20 = 21.63M | +3.24 |
+| DO duration | 122,175 GB-s (179,550 with the relay's, within 400k) | 0.00 |
 | Workers | 3.3M requests | +0.99 |
 | Workers CPU | | +0.13 |
-| D1 | 24M rows written (within 50M), 138M read (within 25B) | 0.00 |
-| **Relay with Teams at 10k** | | **12.58 ≈ €11.95** |
+| D1 | 24M rows written (within 50M), 259M read (within 25B) | 0.00 |
+| **Relay with Teams at 10k** | | **15.17 ≈ €14.41** |
 
-One active team of five costs about **$0.013 a month** at list prices, before any allowance. The line that would grow
-is D1 writes: at 100 events per member per day the total is $83.77, still under the cap. Logging fewer kinds of events
+One active team of five costs about **$0.015 a month** at list prices, before any allowance. The line that would grow
+is D1 writes: at 100 events per member per day the total is $86.36, still under the cap. Logging fewer kinds of events
 comes first, before anything else changes. The test in `test/team.test.ts` keeps both cases under the cap.

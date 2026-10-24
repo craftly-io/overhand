@@ -26,9 +26,9 @@ import { markSvg } from "@overhand/themes/brand";
 import { systemSchemeCss } from "@overhand/themes/system";
 import { z } from "zod";
 import { billingRoute, publicHome } from "./billing";
-import { applyEvent, type D1, entitlementOf, inCidr, paddleBase, paddleIps, verifyPaddleSignature } from "./paddle";
+import { applyEvent, type D1, entitlementOf, eventWorkspace, inCidr, paddleBase, paddleIps, verifyPaddleSignature } from "./paddle";
 import { signedIn, signInRoute } from "./signin";
-import { access, teamRoute } from "./team";
+import { access, teamRoute, tellRoom } from "./team";
 
 export { TeamRoom } from "./room";
 export { Workspace } from "./signal";
@@ -292,6 +292,10 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
     const result = await applyEvent(env.DB, event, now);
     // a bad event is acknowledged anyway: Paddle would retry it forever, and the log says why
     if (result === "bad") console.error("paddle webhook: unusable event", raw.slice(0, 200));
+    // a plan or seat change: the paying workspace's team room checks who may stay connected now
+    const workspace = result === "applied" ? eventWorkspace(event) : null;
+    const team = workspace && (await env.DB.prepare("SELECT id FROM teams WHERE billing_ws = ?").bind(workspace).first());
+    if (team) await tellRoom(env, String(team.id), "check");
     return json({ ok: true, result });
   }
 

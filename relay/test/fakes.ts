@@ -55,3 +55,16 @@ export function fakeState<M = unknown>(): SignalState & { sockets: { ws: FakeSoc
     setWebSocketAutoResponse: () => {},
   };
 }
+
+/** A team room's state: the sockets, and the one alarm the runtime keeps. */
+export function fakeRoomState<M = unknown>() {
+  const st = { ...fakeState<M>(), alarm: null as number | null };
+  return Object.assign(st, {
+    storage: {
+      getAlarm: async () => st.alarm,
+      setAlarm: async (at: number) => {
+        st.alarm = at;
+      },
+    },
+  });
+}
