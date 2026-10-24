@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 import { useWords } from "@/app/theme";
 import { Button } from "@/components/ui/button";
@@ -163,5 +164,33 @@ function Flow({ account, tool, onSignedIn, tab, onRetry }: Props & { tab: Window
         </>
       )}
     </div>
+  );
+}
+
+/** What an account's test call answers (`/api/accounts/test`). */
+export const Tested = z.object({ ok: z.boolean(), message: z.string() });
+
+/**
+ * An account's Sign in: its CLI's own sign-in, run by Overhand (SignIn), in its own folder where it has one; the login
+ * stays with the CLI. Once signed in, the account's test call runs and says how it went.
+ */
+export function AccountSignIn({ account, tool, label }: { account: string; tool: string; label: string }) {
+  const w = useWords();
+  // the sign-in page's tab, opened on the click itself (one opened once the link arrives is blocked as a pop-up)
+  const [open, setOpen] = useState<{ tab: Window | null } | null>(null);
+  const test = async () => {
+    try {
+      const t = await post("/api/accounts/test", { account }, Tested);
+      toast(t.ok ? fmt(w.addAccountReady, { account }) : fmt(w.addAccountFailed, { account, why: t.message }));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e));
+    }
+  };
+  return open ? (
+    <SignIn account={account} tool={tool} tab={open.tab} onSignedIn={() => void test()} />
+  ) : (
+    <Button size="xs" variant="outline" className="justify-self-start" onClick={() => setOpen({ tab: openTab() })}>
+      {label}
+    </Button>
   );
 }

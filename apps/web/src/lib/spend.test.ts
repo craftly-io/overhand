@@ -22,6 +22,7 @@ const acct = (name: string, billing: Account["billing"], over: Partial<Account> 
   runtime: "claude-code",
   billing,
   billingSure: true,
+  waitsSignIn: false,
   ...over,
 });
 const sam = acct("Sam", "plan", { usage: usage(0.12, 0.39) });

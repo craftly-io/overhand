@@ -30,7 +30,7 @@ import { SeededWords } from "@/components/Outward";
 import { GroupsBoard } from "@/components/organise/GroupsBoard";
 import { SuggestionCards } from "@/components/organise/SuggestionCards";
 import { Phone } from "@/components/Phone";
-import { openTab, SignIn } from "@/components/SignIn";
+import { AccountSignIn } from "@/components/SignIn";
 import { Button } from "@/components/ui/button";
 import { Skeleton, SkeletonRows } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -670,33 +670,6 @@ function BillingField({ account, runtime }: { account: string; runtime: string }
 }
 
 /** Each account's agent CLI and model backend, with their fields. */
-const Tested = z.object({ ok: z.boolean(), message: z.string() });
-
-/**
- * An account's Sign in: its CLI's own sign-in, run by Overhand (SignIn), in its own folder where it has one; the login
- * stays with the CLI. Once signed in, the account's test call runs and says how it went.
- */
-function RowSignIn({ account, tool, label }: { account: string; tool: string; label: string }) {
-  const w = useWords();
-  // the sign-in page's tab, opened on the click itself (one opened once the link arrives is blocked as a pop-up)
-  const [open, setOpen] = useState<{ tab: Window | null } | null>(null);
-  const test = async () => {
-    try {
-      const t = await post("/api/accounts/test", { account }, Tested);
-      toast(t.ok ? fmt(w.addAccountReady, { account }) : fmt(w.addAccountFailed, { account, why: t.message }));
-    } catch (e) {
-      toast(e instanceof Error ? e.message : String(e));
-    }
-  };
-  return open ? (
-    <SignIn account={account} tool={tool} tab={open.tab} onSignedIn={() => void test()} />
-  ) : (
-    <Button size="xs" variant="outline" className="justify-self-start" onClick={() => setOpen({ tab: openTab() })}>
-      {label}
-    </Button>
-  );
-}
-
 function ProviderCards({ homes }: { homes: Record<string, string> }) {
   const w = useWords();
   const f = useForm();
@@ -726,7 +699,7 @@ function ProviderCards({ homes }: { homes: Record<string, string> }) {
         {LOGIN_CLIS[runtime] && kind !== "gateway" ? (
           // the CLI's own sign-in: in this account's own folder (Codex), else the one login this computer has for it
           <div className="grid gap-1 sm:col-span-2">
-            <RowSignIn account={a} tool={LOGIN_CLIS[runtime]} label={fmt(w.addAccountSignIn, { tool: LOGIN_CLIS[runtime] })} />
+            <AccountSignIn account={a} tool={LOGIN_CLIS[runtime]} label={fmt(w.addAccountSignIn, { tool: LOGIN_CLIS[runtime] })} />
             <p className="text-xs text-muted-foreground">
               {getAt(f.draft, `runtimes.${a}.ownLogin`) === true
                 ? w.addAccountOwnFolder
@@ -754,13 +727,13 @@ function ProviderCards({ homes }: { homes: Record<string, string> }) {
                     : fmt(w.addAccountUsesExisting, { tool: "Claude Code" })}
                 </p>
                 {getAt(f.draft, `${at}.movedAt`) === undefined ? (
-                  <RowSignIn account={a} tool="Claude Code" label={fmt(w.setupAgentSignInTo, { tool: "Claude Code" })} />
+                  <AccountSignIn account={a} tool="Claude Code" label={fmt(w.setupAgentSignInTo, { tool: "Claude Code" })} />
                 ) : null}
                 <Field label={w.slackMovedLabel} path={`${at}.slackMoved`} kind="bool" />
               </div>
             ) : (str(getAt(f.draft, `${at}.auth`)) || "login") === "login" ? (
               <div className="grid gap-1 sm:col-span-2">
-                <RowSignIn account={a} tool="Claude Code" label={fmt(w.setupAgentSignInTo, { tool: "Claude Code" })} />
+                <AccountSignIn account={a} tool="Claude Code" label={fmt(w.setupAgentSignInTo, { tool: "Claude Code" })} />
                 <p className="text-xs text-muted-foreground">
                   Claude Code's own sign-in, in a config folder just for this account. The login stays with Claude Code; agents never see
                   it. Save a new account first.

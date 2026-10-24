@@ -90,6 +90,8 @@ export const AccountSchema = z.object({
   billing: BillingSchema.default("plan"),
   /** `billing` is known (set, or read from its sign-in), not a guess; a guess counts toward the budget and Needs you asks. */
   billingSure: z.boolean().default(true),
+  /** Still on your own agent config where the OS sandbox is enforced: its runs wait for one sign-in in its own folder. */
+  waitsSignIn: z.boolean().default(false),
 });
 
 export const TicketSchema = z.object({

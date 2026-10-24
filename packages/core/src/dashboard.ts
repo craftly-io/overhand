@@ -45,6 +45,7 @@ import { menubarHelper } from "./menubar";
 import { diskFree, report } from "./notify";
 import { reviewRound } from "./onpreview";
 import { loadActions, room, toCard, toSession } from "./room";
+import { waitsForSignIn } from "./sandbox";
 import { lastSelfCheck } from "./selfcheck";
 import { latestRelease, opsBehind, updateRoute, VERSION } from "./selfupdate";
 import { type LiveSession, liveSessions } from "./sessions";
@@ -309,7 +310,17 @@ export async function dashboardState(): Promise<DashboardState> {
       );
       const b = accountBilling(name);
       const { provider, model, runtime } = id;
-      return { name, coolUntil, usage, provider, model, runtime, billing: b.billing, billingSure: b.sure };
+      return {
+        name,
+        coolUntil,
+        usage,
+        provider,
+        model,
+        runtime,
+        billing: b.billing,
+        billingSure: b.sure,
+        waitsSignIn: waitsForSignIn(name, ""),
+      };
     }),
     prs: Object.entries(state.prs).map(([key, p]) => ({
       key,

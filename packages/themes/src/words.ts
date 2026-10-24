@@ -926,6 +926,11 @@ export const plainWords = {
   sandboxProjectOff: "Off: the guard only",
   sandboxSuggest: "Run this project without the sandbox ({tool} can't run inside it)",
   sandboxGuardOnly: "Guard only: this project runs without the OS sandbox",
+  /** An account still on your own agent config, where the OS sandbox keeps runs out of it: one click signs it in. */
+  alSignIn: "Sign in {account} once",
+  alSignInSub: "Its agents wait for one {tool} sign-in of its own.",
+  alSignInSubOthers: "Your other accounts carry its work until then.",
+  alSignInSay: "{account} needs one sign-in before its agents can run",
   alBillingAsk: "Is {account} billed per use or part of a plan?",
   alBillingAskSub: "Until you say, its runs count toward the daily budget. It looks like {guess}.",
   alBillingAskSay: "I don't know yet whether {account} is billed per use",

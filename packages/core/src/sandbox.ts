@@ -22,7 +22,7 @@ import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { guardOnly, type ProjectSandbox } from "@overhand/contract";
 import { plainWords } from "@overhand/themes";
-import { AGENT_HOMES } from "./agent-home";
+import { AGENT_HOMES, pendingMove } from "./agent-home";
 import { RUN_CACHES, runCacheKey } from "./cleanup-sources";
 import type { RuntimeId } from "./config";
 import { controlDir, outboxDir, RUN_KEY_ENV, runKey, writeAtomic } from "./control";
@@ -554,6 +554,14 @@ export function sandboxState(
 /** The sandbox state `project`'s runs and checks get, from the config: the one place a spawn site asks. */
 export const projectSandbox = (project: string): SandboxState =>
   sandboxState({ ...CFG.sandbox, project: CFG.clients.find((c) => c.name === project)?.sandbox });
+
+/**
+ * An account still on your own agent config (agent-home pendingMove) can't run where the sandbox is enforced
+ * (sandboxSpawn refuses it), so account choice passes it over, as it does one at its usage limit, until it's signed in
+ * once in its own folder (Needs you offers that).
+ */
+export const waitsForSignIn = (account: string, project: string): boolean =>
+  pendingMove(account) && projectSandbox(project).effective === "enforce";
 
 /** Marks of a tool that can't run inside the sandbox, at a project's top or one or two folders down. */
 const HOST_TOOLS: [RegExp, string][] = [

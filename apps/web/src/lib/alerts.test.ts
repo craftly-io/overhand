@@ -250,6 +250,7 @@ test("a reached daily budget waits in Needs you, counted in billed money only", 
     runtime: "claude-code",
     billing: "pay-per-use",
     billingSure: true,
+    waitsSignIn: false,
   } as const;
   const plan = {
     name: "work",
@@ -260,6 +261,7 @@ test("a reached daily budget waits in Needs you, counted in billed money only", 
     runtime: "claude-code",
     billing: "plan",
     billingSure: true,
+    waitsSignIn: false,
   } as const;
   expect(titles({ accounts: [key, plan], budgetUsd: 10, billed: 10.4, budgetSpent: 10.4, cost: 30 })).toContain(
     "Daily budget of $10 reached",
@@ -284,6 +286,7 @@ test("an account whose billing isn't known is asked about once in Needs you, unt
     runtime: "claude-code",
     billing: "plan" as const,
     billingSure,
+    waitsSignIn: false,
   });
   const titles = (sure: boolean) => computeAlerts(state({ accounts: [acc(sure)] }), parsePlan([]), plainWords, NOW).map((a) => a.title);
   expect(titles(false).filter((t) => t === "Is work billed per use or part of a plan?")).toHaveLength(1);
@@ -353,4 +356,25 @@ test("on watch, what's held for you is in Needs you with Assign an agent; an act
   expect(held({ clients: watch, findings: [finding], assigned })[0]?.assign).toBeUndefined();
   // a project on act: nothing to assign
   expect(held({ findings: [finding] })[0]?.assign).toBeUndefined();
+});
+
+test("an account the sandbox keeps off your own sign-in gets a Sign in card: amber while others carry its work, red alone", () => {
+  const acc = (name: string, waitsSignIn: boolean) => ({
+    name,
+    coolUntil: 0,
+    usage: null,
+    provider: "claude",
+    model: "",
+    runtime: "claude-code",
+    billing: "plan" as const,
+    billingSure: true,
+    waitsSignIn,
+  });
+  const signIns = (accounts: ReturnType<typeof acc>[]) =>
+    computeAlerts(state({ accounts }), parsePlan([]), plainWords, NOW).filter((a) => a.target.kind === "signin");
+  const one = signIns([acc("claude", true), acc("work", false)]);
+  expect(one.map((a) => [a.title, a.sev, a.broken ?? false])).toEqual([["Sign in claude once", 2, false]]);
+  expect(one[0]?.target).toEqual({ kind: "signin", account: "claude", tool: "Claude Code" });
+  expect(signIns([acc("claude", true)]).map((a) => [a.sev, a.broken])).toEqual([[3, true]]);
+  expect(signIns([acc("work", false)])).toEqual([]);
 });

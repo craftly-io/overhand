@@ -134,6 +134,9 @@ test("limitBack names the account back first only when every one is benched", ()
   expect(limitBack({ a: now + 5000, b: now + 2000 }, now)).toEqual({ limitAccount: "b", limitBack: now + 2000 });
   expect(limitBack({ a: now + 5000, b: now - 1 }, now)).toEqual({});
   expect(limitBack({}, now)).toEqual({});
+  // an account waiting for its sign-in has no time it's back: never named as back first, never "back at Infinity"
+  expect(limitBack({ a: Number.POSITIVE_INFINITY, b: now + 2000 }, now)).toEqual({ limitAccount: "b", limitBack: now + 2000 });
+  expect(limitBack({ a: Number.POSITIVE_INFINITY }, now)).toEqual({});
 });
 
 /** Today's report lines so far (what the daemon log shows). */

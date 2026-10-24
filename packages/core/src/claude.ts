@@ -20,7 +20,7 @@ import { RUNTIMES } from "./runtimes";
 import { writeRunFiles } from "./runtimes/claude-code";
 import { repoRefusal } from "./runtimes/repo-config";
 import { type AgentRuntime, dropNulls, extractJson, gitCommonDir, type RunInput, type RunOutput, readOnly } from "./runtimes/runtime";
-import { projectSandbox, sandboxSpawn } from "./sandbox";
+import { projectSandbox, sandboxSpawn, waitsForSignIn } from "./sandbox";
 import { answers } from "./setup";
 import { currentRuns, type State, saveCurrentRuns } from "./state";
 import { type AccountUsage, exhaustedUntil, loadUsage, parseStream, recordUsage } from "./usage";
@@ -137,7 +137,8 @@ export async function claude<T>(
     if (
       benchedUntil(account) > Date.now() ||
       exhaustedUntil(loadUsage(OPS)[account], Date.now(), CFG.limits.paceWeekly) > Date.now() ||
-      budgetUntil(account) > Date.now() // a billed account past today's budget; plan accounts never are
+      budgetUntil(account) > Date.now() || // a billed account past today's budget; plan accounts never are
+      waitsForSignIn(account, c?.name ?? "")
     )
       continue;
     const rt = RUNTIMES[runtimeOf(account).kind];

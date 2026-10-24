@@ -24,6 +24,7 @@ import { DecisionCard, InsightLine, useBrief } from "../DecisionCard";
 import { Explain } from "../Explain";
 import { LeakActions, SelfCheckActions } from "../Outward";
 import { Pane } from "../Pane";
+import { AccountSignIn } from "../SignIn";
 
 /** One thing in the inbox: a Slack request about to be filed (veto it with the switch), a reply with its suggested answer, or a note. */
 export function InboxRow({ x, className }: { x: InboxItem; className?: string }) {
@@ -179,6 +180,12 @@ function Actions({ a }: { a: Alert }) {
   const [text, setText] = useState("");
   const t = a.target;
   if (t.kind === "card") return <CardButtons card={t.card} />;
+  if (t.kind === "signin")
+    return (
+      <div className="flex justify-end">
+        <AccountSignIn account={t.account} tool={t.tool} label={fmt(w.addAccountSignIn, { tool: t.tool })} />
+      </div>
+    );
   if (t.kind === "leak") return <LeakActions f={t.finding} />;
   if (t.kind === "selfcheck") return <SelfCheckActions />;
   if (t.kind === "held")

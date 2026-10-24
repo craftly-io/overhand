@@ -107,6 +107,7 @@ test("a running agent, red builds and today's spend say what they mean here, nev
     runtime: "claude-code",
     billing: "pay-per-use",
     billingSure: true,
+    waitsSignIn: false,
   } as const;
   expect(explainSpend({ accounts: [key], billed: 14.2, cost: 14.2, budgetUsd: 0 }, w).todo).toBe(w.exTodoSpend);
   expect(explainSpend({ accounts: [key], billed: 14.2, cost: 14.2, budgetUsd: 25 }, w).says).toContain("daily budget of $25");

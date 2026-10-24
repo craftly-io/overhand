@@ -130,6 +130,7 @@ test("an empty pane gets an insight: red build first on Now, an empty queue firs
             runtime: "claude-code",
             billing: "pay-per-use",
             billingSure: true,
+            waitsSignIn: false,
           },
           {
             name: "work",
@@ -140,6 +141,7 @@ test("an empty pane gets an insight: red build first on Now, an empty queue firs
             runtime: "claude-code",
             billing: "plan",
             billingSure: true,
+            waitsSignIn: false,
           },
         ],
         budgetUsd: 10,

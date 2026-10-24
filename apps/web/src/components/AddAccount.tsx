@@ -3,7 +3,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { useWords } from "@/app/theme";
 import { FeatureTip } from "@/components/FeatureTip";
-import { openTab, SignIn } from "@/components/SignIn";
+import { openTab, SignIn, Tested } from "@/components/SignIn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,7 +35,6 @@ const OptionsSchema = z.object({
 type Agent = z.infer<typeof OptionsSchema>["agents"][number];
 
 const Added = z.object({ ok: z.boolean(), label: z.string() });
-const Tested = z.object({ ok: z.boolean(), message: z.string() });
 
 /** A sign-in on this computer that a new account can use as is (Gemini CLI's "signed in" is a key, not a login). */
 const reusable = (a: Agent): boolean => a.installed && a.signedIn && a.login && !a.shared;

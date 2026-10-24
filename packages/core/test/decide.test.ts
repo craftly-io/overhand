@@ -120,6 +120,7 @@ const s = state({
       runtime: "claude-code",
       billing: "plan",
       billingSure: true,
+      waitsSignIn: false,
     },
   ],
   guardrails: [{ at: 123, project: "Honeycrust", run: "HONEY-1", tool: "Bash", action: "git push --force", rule: "no-force-push" }],

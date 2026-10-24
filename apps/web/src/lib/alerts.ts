@@ -7,6 +7,7 @@ import {
   isNewerVersion,
   type Lead,
   questionLine,
+  RUNTIME_NAMES,
   repoPulls,
 } from "@overhand/contract";
 import type { WordKey, Words } from "@overhand/themes";
@@ -29,6 +30,8 @@ type AlertTarget =
   | { kind: "update" }
   | { kind: "sweep" }
   | { kind: "settings"; tab: string; project?: string }
+  /** An account to sign in once in its own folder: its Sign in button, right on the card. */
+  | { kind: "signin"; account: string; tool: string }
   | { kind: "rule"; id: string; project: string }
   /** Something held for you on a watch project instead of posted: Post it (when it has a ticket and a comment) or Dismiss. */
   | { kind: "held"; id: string; key: string; post: boolean }
@@ -363,6 +366,20 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       say: w.alBudgetSay,
       target: { kind: "settings", tab: "schedule" },
     });
+  // an account the OS sandbox keeps off your own sign-in: red when no other account can carry its work
+  const waiting = s.accounts.filter((x) => x.waitsSignIn);
+  for (const acc of waiting) {
+    const tool = RUNTIME_NAMES[acc.runtime] ?? acc.runtime;
+    const others = waiting.length < s.accounts.length;
+    a.push({
+      sev: others ? 2 : 3,
+      ...(others ? {} : { broken: true as const }),
+      title: fmt(w.alSignIn, { account: acc.name }),
+      sub: fmt(others ? w.alSignInSubOthers : w.alSignInSub, { tool }),
+      say: fmt(w.alSignInSay, { account: acc.name }),
+      target: { kind: "signin", account: acc.name, tool },
+    });
+  }
   // an account whose billing isn't known counts toward the budget until the person says: asked once, until they pick
   for (const acc of s.accounts.filter((x) => !x.billingSure))
     a.push({

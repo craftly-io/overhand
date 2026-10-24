@@ -31,7 +31,7 @@ import { type NtfyAction, replyActions } from "./replies";
 import { RUNTIMES } from "./runtimes";
 import { writeRunFiles } from "./runtimes/claude-code";
 import { type AgentRuntime, gitCommonDir } from "./runtimes/runtime";
-import { projectSandbox, sandboxRefusals, sandboxSpawn } from "./sandbox";
+import { projectSandbox, sandboxRefusals, sandboxSpawn, waitsForSignIn } from "./sandbox";
 import { disarmForPush, loadShips, type Run, type ShipRecord } from "./ship";
 import { loadNames, loadState, readJson, saveState, type TrackedPr, ticketCache, writeJsonAtomic } from "./state";
 import { status } from "./status/types";
@@ -113,7 +113,10 @@ export const saveLeads = (l: Record<string, LeadState>): void => writeJsonAtomic
 export function limitBack(freeAt: Record<string, number>, now = Date.now()): { limitAccount?: string; limitBack?: number } {
   const all = Object.entries(freeAt);
   if (!all.length || all.some(([, t]) => t <= now)) return {};
-  const [account, at] = all.reduce((x, y) => (y[1] < x[1] ? y : x));
+  // an account waiting for its sign-in has no time it's back (waitsForSignIn)
+  const timed = all.filter(([, t]) => Number.isFinite(t));
+  if (!timed.length) return {};
+  const [account, at] = timed.reduce((x, y) => (y[1] < x[1] ? y : x));
   return { limitAccount: account, limitBack: at };
 }
 
@@ -574,7 +577,10 @@ export function leadFreeAt(g: Godmode): Record<string, number> {
   return Object.fromEntries(
     accountsFor(ACCOUNTS, leadAccounts(CFG, g), g.fallbackToAll, 0).map((a) => [
       a,
-      Math.max(benchedUntil(a), exhaustedUntil(usage[a], Date.now(), CFG.limits.paceWeekly), budgetUntil(a)),
+      // one waiting for its sign-in is free once it's signed in: not at a time
+      waitsForSignIn(a, g.project)
+        ? Number.POSITIVE_INFINITY
+        : Math.max(benchedUntil(a), exhaustedUntil(usage[a], Date.now(), CFG.limits.paceWeekly), budgetUntil(a)),
     ]),
   );
 }
