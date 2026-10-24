@@ -155,9 +155,9 @@ export async function sampleStrain(): Promise<void> {
 
 // ---------- the CLI ----------
 
-async function call(path: string, body: unknown): Promise<{ ok: boolean; data: Record<string, unknown> }> {
+async function call(path: string, body: unknown, base = DASHBOARD): Promise<{ ok: boolean; data: Record<string, unknown> }> {
   try {
-    const res = await fetch(`${DASHBOARD}${path}`, {
+    const res = await fetch(`${base}${path}`, {
       method: "POST",
       headers: { ...localHeaders(DASHBOARD), "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -217,6 +217,31 @@ export async function connectCli(on: boolean, args: string[]): Promise<number> {
   return 0;
 }
 
+/** A result to print or hand back: whether it worked, and the line that says so. */
+export interface Said {
+  ok: boolean;
+  message: string;
+}
+
+/**
+ * Hands `text` to a session at its next tool call (`overhand ask`, the MCP server's ask_session). From the run when it's
+ * one (the daemon names it from the run's key anyway), else the project of the agent session it's typed in, else you.
+ */
+export async function sendRequest(to: string, text: string, by = "", base = DASHBOARD): Promise<Said> {
+  const from = process.env.OVERHAND_RUN || (process.env.CLAUDECODE ? projectAt(process.cwd()) : "owner");
+  const r = await call("/api/requests", { to, text, by, from }, base);
+  return {
+    ok: r.ok,
+    message: r.ok ? `Sent ${String(r.data.id)} to ${String(r.data.toLabel)}. It gets it at its next tool call.` : String(r.data.error),
+  };
+}
+
+/** Answers a request handed to this session (`overhand ack`, the MCP server's ack_request). */
+export async function ackRequest(id: string, state: SessionRequest["state"], note = "", base = DASHBOARD): Promise<Said> {
+  const r = await call("/api/requests/ack", { id, state, note: note.trim() }, base);
+  return { ok: r.ok, message: r.ok ? `Request ${id}: ${state}.` : String(r.data.error) };
+}
+
 /** `overhand ask <session> "<request>" [--by HH:MM]`: a typed request, handed to that session at its next tool call. */
 export async function askCli(args: string[]): Promise<number> {
   const at = args.indexOf("--by");
@@ -227,9 +252,8 @@ export async function askCli(args: string[]): Promise<number> {
     console.error(`usage: overhand ask <session> "<request>" [--by HH:MM]`);
     return 2;
   }
-  const from = process.env.OVERHAND_RUN || (process.env.CLAUDECODE ? projectAt(process.cwd()) : "owner");
-  const r = await call("/api/requests", { to, text: words.join(" "), by, from });
-  console.log(r.ok ? `Sent ${String(r.data.id)} to ${String(r.data.toLabel)}. It gets it at its next tool call.` : String(r.data.error));
+  const r = await sendRequest(to, words.join(" "), by);
+  console.log(r.message);
   return r.ok ? 0 : 1;
 }
 
@@ -241,8 +265,7 @@ export async function ackCli(args: string[]): Promise<number> {
     return 2;
   }
   const state: SessionRequest["state"] = what === "done" ? "done" : /^refuse/.test(what) ? "refused" : "acknowledged";
-  const text = state === "acknowledged" ? [what, ...note].join(" ") : note.join(" ");
-  const r = await call("/api/requests/ack", { id, state, note: text.trim() });
-  console.log(r.ok ? `Request ${id}: ${state}.` : String(r.data.error));
+  const r = await ackRequest(id, state, state === "acknowledged" ? [what, ...note].join(" ") : note.join(" "));
+  console.log(r.message);
   return r.ok ? 0 : 1;
 }

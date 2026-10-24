@@ -350,6 +350,16 @@ export const FEATURES: readonly Feature[] = [
     place: "none",
     docs: "docs/agents.html#billing",
   },
+  {
+    id: "mcp-server",
+    name: "Overhand over MCP",
+    line: "Your agents ask what's running and what needs you, answer leads and hand on requests; a run does only what its key allows.",
+    area: "agents",
+    since: "2026-10-25",
+    source: "packages/core/src/mcp-server.ts",
+    place: "none",
+    docs: "docs/runs.html#mcp",
+  },
 ];
 
 /** The features newest first; within a day, in the registry's order. */

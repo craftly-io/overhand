@@ -157,8 +157,9 @@ export function mcpConfig(r: RunInput, files: Record<string, string>, tmp = tmpd
   // a folder of its own (0700, an unguessable name) holds the file, which carries your servers' tokens; the spawn writes
   // it exclusively (writeRunFiles) and removes both after the run
   const file = join(mkdtempSync(join(tmp, "overhand-mcp-")), "mcp.json");
-  // a run on watch gets none of yours: only what Overhand itself would add (nothing yet)
-  files[file] = JSON.stringify({ mcpServers: readOnly(r) ? {} : (r.mcpServers ?? {}) });
+  // a run on watch gets none of yours: only Overhand's own (agent-home.ts runMcpServers), whose key limits it anyway
+  const { overhand } = r.mcpServers ?? {};
+  files[file] = JSON.stringify({ mcpServers: readOnly(r) ? (overhand ? { overhand } : {}) : (r.mcpServers ?? {}) });
   return ["--strict-mcp-config", "--mcp-config", file];
 }
 

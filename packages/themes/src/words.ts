@@ -544,6 +544,9 @@ export const plainWords = {
 
   // empty states
   calm: "Nothing needs you right now",
+  /** Overhand's MCP server (packages/core/src/mcp-server.ts): its status tool's heading for runs and leads at work. */
+  mcpAtWork: "At work",
+  mcpNoneAtWork: "No agents at work",
   emptyToday: "No plan yet. Press Plan the day.",
   emptyQueue: "Nothing ready. Press Plan the day, or open the command bar and type queue KEY-123.",
   emptyMine: "Your list is clear.",

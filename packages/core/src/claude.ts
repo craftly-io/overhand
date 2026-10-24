@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Autonomy, RunKind } from "@overhand/contract";
 import { z } from "zod";
-import { AGENT_HOME, AGENT_HOMES, claudeMcpServers, guardHooks, INSTRUCTIONS_FILE, inboxHome, runHome, writeAgentHome } from "./agent-home";
+import { AGENT_HOME, AGENT_HOMES, guardHooks, INSTRUCTIONS_FILE, inboxHome, runHome, runMcpServers, writeAgentHome } from "./agent-home";
 import { budgetUntil, recordedBilling } from "./billing";
 import type { Client } from "./config";
 import { ingestOutboxes, recordSpawn } from "./control";
@@ -234,7 +234,7 @@ function runInput(account: string, cwd: string, prompt: string, schema: string, 
     attribution: CFG.outward.aiAttribution,
     args,
     configDir,
-    mcpServers: claudeMcpServers(mainCheckout(cwd)),
+    mcpServers: runMcpServers(mainCheckout(cwd)),
     ...(ours || runtimeOf(account).kind !== "claude-code" ? {} : { hooks: guardHooks() }),
     instructions: INSTRUCTIONS_FILE,
     read: readSecret,

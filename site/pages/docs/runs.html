@@ -68,6 +68,17 @@
       </ul>
     </section>
 
+    <section class="block hood" id="mcp" aria-labelledby="h-mcp">
+      <h2 id="h-mcp">{{name}} as an MCP server.</h2>
+      <ul class="facts">
+        <li><b><code>overhand mcp</code></b> {{name}}'s own MCP server over stdio. Any agent that speaks MCP can ask it what's running and what needs you, answer a lead's question, and hand or answer requests between sessions.</li>
+        <li><b>Its tools</b> <code>status</code> (agents and leads at work, and the Needs you list as the dashboard words it), <code>answer_lead</code>, <code>ask_session</code> and <code>ack_request</code>. Each does what <code>overhand answer</code>, <code>overhand ask</code> and <code>overhand ack</code> do, through the running daemon.</li>
+        <li><b>In every run</b> {{name}} adds it to each Claude Code run and lead it starts, and to runs on {{modeWatch}} too, where it's the only MCP server. Other agents don't get it yet.</li>
+        <li><b>A run's own key</b> Inside a run the server calls the daemon with that run's key, so it does only what the run may: hand a request (one to your own session comes to you first), answer requests sent to it, and answer its own lead's question. It can't read the status, and no run answers a question as you.</li>
+        <li><b>In your own sessions</b> Outside a run it uses this computer's local key, like the <code>overhand</code> command, so it acts as you. Add it to Claude Code with <code>claude mcp add overhand -- overhand mcp</code>; any other agent takes the same command as a stdio server.</li>
+      </ul>
+    </section>
+
     <section class="block hood" id="scorecard" aria-labelledby="h-scorecard">
       <h2 id="h-scorecard">The scorecard.</h2>
       <ul class="facts">

@@ -52,6 +52,7 @@ import { windowsFor } from "./groups";
 import { GUARD_LOG, guardHook, guardLogAt, guardWriteRoot, projectAt, trustIdentity } from "./guard";
 import { inbox, inboxReadAt } from "./inbox";
 import { blankLead, leadPid, loadLeads, lockHolder, superviseLeads, watchQuestions } from "./leads";
+import { serveMcp } from "./mcp-server";
 import { syncMenubar } from "./menubar";
 import { diskFree, notify, problems, report, stampConsole } from "./notify";
 import { refreshSuggestions } from "./organise";
@@ -241,7 +242,8 @@ const USAGE = `Overhand ${VERSION}: mission control for your AI coding agents.
                                       house rules (writes .claude/settings.local.json; --global: every project, asks first)
   overhand disconnect [<folder>]      undo it
   overhand ask <session> "<request>" [--by HH:MM]   a typed request, handed to that session at its next tool call
-  overhand ack <id> [done | refuse "why"]           answer a request handed to this session`;
+  overhand ack <id> [done | refuse "why"]           answer a request handed to this session
+  overhand mcp                        Overhand's MCP server over stdio, for an agent: status, answer, ask and ack as tools`;
 
 /** `overhand quiet 3h | 90m | off`: holds every heavy job off until then; edits and targeted tests carry on. */
 function quiet(arg: string): void {
@@ -552,6 +554,7 @@ export async function main(mode: string | undefined): Promise<void> {
   else if (mode === "connect" || mode === "disconnect") process.exitCode = await connectCli(mode === "connect", process.argv.slice(3));
   else if (mode === "ask") process.exitCode = await askCli(process.argv.slice(3));
   else if (mode === "ack") process.exitCode = await ackCli(process.argv.slice(3));
+  else if (mode === "mcp") await serveMcp();
   else if (mode === "start") await start();
   else if (mode === "open") process.exitCode = await openCli(process.argv.slice(3));
   else if (mode === "stop") {
