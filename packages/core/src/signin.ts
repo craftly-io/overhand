@@ -138,3 +138,21 @@ export function signInState(id: string, by: string): SignInState | null {
 export function stopSignIn(id: string): void {
   LIVE.get(id)?.end();
 }
+
+/**
+ * Types an API key into OpenCode's key prompt, then Enter (a carriage return: its prompt ignores a newline), and waits
+ * for its login to end; true when it ends well. The key goes to OpenCode's stdin only, never to a log or a file here.
+ */
+export async function opencodeKey(argv: string[], env: Record<string, string>, key: string, ms = 20_000): Promise<boolean> {
+  try {
+    const p = Bun.spawn(argv, { env: { ...process.env, ...env, BROWSER: "true" }, stdin: "pipe", stdout: "ignore", stderr: "ignore" });
+    p.stdin.write(`${key}\r`);
+    await p.stdin.flush();
+    const stop = setTimeout(() => p.kill(), ms);
+    const code = await p.exited;
+    clearTimeout(stop);
+    return code === 0;
+  } catch {
+    return false; // its CLI isn't there, or can't start
+  }
+}

@@ -17,6 +17,9 @@ import {
   LEAD_WORK,
   localDay,
   NameSchema,
+  OPENCODE_ACCOUNTS,
+  OPENCODE_KEY_METHOD,
+  OPENCODE_KEYS,
   type PreviewReview,
   PreviewViewportSchema,
   QuickSettingSchema,
@@ -157,7 +160,7 @@ import { leadLog, liveSessions } from "./sessions";
 import { checks, secretsOf } from "./setup";
 import { shipCheck, shipRefusal, shipSweep, undoShip } from "./ship";
 import { shotsDir } from "./shots";
-import { SIGNIN_GONE, sendSignInCode, signInState, startSignIn } from "./signin";
+import { opencodeKey, SIGNIN_GONE, sendSignInCode, signInState, startSignIn } from "./signin";
 import { loadPrReview, loadSplits, loadState, saveName, savePrReview, saveSplits, type TrackedPr, ticketCache } from "./state";
 import { refreshStatus } from "./status/index";
 import { summarize } from "./summary";
@@ -362,14 +365,22 @@ function readyLoginHome(account: string, home: string): void {
 }
 
 /**
- * The CLIs whose sign-in the daemon runs itself (signin.ts), each with its own check that it's signed in there. OpenCode
- * isn't one: its sign-in starts with a menu of providers to pick in the terminal, so it still opens in one.
+ * The CLIs whose sign-in the daemon runs itself (signin.ts), each with its own check that it's signed in there. OpenCode's
+ * is driven once the app has picked which (OPENCODE_ACCOUNTS: `-p` and `-m` skip its menus); its key goes by
+ * /api/accounts/opencode-key.
  */
 const DRIVEN_LOGIN: Partial<Record<RuntimeId, (home: string) => Promise<boolean>>> = {
   "claude-code": (home) => claudeSignedIn(home),
   codex: (home) => codexSignedIn(home),
   cursor: async () => true, // its sign-in exits 0 only once signed in
+  opencode: async () => true, // "Done", exit 0, once the provider says yes
 };
+
+/** OpenCode's login asked for one provider (and its method), so it shows no menu; null for a provider it doesn't offer here. */
+function opencodeArgv(base: string[], via: unknown): string[] | null {
+  const s = Object.entries(OPENCODE_ACCOUNTS).find(([id]) => id === via)?.[1];
+  return s ? [...base, "-p", s.provider, "-m", s.method] : null;
+}
 
 async function setupFacts(codeRoot: string, scan: boolean) {
   // a folder is scanned only when you chose "use projects already on this computer"; otherwise nothing is read
@@ -870,6 +881,8 @@ export async function handle(req: Request): Promise<Response> {
     pins?: unknown;
     url?: unknown;
     auto?: unknown;
+    via?: unknown;
+    provider?: unknown;
   };
   touchTeam();
   if (url.pathname.startsWith("/api/team/")) {
@@ -1204,7 +1217,13 @@ export async function handle(req: Request): Promise<Response> {
         return json({ ok: true, command });
       }
       // from another device (a phone, over the relay) Codex's local-port sign-in can't call back: its device code can
-      const argv = kind === "codex" && !local ? [...login.argv, "--device-auth"] : login.argv;
+      const argv =
+        kind === "opencode"
+          ? opencodeArgv(login.argv, body.via)
+          : kind === "codex" && !local
+            ? [...login.argv, "--device-auth"]
+            : login.argv;
+      if (!argv) return json({ error: "pick how OpenCode signs in" }, 400);
       const started = await startSignIn({
         key: account,
         by: device?.id ?? "local",
@@ -1220,6 +1239,25 @@ export async function handle(req: Request): Promise<Response> {
       if ("error" in started) return json({ error: started.error }, 502);
       report(`🔑 signing in ${account}`);
       return json({ ok: true, ...started });
+    }
+    case "/api/accounts/opencode-key": {
+      // a provider's API key into OpenCode's own login (its auth.json), typed in for you; the key is never logged or kept
+      const account = typeof body.account === "string" ? body.account : "";
+      const provider = Object.entries(OPENCODE_KEYS).find(([id]) => id === body.provider);
+      const key = typeof body.key === "string" ? body.key.trim() : "";
+      if (!CFG.accounts.includes(account) || CFG.runtimes[account]?.kind !== "opencode")
+        return json({ error: `no OpenCode account ${account}` }, 400);
+      if (!provider) return json({ error: "pick a provider" }, 400);
+      if (!key || key.length > 500 || /[\r\n]/.test(key)) return json({ error: "paste the provider's API key" }, 400);
+      const login = accountLogin(account);
+      if (!login) return json({ error: `${account} doesn't sign in with a login` }, 400);
+      const [id, p] = provider;
+      const ok = await opencodeKey([...login.argv, "-p", id, ...(p.method ? ["-m", OPENCODE_KEY_METHOD] : [])], login.env, key);
+      if (!ok) return json({ error: `OpenCode didn't take the ${p.label} key. Check it and try again.` }, 502);
+      forgetLogins();
+      forgetBilling();
+      report(`🔑 OpenCode signed in to ${p.label} with an API key`);
+      return json({ ok: true });
     }
     case "/api/accounts/login/code": {
       // the code the browser showed, to the waiting sign-in this device started, and nowhere else

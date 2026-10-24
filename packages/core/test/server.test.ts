@@ -180,3 +180,9 @@ test("the pair screen learns, before any sign-in, the command that signs this co
   expect(r.status).toBe(200);
   expect(((await r.json()) as { command: string }).command).toContain("open");
 });
+
+test("OpenCode's key route takes only an OpenCode account, a listed provider and one line of key", async () => {
+  expect((await post("/api/accounts/opencode-key", { account: "nobody", provider: "groq", key: "k" })).status).toBe(400);
+  // its sign-in asks which provider first; a login without one is refused, not left at OpenCode's menu
+  expect((await post("/api/accounts/login", { account: "nobody", via: "chatgpt" })).status).toBe(400);
+});

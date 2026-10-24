@@ -1,3 +1,4 @@
+import { OPENCODE_ACCOUNTS, OPENCODE_KEYS, type OpencodeKey } from "@overhand/contract";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
@@ -37,6 +38,9 @@ type Agent = z.infer<typeof OptionsSchema>["agents"][number];
 const Added = z.object({ ok: z.boolean(), label: z.string() });
 
 /** A sign-in on this computer that a new account can use as is (Gemini CLI's "signed in" is a key, not a login). */
+/** The OpenCode provider a picked option names (only the listed ones are offered). */
+const keyProvider = (v: string): OpencodeKey => (Object.keys(OPENCODE_KEYS) as OpencodeKey[]).find((k) => k === v) ?? "anthropic";
+
 const reusable = (a: Agent): boolean => a.installed && a.signedIn && a.login && !a.shared;
 
 /**
@@ -61,6 +65,9 @@ export function AddAccount({ onAdded }: { onAdded?: () => void }) {
   // a sign-in (`tool`) follows when the account signs in with its CLI's own login
   const [added, setAdded] = useState<{ label: string; tool: string; tab: Window | null } | null>(null);
   const [useKey, setUseKey] = useState(false);
+  // OpenCode signs in to a provider: by its account (`via`), or by its API key typed in for you (`provider`)
+  const [via, setVia] = useState("");
+  const [provider, setProvider] = useState<OpencodeKey>("anthropic");
   const [test, setTest] = useState<{ ok: boolean; message: string } | "running" | null>(null);
   const agents = options.data?.agents ?? [];
   const agent = agents.find((a) => a.id === agentId);
@@ -71,6 +78,25 @@ export function AddAccount({ onAdded }: { onAdded?: () => void }) {
       setTest(await post("/api/accounts/test", { account }, Tested));
     } catch (e) {
       setTest({ ok: false, message: e instanceof Error ? e.message : String(e) });
+    }
+  };
+  /** OpenCode on a provider's API key: the account first, then the key into OpenCode's own login, then the test. */
+  const addOpencodeKey = async (a: Agent) => {
+    setBusy(true);
+    setError("");
+    setTest(null);
+    try {
+      const r = await post("/api/accounts/add", { agent: a.id, label: label.trim(), how: "login", key: "" }, Added);
+      await post("/api/accounts/opencode-key", { account: r.label, provider, key: key.trim() }, z.object({ ok: z.boolean() }));
+      setAdded({ label: r.label, tool: "", tab: null });
+      setKey("");
+      onAdded?.();
+      void qc.invalidateQueries({ queryKey: ["account-options"] });
+      await runTest(r.label);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
     }
   };
   const add = async (a: Agent, how: "login" | "key" | "existing", name = label, tab: Window | null = null) => {
@@ -194,9 +220,66 @@ export function AddAccount({ onAdded }: { onAdded?: () => void }) {
                 {w.addAccountSave}
               </Button>
             </form>
+          ) : canLogin && agent.id === "opencode" ? (
+            useKey ? (
+              <form
+                className="flex flex-wrap items-center gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void addOpencodeKey(agent);
+                }}
+              >
+                <select
+                  aria-label={w.addAccountProvider}
+                  value={provider}
+                  onChange={(e) => setProvider(keyProvider(e.target.value))}
+                  className="h-9 rounded-(--radius-control) border border-border bg-background px-2 text-sm"
+                >
+                  {Object.entries(OPENCODE_KEYS).map(([id, p]) => (
+                    <option key={id} value={id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  type="password"
+                  autoComplete="off"
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  aria-label={fmt(w.addAccountKeyField, { tool: OPENCODE_KEYS[provider].label })}
+                  placeholder={fmt(w.addAccountKeyField, { tool: OPENCODE_KEYS[provider].label })}
+                  className="max-w-xs font-mono text-sm"
+                />
+                <Button type="submit" disabled={busy || !key.trim()}>
+                  {w.addAccountSave}
+                </Button>
+              </form>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(OPENCODE_ACCOUNTS).map(([id, s]) => (
+                  <Button
+                    key={id}
+                    type="button"
+                    className="w-fit"
+                    disabled={busy}
+                    onClick={() => {
+                      setVia(id);
+                      void add(agent, "login", label, openTab());
+                    }}
+                  >
+                    {fmt(w.addAccountWith, { provider: s.label })}
+                  </Button>
+                ))}
+              </div>
+            )
           ) : canLogin ? (
             <Button type="button" className="w-fit" disabled={busy} onClick={() => void add(agent, "login", label, openTab())}>
               {w.signInBrowser}
+            </Button>
+          ) : null}
+          {canLogin && agent.id === "opencode" ? (
+            <Button type="button" variant="link" className={cn(quiet, "w-fit text-muted-foreground")} onClick={() => setUseKey(!useKey)}>
+              {useKey ? w.addAccountSignInInstead : w.addAccountProviderKey}
             </Button>
           ) : null}
           {canLogin && agent.key ? (
@@ -226,7 +309,13 @@ export function AddAccount({ onAdded }: { onAdded?: () => void }) {
       {added ? (
         <div className="grid gap-2" aria-live="polite">
           {added.tool ? (
-            <SignIn account={added.label} tool={added.tool} tab={added.tab} onSignedIn={() => void runTest(added.label)} />
+            <SignIn
+              account={added.label}
+              tool={added.tool}
+              tab={added.tab}
+              via={agent?.id === "opencode" ? via : undefined}
+              onSignedIn={() => void runTest(added.label)}
+            />
           ) : null}
           {test === "running" ? <p className="text-sm text-muted-foreground">{w.addAccountTesting}</p> : null}
           {test && test !== "running" ? (

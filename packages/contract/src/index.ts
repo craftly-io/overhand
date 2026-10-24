@@ -1102,3 +1102,23 @@ export function isNewerVersion(latest: string, current: string): boolean {
   for (let i = 0; i < 3; i++) if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
   return false;
 }
+
+/**
+ * OpenCode's sign-ins the app runs without a terminal (`opencode auth login -p <provider> [-m <method>]`, its login
+ * stored once per computer): a provider's own account by a device code, or a provider's API key typed in for you.
+ * Ids are OpenCode's own (models.dev); `method` is the label OpenCode shows, for providers that ask how first.
+ */
+export const OPENCODE_ACCOUNTS = { chatgpt: { provider: "openai", method: "ChatGPT Pro/Plus (headless)", label: "ChatGPT" } } as const;
+export const OPENCODE_KEY_METHOD = "Manually enter API Key";
+export const OPENCODE_KEYS = {
+  anthropic: { label: "Anthropic", method: false },
+  openai: { label: "OpenAI", method: true },
+  openrouter: { label: "OpenRouter", method: false },
+  google: { label: "Google", method: false },
+  groq: { label: "Groq", method: false },
+  deepseek: { label: "DeepSeek", method: false },
+  mistral: { label: "Mistral", method: false },
+  xai: { label: "xAI", method: true },
+} as const;
+export type OpencodeAccount = keyof typeof OPENCODE_ACCOUNTS;
+export type OpencodeKey = keyof typeof OPENCODE_KEYS;

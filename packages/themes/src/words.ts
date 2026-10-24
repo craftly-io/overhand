@@ -278,6 +278,10 @@ export const plainWords = {
   addAccountSignInInstead: "Sign in in your browser instead",
   addAccountAdvanced: "Advanced",
   addAccountKeyField: "{tool} API key",
+  /** OpenCode signs in to a provider: its account (a device code), or its API key typed in for you. */
+  addAccountWith: "Sign in with {provider}",
+  addAccountProviderKey: "Use a provider's API key",
+  addAccountProvider: "Provider",
   addAccountOwnFolder: "It keeps its own login, separate from yours.",
   addAccountSharedLogin: "{tool} keeps one sign-in per computer.",
   addAccountSharedTaken: "{tool} keeps one sign-in per computer, and {account} uses it: add this one with an API key.",
