@@ -42,6 +42,27 @@ const ReleasedSchema = z.object({ hits: z.array(LeakHitSchema).optional() });
 const RuleAddedSchema = z.union([z.object({ url: z.string() }), z.object({ suggest: z.string(), file: z.string() })]);
 
 /** Every action the dashboard can take. Each one says what happened in a toast (and aloud, when asked by voice). */
+/** Settings' tabs by the names messages give them. */
+const TABS: Record<string, string> = {
+  phone: "phone",
+  integrations: "integrations",
+  projects: "projects",
+  "agent accounts": "accounts",
+  accounts: "accounts",
+  leads: "leads",
+  schedule: "schedule",
+  system: "system",
+};
+
+/** The Settings tab a message sends you to ("Settings, Phone" → "phone"; plain "Settings" → ""), or null when it names none. */
+export function settingsPlace(msg: string): string | null {
+  const m = /\bSettings\b(?:\s*(?:,|→)\s*(.*))?/.exec(msg);
+  if (!m) return null;
+  const after = (m[1] ?? "").toLowerCase();
+  const name = Object.keys(TABS).find((t) => after.startsWith(t));
+  return name ? (TABS[name] ?? "") : "";
+}
+
 export function useActions() {
   const qc = useQueryClient();
   const ui = useUi();
@@ -53,12 +74,19 @@ export function useActions() {
     toast(msg);
     if (talk) speak(msg, theme);
   };
-  /** Runs a POST and reports failure as a toast instead of throwing. */
+  /**
+   * Runs a POST and reports failure as a toast instead of throwing. A refusal that names where its fix is ("Settings,
+   * Phone", "Settings → Projects") gets a button that opens it there: no error is a dead end.
+   */
   const guard = async (talk: boolean, fn: () => Promise<void>) => {
     try {
       await fn();
     } catch (e) {
-      tell(e instanceof Error ? e.message : String(e), talk);
+      const msg = e instanceof Error ? e.message : String(e);
+      const at = settingsPlace(msg);
+      if (at === null) return tell(msg, talk);
+      toast(msg, { action: { label: w.decOpenSettings, onClick: () => ui.openDrawer({ kind: "settings", ...(at ? { tab: at } : {}) }) } });
+      if (talk) speak(msg, theme);
     }
   };
   /** Actions the daemon picks up on its next tick still work while it's down; say so. */

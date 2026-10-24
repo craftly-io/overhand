@@ -1298,7 +1298,7 @@ export async function handle(req: Request): Promise<Response> {
     case "/api/lead/start":
     case "/api/lead/stop": {
       const g = CFG.godmode.find((x) => x.key === String(body.key ?? "").toLowerCase());
-      if (!g?.supervised) return json({ error: "that godmode session isn't supervised; turn it on in Settings" }, 400);
+      if (!g?.supervised) return json({ error: "that lead isn't switched on: turn it on in Settings, Leads" }, 400);
       const leads = loadLeads();
       const st = leadOf(leads, g.key);
       if (url.pathname.endsWith("/start")) {
