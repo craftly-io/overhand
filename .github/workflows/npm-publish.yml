@@ -1,0 +1,35 @@
+# Publishes one existing release tag to npm, by hand: for when the release workflow's npm job needs another go after a
+# fix, which a re-run can't pick up (a re-run uses the workflow as it was at the tag). The same steps as release.yml's npm job.
+name: npm-publish
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish, e.g. v0.0.1"
+        required: true
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: release/npm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: |
+          v="${TAG#v}"
+          if [ "$(npm view "overhand@$v" version 2>/dev/null)" = "$v" ]; then echo "overhand@$v is already on npm"; exit 0; fi
+          cp ../../LICENSE.md .
+          npm version "$v" --no-git-tag-version --allow-same-version
+          npm publish --access public --provenance
+        env:
+          TAG: ${{ inputs.tag }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
