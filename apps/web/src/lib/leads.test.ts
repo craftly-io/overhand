@@ -30,6 +30,7 @@ const lead = (key: string, watch?: Lead["watch"]): Lead => ({
   reason: "",
   waiting: false,
   waitingLimit: false,
+  cantStart: null,
   nextAt: 0,
   account: "",
   inbox: null,

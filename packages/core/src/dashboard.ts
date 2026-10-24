@@ -378,6 +378,7 @@ export async function dashboardState(): Promise<DashboardState> {
         reason: st.reason,
         waiting: !!st.waiting,
         waitingLimit: !!st.waitingLimit,
+        cantStart: st.cantStart ?? null,
         // when every account it may use is benched, the one back first, so Crew says whose limit it waits on and until when
         ...limitBack(free),
         // today's spend cap is what holds it: its status says so, and that it resumes tomorrow or once you raise the cap

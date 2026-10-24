@@ -274,6 +274,7 @@ export function demoPost(url: string, body: Record<string, unknown>): unknown {
       reason: "",
       waiting: false,
       waitingLimit: false,
+      cantStart: null,
       nextAt: 0,
       account: "Sam",
       inbox: null,

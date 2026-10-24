@@ -55,6 +55,8 @@ export interface LeadState {
   ran?: RunMode;
   /** Every allowed account is limited; it resumes when one frees up. */
   waitingLimit?: boolean;
+  /** Its last start failed before it ran (an account missing its key, a CLI refusing the repo): which, and why. */
+  cantStart?: { account: string; why: string };
   /** Start was pressed: the next start skips restartAfterMin, even if the stopped run's exit lands after the press. */
   startNow?: boolean;
   /** The work that woke an on-demand lead last; it wakes again only when this changes. */
@@ -641,6 +643,7 @@ function startLead(g: Godmode, st: LeadState, account: string, brief = ""): void
   } catch (e) {
     // a CLI that refuses this repo, or an account missing its key: the lead waits and says why, like a held one
     report(`⚠ ${leadName(g)} can't start on ${account}: ${errorText(e)}`);
+    st.cantStart = { account, why: errorText(e) };
     st.lastExit = Date.now();
     return;
   }
@@ -664,6 +667,7 @@ function startLead(g: Godmode, st: LeadState, account: string, brief = ""): void
   leadChildren.set(g.key, proc);
   const ran: RunMode = spawn.sandboxed ? "sandboxed" : spawn.guardOnly ? "guard only" : "unsandboxed";
   Object.assign(st, { pid: proc.pid, startedAt: Date.now(), account, log: logPath, waitingLimit: false, startNow: false, ran });
+  delete st.cantStart;
   report(
     `⚡ ${leadName(g)} started headless (pid ${proc.pid}, ${account}${spawn.guardOnly ? ", guard only: its project runs without the OS sandbox" : ""})`,
   );

@@ -17,6 +17,7 @@ const lead = (over: Partial<Lead>): Lead => ({
   reason: "",
   waiting: false,
   waitingLimit: false,
+  cantStart: null,
   nextAt: 0,
   account: "",
   inbox: null,

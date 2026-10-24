@@ -133,6 +133,7 @@ test("alerts: a meeting within 15 minutes, a lead's question, planner notes", ()
         reason: "",
         waiting: true,
         waitingLimit: false,
+        cantStart: null,
         nextAt: 0,
         account: "work",
         inbox: { text: "# Questions\nShip on Friday?", at: NOW, open: true },

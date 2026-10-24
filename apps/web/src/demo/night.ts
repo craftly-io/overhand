@@ -495,7 +495,7 @@ export function nightAt(minutes: number): DashboardState {
       waiting: asked,
       // its only account is billed and past today's cap: held until midnight, and its status says the cap is why
       ...(capped && g.account === "Bedrock" && !live
-        ? { waitingLimit: true, limitAccount: "Bedrock", limitBack: midnight, capHeld: true }
+        ? { waitingLimit: true, cantStart: null, limitAccount: "Bedrock", limitBack: midnight, capHeld: true }
         : { waitingLimit: false }),
       nextAt: last ? at(last[1]) + 40 * 60_000 : 0,
       account: g.account ?? "Sam",

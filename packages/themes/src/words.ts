@@ -882,6 +882,10 @@ export const plainWords = {
   alLeadNeeds: "Question from {lead}",
   alLeadNeedsSay: "{lead} has a question for you",
   alLeadCrashed: "{lead} stopped",
+  /** A lead whose start fails before it runs (an account missing its key, a CLI refusing the repo): fix it, then again. */
+  alLeadCantStart: "{lead} can't start",
+  alLeadCantStartSay: "{lead} can't start",
+  alFixAccount: "Fix {account}",
   alLeadCrashedSay: "{lead} keeps crashing",
   alReview: "Review requested: {repo} #{n}",
   alReviewMany: "{n} reviews requested in {repo}",

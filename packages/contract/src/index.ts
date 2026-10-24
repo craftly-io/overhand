@@ -359,6 +359,8 @@ export const LeadSchema = z.object({
   reason: z.string(),
   waiting: z.boolean(),
   waitingLimit: z.boolean(),
+  /** Its last start failed before it ran: the account it tried and why (a missing key, a CLI refusing the repo). */
+  cantStart: z.object({ account: z.string(), why: z.string() }).nullish(),
   /** The benched account that frees up first and when; absent when no account is benched. */
   limitAccount: z.string().optional(),
   limitBack: z.number().optional(),

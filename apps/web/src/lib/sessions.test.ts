@@ -35,6 +35,7 @@ const honeycrust: Lead = {
   reason: "",
   waiting: false,
   waitingLimit: false,
+  cantStart: null,
   nextAt: 0,
   account: "work",
   inbox: null,
@@ -56,7 +57,7 @@ test("leadState says what a lead is doing", () => {
   );
   expect(leadState({ ...g, waitingLimit: true }, plainWords, NOW)).toBe("Waiting for a usage limit to reset");
   // held by today's spend cap: it says the cap, and when it resumes, never a usage limit at midnight
-  const capped = { ...g, waitingLimit: true, limitAccount: "aws", limitBack: NOW + 3_600_000, capHeld: true };
+  const capped = { ...g, waitingLimit: true, cantStart: null, limitAccount: "aws", limitBack: NOW + 3_600_000, capHeld: true };
   expect(leadState(capped, plainWords, NOW)).toBe(plainWords.leadWaitingCap);
   expect(plainWords.leadWaitingCap).toContain("tomorrow");
 });
