@@ -156,6 +156,8 @@ test("leads: a group lead runs at the group's level, else the most careful membe
   expect(leadAccounts(c, { account: "", project: "Web" })).toEqual(["work"]);
   expect(leadAccounts(c, { account: "main", project: "Web" })).toEqual(["main"]);
   expect(leadAccounts(c, { account: "", project: "Kite" })).toEqual([]);
+  // a lead's own list, in order, wins over its one account and its group's
+  expect(leadAccounts(c, { account: "main", accounts: ["a", "b"], project: "Web" })).toEqual(["a", "b"]);
 });
 
 // ---------- changing groups without changing behaviour ----------

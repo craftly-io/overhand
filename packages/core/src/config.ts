@@ -661,8 +661,10 @@ const ConfigSchema = z.object({
         onDemand: z.boolean().default(false),
         /** With onDemand: only these kinds of work wake it (a ready-made lead's own, LEAD_WORK); empty = any. */
         watch: z.array(z.enum(LEAD_WORK)).optional(),
-        /** Account to try first when supervised; empty = any account. */
+        /** Account to try first when supervised; empty = any account. `accounts` takes over when set. */
         account: z.string().default(""),
+        /** The accounts it may run on, in order; with fallbackToAll off it never runs on another. Empty: `account`. */
+        accounts: z.array(z.string()).optional(),
         /** When that account is at its limit, carry on with any other account. */
         fallbackToAll: z.boolean().default(true),
         /** Lock the session holds (relative to the Code root), JSON {"pid","heartbeat" ms}; a live pid with a fresh heartbeat means a lead is running. */

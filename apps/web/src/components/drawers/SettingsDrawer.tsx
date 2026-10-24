@@ -474,6 +474,8 @@ function LeadsTab() {
               <Field label="On" path={`godmode.${i}.supervised`} kind="bool" />
               <Field label="Only when Overhand finds work" path={`godmode.${i}.onDemand`} kind="bool" />
               <Field label="Account (empty = the first)" path={`godmode.${i}.account`} />
+              <Field label="Accounts it may use, in order (overrides Account)" path={`godmode.${i}.accounts`} kind="csv" />
+              <Field label="Carry on with any other account at their limits" path={`godmode.${i}.fallbackToAll`} kind="bool" />
             </>
           )}
           <Field label="Lock file" path={`godmode.${i}.lockFile`} kind="list" />

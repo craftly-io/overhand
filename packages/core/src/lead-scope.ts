@@ -89,6 +89,7 @@ function newLead(key: string, label: string, dir: string, project: string, from?
     supervised: true,
     onDemand: true,
     account: "",
+    accounts: [],
     fallbackToAll: true,
     lockFile: "",
     lockStaleMin: 45,

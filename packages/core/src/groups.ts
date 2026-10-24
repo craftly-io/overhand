@@ -74,7 +74,8 @@ export function leadPushBranches(
 }
 
 /** The accounts a lead prefers: its own, else its group's rule (a project's own list never applied to leads). */
-export function leadAccounts(cfg: Groups, lead: { account: string; project: string }): string[] {
+export function leadAccounts(cfg: Groups, lead: { account: string; accounts?: string[]; project: string }): string[] {
+  if (lead.accounts?.length) return lead.accounts;
   if (lead.account) return [lead.account];
   return (lead.project ? groupOf(cfg, lead.project)?.rules.accounts : undefined) ?? [];
 }
