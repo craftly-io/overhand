@@ -32,7 +32,7 @@ const pending = new Map<string, Pending>();
  */
 export function quickReplies(text: string): string[] {
   const section = text.split(/^(?=## )/m).at(-1) ?? "";
-  if (/^## (Report|Answer from)/.test(section)) return [];
+  if (/^## (Report|Answer from|Reply\b)/.test(section)) return [];
   const line = section.match(/^\s*(?:[-*]\s*)?\**options?\**:\**\s*(.+)$/im)?.[1] ?? "";
   const options = line
     .split(/\s+\|\s+|\s+\/\s+|\s+or\s+/i)

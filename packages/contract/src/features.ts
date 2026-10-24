@@ -360,6 +360,17 @@ export const FEATURES: readonly Feature[] = [
     place: "none",
     docs: "docs/runs.html#mcp",
   },
+  {
+    id: "talk-to-leads",
+    name: "Message a lead",
+    line: "Ask a lead anything or tell it what to do, any time, from the app or your phone; its reply comes back in the same conversation.",
+    area: "agents",
+    since: "2026-10-25",
+    source: "apps/web/src/components/drawers/LeadDrawer.tsx",
+    place: "none",
+    docs: "docs/leads.html#talk",
+    tip: { text: "New: message a lead any time, not only when it asks.", where: "lead-message" },
+  },
 ];
 
 /** The features newest first; within a day, in the registry's order. */

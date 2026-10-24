@@ -272,11 +272,15 @@ export function useActions() {
         await post("/api/name", { id, name }, Ok);
         refresh();
       }),
-    /** Answers a lead's open question: your answer, "I answered elsewhere" (text optional), or dismissing it. */
-    leadAnswer: (key: string, text: string, kind: "answer" | "elsewhere" | "dismiss" = "answer") =>
+    /**
+     * Answers a lead's open question: your answer, "I answered elsewhere" (text optional), or dismissing it. With no
+     * question open (`message`), your answer is a message to the lead.
+     */
+    leadAnswer: (key: string, text: string, kind: "answer" | "elsewhere" | "dismiss" = "answer", message = false) =>
       guard(false, async () => {
         await post("/api/lead/answer", { key, text, kind }, Ok);
-        toast(kind === "elsewhere" ? w.saidAnsweredElsewhere : kind === "dismiss" ? w.saidDismissed : w.saidAnswer);
+        const said = kind === "elsewhere" ? w.saidAnsweredElsewhere : kind === "dismiss" ? w.saidDismissed : w.saidAnswer;
+        toast(message ? w.saidMessage : said);
         refresh();
       }),
     /**

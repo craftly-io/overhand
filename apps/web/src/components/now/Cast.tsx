@@ -164,7 +164,7 @@ function Character({ g, m, loop, i }: { g: Lead; m: Model; loop: number; i: numb
         </Steps>
         <div className="mt-2 flex gap-1">
           <Button variant={g.open ? "outline" : "ghost"} size="xs" onClick={open}>
-            {g.open ? w.leadQuestions : w.log}
+            {g.open ? w.leadQuestions : w.leadTalk}
           </Button>
           {g.supervised ? (
             g.running || !g.stopped ? (

@@ -759,7 +759,21 @@ export const plainWords = {
   leadQuestions: "Questions for you",
   leadCostToday: "{cost} at API prices today",
   runApiPrice: "{cost} at API prices",
-  leadAnswered: "Answered, the lead picks it up on its next run",
+  leadThread: "Conversation",
+  threadYou: "You",
+  threadReply: "Reply",
+  threadReport: "Report",
+  /** Crew's button that opens a lead's conversation with you, its message box and its live output. */
+  leadTalk: "Message",
+  messageLead: "Message {lead}",
+  messagePlaceholder: "Ask it something, or tell it what to do from now on.",
+  sendMessage: "Send message",
+  /** Under the message box: when the lead reads what you send (contract LEAD_HEARS). */
+  leadHearsNow: "Working now: it reads this at its next step.",
+  leadHearsAfterRun: "Working now: it reads this when this run ends.",
+  leadHearsStarts: "Not running: Overhand starts it now to read this.",
+  /** Under the message box: what a message can't do. */
+  messageLimits: "It works within its project's rules, as it always does. Its reply shows here and goes nowhere else.",
   leadNoQuestions: "No open questions.",
   yourAnswer: "Your answer",
   answerPlaceholder: "Answer here; it's added to the questions file and the lead picks it up.",
@@ -891,6 +905,7 @@ export const plainWords = {
   /** A lead's question, as Needs you and the phone title it: the lead's name reads as a name ("Question from Keep checks green · Online shop"). */
   alLeadNeeds: "Question from {lead}",
   alLeadNeedsSay: "{lead} has a question for you",
+  alLeadReplied: "{lead} replied",
   alLeadCrashed: "{lead} stopped",
   /** A lead whose start fails before it runs (an account missing its key, a CLI refusing the repo): fix it, then again. */
   alLeadCantStart: "{lead} can't start",
@@ -1039,6 +1054,7 @@ export const plainWords = {
   saidLaunch: "Armed {n} more and started the queue.",
   saidLaunchStarted: "Armed {n} more and started the queue. Started {names}.",
   saidAnswer: "Answer sent. The lead picks it up now.",
+  saidMessage: "Message sent.",
   saidLeadStarting: "Starting the lead.",
   saidLeadTemplate: "Added {lead}. It starts on the work it found within a minute.",
   saidLeadAlready: "A lead is already running; Overhand will keep it alive.",

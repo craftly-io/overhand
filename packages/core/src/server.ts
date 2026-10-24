@@ -9,6 +9,9 @@ import {
   type CleanupStatus,
   CleanupStatusSchema,
   CleanupSwitchesSchema,
+  DISMISS_TEXT,
+  ELSEWHERE_NOTE,
+  ELSEWHERE_TEXT,
   FeedbackDraftSchema,
   FeedbackRequestSchema,
   FRESH_MIN,
@@ -16,6 +19,7 @@ import {
   LEAD_TEMPLATES,
   LEAD_WORK,
   localDay,
+  MESSAGE_NOTE,
   NameSchema,
   OPENCODE_ACCOUNTS,
   OPENCODE_KEY_METHOD,
@@ -54,7 +58,7 @@ import { noteCalls } from "./calls";
 import { type Checked, cachedCheckup } from "./checkup";
 import { refreshUsage, testAccount } from "./claude";
 import { type Config, parseConfig, RUNTIME_IDS, type RuntimeId, saveConfig, withQuick } from "./config";
-import { beatOf, loadRequests, RUN_KEY_HEADER, type RunWho, runByKey, writeAtomic } from "./control";
+import { beatOf, loadBeats, loadRequests, RUN_KEY_HEADER, type RunWho, runByKey, writeAtomic } from "./control";
 import { controlRoute } from "./control-api";
 import { dashboardState, migrateLabels, roomChanged, startStateRefresh } from "./dashboard";
 import { briefFor, moreFacts, snoozeItem } from "./decide";
@@ -86,17 +90,17 @@ import { inboxReadAt } from "./inbox";
 import {
   appendAnswer,
   blankLead,
-  DISMISS_TEXT,
   defaultText,
-  ELSEWHERE_TEXT,
   type LeadState,
   leadAsk,
   leadInbox,
   leadName,
   leadOf,
   leadPid,
+  leadRunning,
   loadLeads,
   lockHolder,
+  messageLead,
   saveLeads,
   superviseLeads,
 } from "./leads";
@@ -525,14 +529,22 @@ function agentPr(raw: unknown): { key: string; pr: TrackedPr } | { error: string
   return { key, pr };
 }
 
-/** Appends your answer to a lead's questions file and resumes a lead held on it. `note` goes beside the heading's stamp. */
+/**
+ * Appends your answer to a lead's questions file and resumes a lead held on it. `note` goes beside the heading's stamp.
+ * With no question open it's a message (messageLead): it rings a running session's doorbell, or the lead starts for it.
+ * Either way it's only words in the lead's file: the lead keeps its project's mode, and nothing leaves this computer.
+ */
 function answerLead(g: (typeof CFG.godmode)[number], text: string, note = ""): void {
-  const at = appendAnswer(g, OWNER, text, note);
+  const message = !leadInbox(g)?.open;
+  const said = [message ? MESSAGE_NOTE : "", note].filter(Boolean).join(", ");
+  const at = appendAnswer(g, OWNER, text, said);
   // your own answer changes the file: mark it seen so it doesn't notify you that the lead needs you
   const leads = loadLeads();
-  leadOf(leads, g.key).inboxAt = at;
+  const st = leadOf(leads, g.key);
+  st.inboxAt = at;
+  if (message) messageLead(g, st, leadRunning(g, st), loadBeats(OPS));
   saveLeads(leads);
-  report(`💬 answered ${leadName(g)}${note ? ` (${note})` : ""}`);
+  report(`💬 ${message ? "messaged" : "answered"} ${leadName(g)}${note ? ` (${note})` : ""}`);
   superviseLeads(); // a held lead resumes right away
   void pushState().catch(() => {});
 }
@@ -564,7 +576,7 @@ function leadAnswerRoute(body: { key?: unknown; text?: unknown; kind?: unknown }
   }
   const box = leadInbox(g);
   if (!box?.open) return json({ error: `${leadName(g)} has no open question` }, 409);
-  if (kind === "elsewhere") answerLead(g, text || ELSEWHERE_TEXT, "given outside Overhand");
+  if (kind === "elsewhere") answerLead(g, text || ELSEWHERE_TEXT, ELSEWHERE_NOTE);
   else if (kind === "dismiss") answerLead(g, DISMISS_TEXT);
   else if (kind === "default") {
     const ask = leadAsk(g, loadLeads()[g.key] ?? blankLead(), box, null);
@@ -608,6 +620,8 @@ async function runRoute(path: string, raw: unknown, who: RunWho): Promise<Respon
     // only its own lead's question: a lead run answers itself (a subagent of it, say), no other run answers any lead
     const g = leadNamed(body.key);
     if (!g || who.run !== `lead-${g.key}`) return json({ error: "a run answers only its own lead's question" }, 403);
+    // a message is yours alone: a run never writes one, not even to its own lead
+    if (!leadInbox(g)?.open) return json({ error: `${leadName(g)} has no open question` }, 409);
     return leadAnswerRoute(body);
   }
   if (path === "/api/requests/ack") {
@@ -1352,7 +1366,7 @@ export async function handle(req: Request): Promise<Response> {
       const leads = loadLeads();
       const st = leadOf(leads, g.key);
       if (url.pathname.endsWith("/start")) {
-        const running = !!lockHolder(g) || !!leadPid(g, st); // before superviseLeads, which may start it now
+        const running = leadRunning(g, st); // before superviseLeads, which may start it now
         Object.assign(st, { stopped: false, reason: "", crashes: [], lastExit: 0, waiting: false, startNow: true });
         saveLeads(leads);
         superviseLeads();

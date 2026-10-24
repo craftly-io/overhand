@@ -10,23 +10,28 @@ import {
   type Autonomy,
   AutonomySchema,
   type DashboardState,
+  DISMISS_TEXT,
   diagnosticLines,
+  ELSEWHERE_NOTE,
+  ELSEWHERE_TEXT,
   type FeedbackPreview,
   FeedbackRequestSchema,
   type Finding,
   feedbackBody,
   LEAD_WORK,
   type Lead,
+  MESSAGE_NOTE,
   NameSchema,
   NO_PROJECT,
   planPoints,
+  sectionHeading,
   templateKey,
   termHits,
 } from "@overhand/contract";
 import { plainWords } from "@overhand/themes";
 import type { QueryClient } from "@tanstack/react-query";
 import { ARRIVE_FROM, MOMENTS, MORNING, minutesOf } from "./moments";
-import { clockAt, nightAt } from "./night";
+import { clockAt, nightAt, OWNER } from "./night";
 import { demoReviewPost, demoReviewRound } from "./review";
 import { demoSignInPost } from "./signin";
 import { stressed } from "./stress";
@@ -105,6 +110,7 @@ const listeners = new Set<() => void>();
 export function resetDemo(): void {
   played = false;
   did.answered.clear();
+  did.said.clear();
   did.quietUntil = 0;
   did.autonomy.clear();
   did.plans = [];
@@ -135,8 +141,17 @@ export const demoClock = {
  * What the visitor did in this page's demo: questions answered, quiet mode, a project's autonomy. Kept in memory only
  * and laid over the scripted night, so a click lands like it would on a real daemon and a reload starts the night fresh.
  */
+/** One thing the visitor sent a lead: its words, the note beside its stamp, and when. */
+interface Said {
+  text: string;
+  note: string;
+  at: number;
+}
+
 const did = {
   answered: new Set<string>(),
+  /** What the visitor sent each lead (answers and messages), in order, as its questions file gets them. */
+  said: new Map<string, Said[]>(),
   quietUntil: 0,
   autonomy: new Map<string, Autonomy>(),
   /** Requests started from a sentence: each comes back at once as its agent's plan (a real one takes a pass). */
@@ -170,16 +185,22 @@ const demoPlan = (project: string, text: string) =>
       ]
   ).join("\n");
 
+/** A lead with what the visitor sent it appended to its questions file: nothing is open after an answer or a message. */
+function withSaid(l: Lead, said: readonly Said[]): Lead {
+  const last = said.at(-1);
+  if (!last) return l;
+  const sent = said.map((x) => `${sectionHeading(`Answer from ${OWNER}`, x.note, new Date(x.at))}\n\n${x.text}`);
+  const text = [l.inbox?.text ?? "", ...sent].filter(Boolean).join("\n\n");
+  return { ...l, waiting: false, inbox: { text, at: last.at, open: false }, open: false, ask: null };
+}
+
 /** The state at the current scripted minute, with what the visitor did laid over it. */
 export const demoState = (): DashboardState => {
   const s = STRESS ? stressed(nightAt(minutes)) : nightAt(minutes);
   return {
     ...s,
     clients: s.clients.map((c) => ({ ...c, autonomy: did.autonomy.get(c.name) ?? c.autonomy })),
-    godmode: [
-      ...s.godmode.map((l) => (did.answered.has(l.key) ? { ...l, waiting: false, inbox: null, open: false, ask: null } : l)),
-      ...did.leads,
-    ],
+    godmode: [...s.godmode.map((l) => withSaid(l, did.said.get(l.key) ?? [])), ...did.leads],
     names: Object.fromEntries(did.names),
     tickets: Object.fromEntries(
       Object.entries(s.tickets).map(([p, list]) => [
@@ -203,7 +224,20 @@ export const demoState = (): DashboardState => {
 /** The few actions the demo carries out (answers, quiet mode, a project's autonomy); undefined for the rest, which refuse. */
 export function demoPost(url: string, body: Record<string, unknown>): unknown {
   const key = typeof body.key === "string" ? body.key : "";
-  if (url === "/api/lead/answer" && key) return did.answered.add(key) && {};
+  if (url === "/api/lead/answer" && key) {
+    // written to its questions file as the daemon writes it: your answer, a message when nothing is open, "I answered
+    // elsewhere" or Dismiss
+    const open = demoState().godmode.find((l) => l.key === key)?.open ?? false;
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    const said =
+      body.kind === "elsewhere"
+        ? { text: text || ELSEWHERE_TEXT, note: ELSEWHERE_NOTE }
+        : body.kind === "dismiss"
+          ? { text: DISMISS_TEXT, note: "" }
+          : { text, note: open ? "" : MESSAGE_NOTE };
+    did.said.set(key, [...(did.said.get(key) ?? []), { ...said, at: Date.now() }]);
+    return {};
+  }
   // the calls count is the sample week's (night.ts); what the page shows isn't recorded anywhere
   if (url === "/api/calls") return { fresh: 0 };
   // the app coming back into view asks for fresh reads: the sample night's are as fresh as they get

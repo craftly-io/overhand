@@ -8,7 +8,7 @@ import { BillingSchema } from "./billing";
 import { CardButtonSchema, PlanPointsSchema } from "./decide";
 import { GuideSchema } from "./guide";
 import { ProjectInstructionsSchema } from "./instructions";
-import { LEAD_WORK } from "./leads";
+import { LEAD_HEARS, LEAD_WORK } from "./leads";
 import { LeakSchema } from "./outward";
 import { ProgressionSchema } from "./progression";
 import { ProofSchema } from "./proof";
@@ -370,6 +370,8 @@ export const LeadSchema = z.object({
   account: z.string(),
   inbox: LeadInboxSchema.nullable(),
   open: z.boolean(),
+  /** When a message you send it now reaches it (LEAD_HEARS). Absent from older daemons. */
+  hears: z.enum(LEAD_HEARS).optional(),
   /**
    * The open question: its stated default ("If there's no answer: …", "" when none), when Overhand goes with it (0 = it
    * waits for you), and why it may be out of date (issues/PRs it names that closed since; its age in hours past a day).
