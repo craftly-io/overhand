@@ -214,6 +214,20 @@ export function claudeMcpServers(repo: string, home = HOME): Record<string, unkn
   return { ...obj(j, "mcpServers"), ...(repo ? obj(obj(obj(j, "projects"), repo), "mcpServers") : {}) };
 }
 
+/**
+ * Overhand's own MCP server (`overhand mcp`, mcp-server.ts) as a stdio entry, started the way the guard is (hookCommand).
+ * It inherits the run's environment, so it calls the daemon with that run's own key and can do only what the run may.
+ */
+export function overhandMcpServer(bundled = BUNDLED, exec = SELF_EXEC, src = SRC): { command: string; args: string[] } {
+  return { command: exec, args: bundled ? ["mcp"] : [join(src, "run.ts"), "mcp"] };
+}
+
+/** The MCP servers a run starts with: yours (claudeMcpServers), and Overhand's own. */
+export const runMcpServers = (repo: string, home = HOME): Record<string, unknown> => ({
+  ...claudeMcpServers(repo, home),
+  overhand: overhandMcpServer(),
+});
+
 /** An MCP server one of your agent CLIs is set up with: the CLI, the server's name, and its URL or command (for matching only). */
 export interface AgentMcpServer {
   cli: string;

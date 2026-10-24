@@ -29,6 +29,7 @@ import type { Client } from "./config";
 import { inspectCorners } from "./corners";
 import { CFG, CLIENTS, CODE, clientOf, http, LABEL, MIN, OPS, sh, shAsync } from "./env";
 import { loadWin, type StoredWin, saveWin } from "./firstwin";
+import { protectedBranch } from "./guard";
 import { capReport, guideMerged, guideNext, guidePrompt, isGuideKey, loadGuides, type StoredGuide, saveGuide } from "./guide";
 import { recordOutcome } from "./history";
 import { createPendingTickets } from "./inbox";
@@ -100,6 +101,18 @@ export interface PrRequest {
   flags: string[];
 }
 
+/**
+ * Pushes a run's work with your sign-in, so the run itself needs none (sandbox.ts SIGN_INS): only the branch its worktree
+ * was made on, from that worktree, never forced and never a protected branch or the base. Throws with why.
+ */
+export async function pushBranch(wt: Pick<Worktree, "path" | "branch" | "base">): Promise<void> {
+  if (wt.branch === wt.base || protectedBranch(wt.branch)) throw new Error(`${wt.branch} is a protected branch: Overhand doesn't push it`);
+  const head = await shAsync(["git", "symbolic-ref", "--short", "HEAD"], wt.path);
+  if (head.out !== wt.branch) throw new Error(`the run left its worktree on ${head.out || "no branch"}, not ${wt.branch}: nothing pushed`);
+  const res = await shAsync(["git", "push", "-u", "origin", `HEAD:refs/heads/${wt.branch}`], wt.path);
+  if (!res.ok) throw new Error(`git push: ${res.err.trim().split("\n").at(-1) ?? ""}`);
+}
+
 /** Opens a pull request (marked as Overhand's) and returns where it is. */
 export async function createPr(p: PrRequest): Promise<{ url: string; host: Client["host"]; repo: string; number: number }> {
   if (p.host === "github") {
@@ -154,7 +167,7 @@ const shipFailed = (key: string) => (e: unknown) => report(`⚠ ${key}: Ship: ${
 const sizeOf = (pr: TrackedPr) => (pr.proof ? { added: pr.proof.added, removed: pr.proof.removed, docsOnly: pr.proof.docsOnly } : {});
 
 /**
- * Opens the PR for a finished ticket, as the project's autonomy level allows: ready for review on `act` and `ship` (whose
+ * Pushes a finished ticket's branch (pushBranch) and opens its PR, as the project's autonomy level allows: ready for review on `act` and `ship` (whose
  * auto-merge the work pass turns on once this proof is in its body, ship.ts), a draft on `propose`, and never on `watch` (it throws, so nothing reaches the repo even if a watch run said done). Its body gets
  * the proof section (proof.ts); title and body go through the outward firewall first: a leak is held for you
  * (HeldError), the branch already pushed.
@@ -168,6 +181,7 @@ export async function openPr(
   const flags = prCreateFlags(tk.client.autonomy);
   if (!flags) throw new Error(`${tk.client.name} is on Plan and warn only: Overhand doesn't open PRs there`);
   const c = tk.client;
+  await pushBranch(wt);
   const proof = await proveWork(c, tk.key ?? wt.branch, wt, transcript, r.verified ?? "");
   const body = [r.pr_body.trimEnd(), proofMarkdown(proof, CFG.outward.aiAttribution)].join("\n\n");
   const text = `${r.pr_title}\n\n${body}`;
@@ -423,12 +437,12 @@ function taskPrompt(tk: Ticket, wt: Worktree): string {
 function fixPrompt(key: string, pr: TrackedPr, feedback: string, c: Client): string {
   return [
     `Your PR for ${key} needs another round: ${pr.url}`,
-    `You are in its worktree on branch ${pr.branch}. Pull the branch first (others may have pushed).`,
+    `You are in its worktree on branch ${pr.branch}. Overhand brought it up to date with what others pushed.`,
     "",
     "Feedback and failing checks:",
     feedback || "(CI failing, see the PR checks)",
     "",
-    "Address every point that is right, explain in pr_body any you disagree with, rerun the checks, commit, and push the same branch.",
+    "Address every point that is right, explain in pr_body any you disagree with, rerun the checks and commit: Overhand pushes the same branch when you return done.",
     "Do not open a new PR. Return status done with pr_body summarizing what you changed in this round.",
     ticketRules(c.autonomy),
   ]
@@ -505,7 +519,7 @@ async function handleTicket(state: State, tk: Ticket): Promise<"ok" | "no-capaci
       return "ok";
     } catch (e) {
       r.status = "failed";
-      r.message = `Work pushed to ${wt.branch} but opening the PR failed: ${String(e)}`;
+      r.message = `The work on ${wt.branch} is done, but pushing it or opening its PR failed: ${String(e)}`;
     }
   }
   if (r.status === "question") {
@@ -823,12 +837,20 @@ export async function work(): Promise<boolean> {
       if (pr.ship?.on) return true;
       budget--;
       const wt = existsSync(pr.repoPath) ? pr.repoPath : (await prepareWorktree(pr.mainRepo, key, pr.branch)).path;
+      // what others pushed, brought in before the run: it has no sign-in to fetch with (sandbox.ts SIGN_INS)
+      await shAsync(["git", "fetch", "origin", "--prune"], wt);
+      await shAsync(["git", "merge", "--ff-only", `origin/${pr.branch}`], wt);
       const feedback = [s.feedback, fromSlack && `From the owner and Slack:\n${fromSlack}`].filter(Boolean).join("\n");
       if (s.changes) pr.changes = (pr.changes ?? 0) + 1;
       const run = await claude<AgentResult>(state, fixPrompt(key, pr, feedback, c), wt, RESULT_SCHEMA, `${key}-fix`, { client: c });
       if (!run) return false;
       pr.fixes++;
       pr.extra = undefined;
+      if (run.out.status === "done")
+        await pushBranch({ path: wt, branch: pr.branch, base: pr.base ?? "" }).catch((e: unknown) => {
+          run.out.status = "failed";
+          run.out.message = `nothing pushed to ${pr.branch}: ${errorText(e)}`;
+        });
       if (run.out.status === "done" && pr.base) {
         // the proof as of this push; screenshots aren't retaken every round, the last ones stand
         const numstat = await shAsync(["git", "diff", "--numstat", `origin/${pr.base}...HEAD`], wt);

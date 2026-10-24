@@ -128,8 +128,7 @@ bun release/launch.ts --dry-run   # reads state and prints every step; changes n
 bun release/launch.ts
 ```
 
-It runs preflight (the repo and `origin` are `craftly-io/overhand`, on `main`, clean tree, CI green on HEAD, leakcheck, tests, version not yet tagged, the `NPM_TOKEN`
-secret, the tap repo, wrangler signed in, the responsive sweep has no hard failures), then: makes the repo public if it isn't yet, tags `vX.Y.Z` and waits for the
+It runs preflight (the repo and `origin` are `craftly-io/overhand`, on `main`, clean tree, CI green on HEAD, leakcheck, tests, version not yet tagged, the tap repo, wrangler signed in, the responsive sweep has no hard failures), then: makes the repo public if it isn't yet, tags `vX.Y.Z` and waits for the
 release workflow (which builds the packages and, from a public repo, publishes the `overhand` npm launcher in
 `release/npm`), deploys the site and the installer, installs from `get.overhand.dev` into a scratch HOME and
 checks the version, checks `npx overhand@X.Y.Z`, writes the Homebrew formula from the release's `SHA256SUMS`
@@ -140,5 +139,6 @@ The first release is the same command. The installer and the landing page need n
 latest release downloads without a login (the installer on every request, the landing page's `live.css` on every
 deploy), and show "not public yet" until it does.
 
-One secret: `NPM_TOKEN`, an npm access token that can publish `overhand`
-(`gh secret set NPM_TOKEN -R craftly-io/overhand`).
+No npm token: the release workflow publishes through npm's trusted publishing, which takes the workflow's own GitHub
+identity. It's set once on npmjs.com (the `overhand` package → Settings → Trusted publishing: GitHub Actions,
+`craftly-io/overhand`, workflow `release.yml`, and `npm-publish.yml` for a manual publish).

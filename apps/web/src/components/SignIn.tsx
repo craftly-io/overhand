@@ -29,7 +29,8 @@ export function openTab(): Window | null {
   return tab;
 }
 
-type Props = { account: string; tool: string; onSignedIn: () => void };
+/** `via`: which of its sign-ins a CLI with more than one runs (OpenCode's, OPENCODE_ACCOUNTS). */
+type Props = { account: string; tool: string; onSignedIn: () => void; via?: string };
 
 /**
  * An account's own sign-in without a terminal: the agent CLI runs on the daemon's machine, its sign-in page opens in
@@ -43,7 +44,7 @@ export function SignIn({ tab, ...p }: Props & { tab: Window | null }) {
   return <Flow key={run.n} {...p} tab={run.tab} onRetry={() => setRun((r) => ({ n: r.n + 1, tab: openTab() }))} />;
 }
 
-function Flow({ account, tool, onSignedIn, tab, onRetry }: Props & { tab: Window | null; onRetry: () => void }) {
+function Flow({ account, tool, onSignedIn, tab, onRetry, via }: Props & { tab: Window | null; onRetry: () => void }) {
   const w = useWords();
   const [started, setStarted] = useState<z.infer<typeof Started> | null>(null);
   const [error, setError] = useState("");
@@ -54,7 +55,7 @@ function Flow({ account, tool, onSignedIn, tab, onRetry }: Props & { tab: Window
 
   useEffect(() => {
     let live = true;
-    post("/api/accounts/login", { account }, Started)
+    post("/api/accounts/login", via ? { account, via } : { account }, Started)
       .then((r) => {
         if (!live) return; // a start this one replaced
         if ("url" in r && tab && !tab.closed) tab.location.href = r.url;
@@ -69,7 +70,7 @@ function Flow({ account, tool, onSignedIn, tab, onRetry }: Props & { tab: Window
     return () => {
       live = false;
     };
-  }, [account, tab]);
+  }, [account, tab, via]);
 
   const id = started && "id" in started ? started.id : "";
   const state = useQuery({

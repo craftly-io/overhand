@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   asksForCode,
+  opencodeKey,
   SIGNIN_GONE,
   SIGNIN_NO_LINK,
   SIGNIN_TIMED_OUT,
@@ -108,4 +109,23 @@ test("starting again stops the sign-in before it", async () => {
   expect(signInState(b.id, "local")?.state).toBe("waiting");
   sendSignInCode(b.id, "local", "good");
   await until(() => signInState(b.id, "local")?.state !== "waiting");
+});
+
+test("OpenCode's key goes in by its prompt, ending on a carriage return, and only a key it takes counts", async () => {
+  // stand-in for `opencode auth login -p <provider>`: reads one line ended by \r, keeps it, and exits 0 only on a key
+  const oc = join(dir, "fake-opencode");
+  writeFileSync(
+    oc,
+    [
+      "#!/bin/sh",
+      "IFS= read -r -d $(printf '\\r') k 2>/dev/null || k=$(cat)",
+      '[ -n "$k" ] && [ "$k" != bad ] && printf %s "$k" > "$OUT/key" && exit 0',
+      "exit 1",
+    ].join("\n"),
+  );
+  chmodSync(oc, 0o755);
+  expect(await opencodeKey(["/bin/bash", oc, "auth", "login", "-p", "groq"], { OUT: dir }, "gsk-test")).toBe(true);
+  expect(Bun.file(join(dir, "key")).text()).resolves.toBe("gsk-test");
+  expect(await opencodeKey(["/bin/bash", oc], { OUT: dir }, "bad")).toBe(false);
+  expect(await opencodeKey([join(dir, "no-such-cli")], {}, "x")).toBe(false);
 });

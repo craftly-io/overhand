@@ -13,7 +13,7 @@ import {
   type WorkSignals,
 } from "@overhand/contract";
 import { plainWords } from "@overhand/themes";
-import { AGENT_HOMES, claudeMcpServers, guardHooks, runHome } from "./agent-home";
+import { AGENT_HOMES, guardHooks, runHome, runMcpServers } from "./agent-home";
 import { leadRules } from "./autonomy";
 import { budgetUntil, recordedBilling } from "./billing";
 import { accountsFor, mainCheckout, readyHome } from "./claude";
@@ -608,7 +608,7 @@ function leadSpawn(g: Godmode, account: string, brief: string, osSandbox: boolea
     // your MCP servers by flag, strictly, whatever the folder; a config folder of Overhand's (runHome) has the guard
     // written in, your own config (an account still waiting for its own sign-in) gets it by flag
     configDir,
-    mcpServers: claudeMcpServers(mainCheckout(leadDir(g))),
+    mcpServers: runMcpServers(mainCheckout(leadDir(g))),
     ...(configDir.startsWith(`${AGENT_HOMES}/`) ? {} : { hooks: guardHooks() }),
     instructions: "",
     read: readSecret,

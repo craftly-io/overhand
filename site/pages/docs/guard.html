@@ -30,12 +30,12 @@
     <section class="block hood" id="list" aria-labelledby="h-list">
       <h2 id="h-list">Everything it blocks.</h2>
       <ul class="facts">
-        <li><b>Pushes</b> Force pushes, and pushes to main, master, develop and other shared branches.</li>
+        <li><b>Pushes</b> Force pushes, and pushes to main, master, develop and other shared branches. A ticket, fix round or onboarding guide doesn't push at all: when it returns done, {{name}} pushes its branch from its worktree with your sign-in, never forced and never to a shared branch, then opens the pull request. Leads still push their own.</li>
         <li><b>Pull requests</b> Merging, closing or approving them, by <code>gh</code> or by the API.</li>
         <li><b>The GitHub repository itself</b> Its administration, releases and secrets.</li>
         <li><b>Going live</b> Deploys, infrastructure changes and package publishing.</li>
         <li><b>Secret files</b> Keychain, password and credential files (SSH, cloud) and production env files, by file tool or named in a command.</li>
-        <li><b>SSH keys</b> Naming an SSH key or <code>~/.ssh</code> in a command, so no <code>ssh -i ~/.ssh/&lt;key&gt;</code> and no edits to <code>known_hosts</code> or <code>config</code>. A plain <code>git push</code> over SSH still works: it names neither.</li>
+        <li><b>SSH keys</b> Naming an SSH key or <code>~/.ssh</code> in a command, so no <code>ssh -i ~/.ssh/&lt;key&gt;</code> and no edits to <code>known_hosts</code> or <code>config</code>. A lead's plain <code>git push</code> over SSH still works: it names neither.</li>
         <li><b>Data</b> Production databases and destructive SQL.</li>
         <li><b>Your disk</b> Deleting your home folder or the root.</li>
         <li><b>{{name}} itself</b> Its config folder, config, state, code and heavy-job slots.</li>
@@ -67,6 +67,7 @@
         <li><b>What the sandbox can't stop</b> {{sandboxLimit}}</li>
         <li><b>Turning it on</b> Settings, Agent accounts: off, log only or on (<code>sandbox.mode</code> in the config). It's <code>sandbox-exec</code> on macOS and bubblewrap on Linux. Log only (macOS) runs as before and writes what it would block to <code>logs/sandbox-would-deny.jsonl</code>. A change applies to runs started after it, so a running lead keeps going. Under it, Codex's, Gemini CLI's and Cursor Agent's own sandboxes are off: macOS can't nest them.</li>
         <li><b>A project without it</b> {{sandboxProjectOff}}</li>
+        <li><b>Your sign-ins without it</b> On the guard only, a run's environment still carries no GitHub token and no SSH agent, and the guard steers its <code>git push</code> to {{name}}'s. But gh's login and your SSH keys are files on your disk, and only the OS sandbox keeps a run from reading them.</li>
         <li><b>So keep tokens small</b> Give agent accounts credentials that can't do damage anyway: no admin or deploy rights, and branch protection on your GitHub repositories.</li>
         <li><b>See what it stopped</b> Guardrails, in Health, lists each attempt it blocked in the last day, with its time and rule.</li>
       </ul>

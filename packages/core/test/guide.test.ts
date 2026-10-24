@@ -134,9 +134,9 @@ test("autonomy gating: watch reports the text, propose opens a draft, act a PR",
   const wt = { path: "/w", branch: "overhand/X-ONBOARDING-1", base: "main" };
   const watch = guidePrompt({ name: "Shop", autonomy: "watch" }, "X-ONBOARDING-1", "shop", wt);
   expect(watch).toContain("can't write files");
-  expect(watch).not.toContain("push your branch");
+  expect(watch).not.toContain("Overhand pushes it");
   const propose = guidePrompt({ name: "Shop", autonomy: "propose" }, "X-ONBOARDING-1", "shop", wt);
-  expect(propose).toContain("push your branch");
+  expect(propose).toContain("Overhand pushes it");
   expect(propose).toContain("draft");
   for (const p of [watch, propose]) {
     expect(p).toContain("ONBOARDING.md");

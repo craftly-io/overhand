@@ -404,6 +404,15 @@ test("only the What's next page names what isn't built", () => {
   for (const [rel, html] of others) expect(html.match(unbuilt), rel).toBeNull();
 });
 
+test("every line of overhand help splits into its command and what it does (two spaces between)", () => {
+  // a command read with its description stuck to it squeezes the command reference's descriptions to one word wide
+  for (const [cmd, say] of cliCommands()) {
+    expect(cmd, cmd).toMatch(/^overhand [a-z-]+(?: [^ ].*)?$/);
+    expect(cmd.length, cmd).toBeLessThan(60);
+    expect(say.length, cmd).toBeGreaterThan(0);
+  }
+});
+
 test("the docs give only commands the CLI has, and quote only messages the code prints", () => {
   const usage = cliCommands().map(([c]) => c);
   expect(usage).toContain("overhand start");

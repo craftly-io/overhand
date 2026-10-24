@@ -41,6 +41,18 @@ import { cleared, type FirewallConfig, scanOutward } from "./outward";
 const PROTECTED_PUSH = /\bgit\s+push\b[^|;&]*\b(main|master|develop|dev|staging|production|prod|release)\b/;
 const PROTECTED = /\b(main|master|develop|dev|staging|production|prod|release)\b/g;
 
+/** `branch` is one of the protected names (PROTECTED), which only a lead's `pushBranches` opens. */
+export const protectedBranch = (branch: string): boolean => [...branch.matchAll(PROTECTED)].some((m) => m[0] === branch);
+
+/**
+ * A ticket, fix-round or other job run pushing: Overhand pushes its branch itself when it returns done (agent.ts
+ * pushBranch), with your sign-in, which the run doesn't have (sandbox.ts SIGN_INS). Leads still push themselves.
+ */
+const TICKET_PUSH: [RegExp, string] = [
+  /\bgit\s+push\b/,
+  "Overhand pushes your branch for you when you return done: commit your work and finish",
+];
+
 /**
  * Each agent CLI's per-project config, which could turn the guard off for the next run in that repo (a Gemini CLI
  * workspace `hooksConfig`, an OpenCode plugin that rewrites a command after the guard saw it, Aider's shell setting):
@@ -204,7 +216,9 @@ function pushAllowed(cmd: string, allowed: readonly string[]): boolean {
 function bashRule(cmd: string, self: string[], autonomy: string, run: string, push: readonly string[], cwd: string): string | null {
   for (const [re, why] of BASH_RULES) if (re.test(cmd) && !(re === PROTECTED_PUSH && pushAllowed(cmd, push))) return why;
   if (ticketRun(run) && COMMENT_RULE[0].test(cmd)) return COMMENT_RULE[1];
-  return namesSelf(cmd, self, cwd) ? SELF : (leadsCommand(cmd, run, cwd) ?? autonomyRule(cmd, autonomy));
+  if (namesSelf(cmd, self, cwd)) return SELF;
+  const rule = leadsCommand(cmd, run, cwd) ?? autonomyRule(cmd, autonomy);
+  return rule ?? (ticketRun(run) && TICKET_PUSH[0].test(cmd) ? TICKET_PUSH[1] : null);
 }
 
 /** How paths compare: macOS folders ignore case, and one name can be written in more than one Unicode form. */

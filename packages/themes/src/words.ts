@@ -278,6 +278,10 @@ export const plainWords = {
   addAccountSignInInstead: "Sign in in your browser instead",
   addAccountAdvanced: "Advanced",
   addAccountKeyField: "{tool} API key",
+  /** OpenCode signs in to a provider: its account (a device code), or its API key typed in for you. */
+  addAccountWith: "Sign in with {provider}",
+  addAccountProviderKey: "Use a provider's API key",
+  addAccountProvider: "Provider",
   addAccountOwnFolder: "It keeps its own login, separate from yours.",
   addAccountSharedLogin: "{tool} keeps one sign-in per computer.",
   addAccountSharedTaken: "{tool} keeps one sign-in per computer, and {account} uses it: add this one with an API key.",
@@ -544,6 +548,9 @@ export const plainWords = {
 
   // empty states
   calm: "Nothing needs you right now",
+  /** Overhand's MCP server (packages/core/src/mcp-server.ts): its status tool's heading for runs and leads at work. */
+  mcpAtWork: "At work",
+  mcpNoneAtWork: "No agents at work",
   emptyToday: "No plan yet. Press Plan the day.",
   emptyQueue: "Nothing ready. Press Plan the day, or open the command bar and type queue KEY-123.",
   emptyMine: "Your list is clear.",

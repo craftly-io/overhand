@@ -37,6 +37,8 @@ curl -fsSL https://get.overhand.dev | sh
 - A lead's open question shows in the dashboard under Needs you. With the person's answer, run
   `overhand answer <lead> "<answer>"`, or `overhand answer <lead> --default` to accept the default the question gave.
 - A request handed to your session: `overhand ack <id> done`, or `overhand ack <id> refuse "<why>"`.
+- Over MCP instead: `overhand mcp` is a stdio MCP server with the same answers and requests as tools, plus `status`
+  (what's running and what needs you). Add it with `claude mcp add overhand -- overhand mcp` or your agent's own way.
 - The person needs the laptop: `overhand quiet 3h` (or `90m`, `off`) holds builds, suites and browsers.
 - Disk is short: `overhand cleanup plan` lists what could go. Removing it is the person's call.
 
