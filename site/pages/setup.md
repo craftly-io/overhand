@@ -18,7 +18,7 @@ only what the installer and Overhand really do today ({{name}} is in beta, so it
 macOS or Linux (arm64 or x64):
 
 ```sh
-curl -fsSL {{get}} | sh
+{{install}}
 ```
 
 The installer downloads the package for this machine from the latest release, checks it against the release's

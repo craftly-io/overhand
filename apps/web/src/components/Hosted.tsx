@@ -1,4 +1,4 @@
-import { INSTALLER, LOCAL_PORT, PLAN_COPY, PLAN_TAX, PLANS, planPrices, SITE } from "@overhand/contract";
+import { INSTALL_COMMAND, LOCAL_PORT, PLAN_COPY, PLAN_TAX, PLANS, planPrices, SITE } from "@overhand/contract";
 import type { Words } from "@overhand/themes";
 import { type ReactNode, useEffect, useState } from "react";
 import { z } from "zod";
@@ -99,74 +99,12 @@ export function HostedPublic({ w, prices, onSignIn }: { w: Words; prices: Hosted
 }
 
 /**
- * Signed in without a plan: what Access from anywhere is, what Pro and Team each add (their own `includes`), how it
- * works, the starting price read live (`prices` undefined is still loading, null unread), Choose a plan, and that
- * everything on your own computer stays free.
- */
-export function HostedUpgrade({ w, prices }: { w: Words; prices: HostedPrices | undefined }) {
-  const from = planPrices("pro", prices)[0];
-  return (
-    <main id="main" className="relative grid min-h-dvh place-items-center px-4 py-10">
-      <section className="hud-pane m-enter grid w-full max-w-lg gap-5" aria-labelledby="hosted-title">
-        <header className="grid gap-2">
-          <p className="text-xs text-muted-foreground">{w.brand}</p>
-          <h1 id="hosted-title" className="font-display text-xl font-semibold">
-            {w.hostedNeedsPlan}
-          </h1>
-          <p className="text-sm">{w.hostedNeedsPlanLine}</p>
-        </header>
-        <section className="grid gap-3" aria-labelledby="hosted-get">
-          <h2 id="hosted-get" className="font-display text-base font-semibold">
-            {w.hostedWhatYouGet}
-          </h2>
-          <dl className="grid gap-3">
-            {PLANS.map((k) => (
-              <div key={k} className="grid gap-1 rounded-lg border border-border p-3">
-                <dt className="text-sm font-semibold">{PLAN_COPY[k].name}</dt>
-                <dd className="m-0 text-sm text-muted-foreground">
-                  <ul className="grid list-disc gap-1 pl-4">
-                    {PLAN_COPY[k].includes.map((i) => (
-                      <li key={i}>{i}</li>
-                    ))}
-                  </ul>
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-        <section className="grid gap-2" aria-labelledby="hosted-how">
-          <h2 id="hosted-how" className="font-display text-base font-semibold">
-            {w.hostedHowTitle}
-          </h2>
-          <ol className="grid list-decimal gap-1 pl-5 text-sm">
-            <li>{w.hostedHow1}</li>
-            <li>{w.hostedHow2}</li>
-            <li>{w.hostedHow3}</li>
-          </ol>
-        </section>
-        <div className="grid gap-3">
-          {from ? <p className="text-sm font-semibold tabular-nums">{fmt(w.hostedFrom, { price: from })}</p> : null}
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => window.open("/relay/billing", "_blank", "noopener")}>{w.hostedChoosePlan}</Button>
-            <Button variant="ghost" onClick={signOut}>
-              {w.hostedSignOut}
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">{w.hostedNeedsPlanBody}</p>
-          {from ? <p className="text-xs text-muted-foreground">{PLAN_TAX}</p> : null}
-        </div>
-      </section>
-    </main>
-  );
-}
-
-/**
  * No computer answers yet: one click opens Overhand on this computer at Settings → Phone, where Set it up links it; or
  * the install line for a computer without Overhand. The link itself stays a click on that computer, never this page's.
  */
 function HostedLink({ w }: { w: Words }) {
   const [copied, setCopied] = useState(false);
-  const install = `curl -fsSL ${INSTALLER} | sh`;
+  const install = INSTALL_COMMAND;
   return (
     <Card title={w.hostedLinkTitle} body={w.hostedLinkBody}>
       <Button asChild>
@@ -219,8 +157,8 @@ export function Hosted({ children }: { children: ReactNode }) {
       .then((j) => setMe(MeSchema.parse(j)))
       .catch(() => setMe("error"));
   }, []);
-  // signed out or without a plan, the page shows prices
-  const pricing = me !== null && me !== "error" && !(me.signedIn && me.active);
+  // signed out, the page shows prices
+  const pricing = me !== null && me !== "error" && !me.signedIn;
   useEffect(() => {
     if (!pricing) return;
     fetch("/relay/prices")
@@ -261,7 +199,11 @@ export function Hosted({ children }: { children: ReactNode }) {
         }
       />
     );
-  if (!me.active) return <HostedUpgrade w={w} prices={prices} />;
+  // without a plan, the relay's own home: install, link, then plans (relay/src/home.ts)
+  if (!me.active) {
+    window.location.replace("/relay/home");
+    return reaching;
+  }
   if (rtc.kind === "untrusted")
     return (
       <Card title={w.hostedUntrusted} body={fmt(w.hostedUntrustedBody, { pinned: rtc.pinned, got: rtc.got })}>

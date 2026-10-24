@@ -17,7 +17,7 @@ import {
   signToken,
   verifyingKey,
 } from "@overhand/contract";
-import { PERMISSIONS } from "@overhand/contract/links";
+import { INSTALL_COMMAND, PERMISSIONS, SETUP_PROMPT } from "@overhand/contract/links";
 import { plainWords } from "@overhand/themes/words";
 import { BILLING_FAILED, billingPage, CHECKOUT_SETTINGS, publicPage } from "../src/billing";
 import { EUR_PER_USD, monthlyCost, TEN_K } from "../src/cost";
@@ -428,6 +428,7 @@ describe("entitlements", () => {
         catalog: null,
         entitlement,
         active: true,
+        linked: true,
         clientToken: "",
         environment: "sandbox",
         picked: "",
@@ -775,12 +776,100 @@ describe("front page", () => {
     expect(await res.text()).toContain("app index");
   });
 
-  test("signed in, GET / is the app's index.html as today", async () => {
-    const res = await worker.fetch(new Request(`${APP}/`, { headers: { cookie: await sessionCookie("user_A") } }), {
+  test("signed in with a plan, GET / is the app's index.html as today; without one, the relay's home", async () => {
+    await webhook(subscriptionEvent({ ws: "user_A" }));
+    const paid = await worker.fetch(new Request(`${APP}/`, { headers: { cookie: await sessionCookie("user_A") } }), {
       ...env(),
       ASSETS: assets,
     });
-    expect(await res.text()).toContain("app index");
+    expect(await paid.text()).toContain("app index");
+    const free = await worker.fetch(new Request(`${APP}/`, { headers: { cookie: await sessionCookie("user_B") } }), {
+      ...env(),
+      ASSETS: assets,
+    });
+    expect(free.status).toBe(302);
+    expect(free.headers.get("location")).toBe("/relay/home");
+  });
+});
+
+describe("signed-in home", () => {
+  const home = async (ws: string) => route(new Request(`${APP}/relay/home`, { headers: { cookie: await sessionCookie(ws) } }), env());
+  /** The page's first heading: what a person reads first. */
+  const first = (html: string) => html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1];
+  const entitle = async (d: Awaited<ReturnType<typeof linkedDaemon>>) =>
+    route(new Request(`${APP}/relay/entitlement`, { method: "POST", headers: await d.headers("POST", "/relay/entitlement") }), env());
+
+  test("no computer linked: install first, with the site's own line and prompt; then how to link, waiting; plans last", async () => {
+    const res = await home("user_A");
+    const html = await res.text();
+    expect(first(html)).toBe(plainWords.homeInstallTitle);
+    expect(html).toContain(`<code id="install-line">${INSTALL_COMMAND}</code>`);
+    expect(html).toContain(`<p id="install-prompt">${SETUP_PROMPT}</p>`);
+    expect(html.match(/data-copy="install-(line|prompt)"/g)).toHaveLength(2);
+    const order = [plainWords.homeInstallTitle, plainWords.homeLinkTitle, plainWords.homeWaiting, plainWords.homeSeeProLink];
+    const at = order.map((s) => html.indexOf(s));
+    expect(at.every((i) => i > 0)).toBe(true);
+    expect(at).toEqual([...at].sort((a, b) => a - b));
+    expect(html).toContain('role="status" aria-live="polite"');
+    expect(html).not.toContain(plainWords.hostedChoosePlan);
+    // its one inline script runs under a nonce, and may only read this origin
+    const nonce = html.match(/<script nonce="([0-9a-f]+)">/)?.[1] ?? "";
+    expect(nonce).not.toBe("");
+    expect(res.headers.get("content-security-policy")).toContain(`script-src 'nonce-${nonce}'; connect-src 'self'`);
+  });
+
+  test("the install line and the prompt are the site's: the home page renders the same constants", async () => {
+    const { render } = await import("../../site/build");
+    const site = render(readFileSync(join(import.meta.dir, "../../site/pages/index.html"), "utf8"), "./", "index.html");
+    expect(site).toContain(INSTALL_COMMAND);
+    expect(site.replace(/<[^>]+>/g, "")).toContain(SETUP_PROMPT);
+  });
+
+  test("computer linked, no plan: it says so, then Pro and Team", async () => {
+    await entitle(await linkedDaemon("user_A"));
+    const html = await (await home("user_A")).text();
+    expect(first(html)).toBe(plainWords.homeLinkedTitle);
+    for (const line of [...PLAN_COPY.pro.includes, ...PLAN_COPY.team.includes]) expect(html).toContain(line);
+    expect(html).toContain('href="/relay/billing"');
+    expect(html).not.toContain(plainWords.homeInstallTitle);
+  });
+
+  test("with a paid plan, or signed out, home is /", async () => {
+    await webhook(subscriptionEvent({ ws: "user_A" }));
+    expect((await home("user_A")).headers.get("location")).toBe("/");
+    expect((await route(new Request(`${APP}/relay/home`), env())).headers.get("location")).toBe("/");
+  });
+
+  test("the waiting line reads /relay/me: linked for the session's own workspace only, and not once unlinked", async () => {
+    const me = async (ws: string) =>
+      (
+        (await (await route(new Request(`${APP}/relay/me`, { headers: { cookie: await sessionCookie(ws) } }), env())).json()) as {
+          linked: boolean;
+        }
+      ).linked;
+    expect(await me("user_A")).toBe(false);
+    const d = await linkedDaemon("user_A");
+    expect((await entitle(d)).status).toBe(402);
+    expect(await me("user_A")).toBe(true);
+    expect(await me("user_B")).toBe(false);
+    const unlink = await route(
+      new Request(`${APP}/relay/unlink`, { method: "POST", headers: await d.headers("POST", "/relay/unlink") }),
+      env(),
+    );
+    expect(unlink.status).toBe(200);
+    expect(await me("user_A")).toBe(false);
+  });
+
+  test("billing on Free with no computer: install above the plans, and Free's card points at it", async () => {
+    const page = async (ws: string) =>
+      withFetch(ipsFetch, async () =>
+        (await route(new Request(`${APP}/relay/billing`, { headers: { cookie: await sessionCookie(ws) } }), env())).text(),
+      );
+    const fresh = await page("user_A");
+    expect(fresh).toContain(`${plainWords.billingNotInstalled} ${plainWords.billingInstall}`);
+    expect(fresh).toContain(INSTALL_COMMAND);
+    await entitle(await linkedDaemon("user_A"));
+    expect(await page("user_A")).not.toContain(INSTALL_COMMAND);
   });
 });
 
@@ -819,6 +908,7 @@ describe("Paddle Retain", () => {
         catalog: null,
         entitlement: { ...entitlement, customer_id },
         active: true,
+        linked: true,
         clientToken: "test_x",
         environment: "sandbox",
         picked: "",
@@ -848,12 +938,15 @@ describe("billing plans", () => {
     period_end: null,
     occurred_at: "2026-10-20T10:00:00Z",
   };
-  const render = (o: { catalog?: Parameters<typeof billingPage>[0]["catalog"]; active?: boolean; picked?: string } = {}) =>
+  const render = (
+    o: { catalog?: Parameters<typeof billingPage>[0]["catalog"]; active?: boolean; picked?: string; linked?: boolean } = {},
+  ) =>
     billingPage({
       session: { typ: "session", ws: "user_A", email: "user_A@x", iat: Date.now(), exp: Date.now() + 60_000 },
       catalog: o.catalog === undefined ? catalog : o.catalog,
       entitlement: o.active ? pro : null,
       active: Boolean(o.active),
+      linked: o.linked ?? true,
       clientToken: "test_x",
       environment: "sandbox",
       picked: o.picked ?? "",
@@ -872,6 +965,14 @@ describe("billing plans", () => {
     }
     expect(html.split(PLAN_TAX).length).toBe(2);
     expect(html.toLowerCase()).not.toContain("dashboard");
+  });
+
+  test("Free with no computer linked: Free's card links to the install block above the plans; linked, neither shows", () => {
+    const fresh = render({ linked: false });
+    expect(cardOf(fresh, "free")).toContain(`href="#install">${plainWords.billingInstall}</a>`);
+    expect(fresh.indexOf('id="install"')).toBeLessThan(fresh.indexOf(`<h2>${plainWords.hostedPlans}</h2>`));
+    expect(render()).not.toContain('id="install"');
+    expect(render({ active: true, linked: false })).not.toContain('id="install"');
   });
 
   test("Paddle's checkout is one page, in English, dark or light as the page is; the overlay keeps the same settings", () => {

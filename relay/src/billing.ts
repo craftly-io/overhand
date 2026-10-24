@@ -21,6 +21,7 @@ import {
 import { markSvg } from "@overhand/themes/brand";
 import { plainWords as w } from "@overhand/themes/words";
 import { z } from "zod";
+import { COPY_SCRIPT, hasLink, INSTALL_CSS, installBlock } from "./home";
 import { activeEntitlement, type Catalog, type Entitlement, entitlementOf, listPrices, paddle, paddleBase, selectPrices } from "./paddle";
 import { BRAND, type Env, html, json, page } from "./worker";
 
@@ -49,7 +50,7 @@ function cycleText(plan: Plan, cycle: Cycle, c: Catalog): string {
  * One plan's card, the same five rows in every card so plans compare at a glance: name (and Your plan), promise, price,
  * what's included, and the action. A paid plan you can buy is a form: its cycle a real radio choice, Team its seats.
  */
-function planCard(plan: "free" | Plan, c: Catalog, o: { current: boolean; buy: boolean; picked: string }): string {
+function planCard(plan: "free" | Plan, c: Catalog, o: { current: boolean; buy: boolean; picked: string; install: boolean }): string {
   const copy = PLAN_COPY[plan];
   const paid = plan === "free" ? null : plan;
   const cycles = paid ? CYCLES.filter((cy) => c[paid][cy]) : [];
@@ -59,7 +60,8 @@ function planCard(plan: "free" | Plan, c: Catalog, o: { current: boolean; buy: b
   const head = `<h3 id="plan-${plan}">${copy.name}${o.current ? ` <span class="badge">${w.billingYourPlan}</span>` : ""}</h3>`;
   const includes = `<ul class="gets">${copy.includes.map((i) => `<li>${i}</li>`).join("")}</ul>`;
   let price = paid ? "" : `<p class="prices">${PLAN_COPY.free.price}<small> ${PLAN_COPY.free.note}</small></p>`;
-  let act = "<div></div>";
+  // Free with no computer linked yet: its action is installing the app, just above the plans
+  let act = !paid && o.install ? `<div class="act"><a class="button" href="#install">${w.billingInstall}</a></div>` : "<div></div>";
   if (paid && form) {
     const first = pickedCycle ?? cycles[0] ?? "month";
     price = `<fieldset class="cycles"><legend class="sr">${w.billingCycle}</legend>${cycles
@@ -95,6 +97,8 @@ export function billingPage(o: {
   catalog: Catalog | null;
   entitlement: Entitlement | null;
   active: boolean;
+  /** A computer is linked to this workspace: without one, Free shows how to install first. */
+  linked: boolean;
   clientToken: string;
   environment: string;
   picked: string;
@@ -115,9 +119,10 @@ export function billingPage(o: {
     : "";
   const on = o.active && e ? e.plan : "free";
   const c = o.catalog;
+  const install = !o.active && !o.linked;
   const plans = c
     ? `<h2>${w.hostedPlans}</h2><div class="plans">${(["free", ...PLANS] as const)
-        .map((plan) => planCard(plan, c, { current: plan === on, buy: !o.active, picked: o.picked }))
+        .map((plan) => planCard(plan, c, { current: plan === on, buy: !o.active, picked: o.picked, install }))
         .join("")}</div><p><small>${PLAN_TAX}</small></p>`
     : "<p role=alert>Prices couldn't be loaded from Paddle just now. Try again in a minute.</p>";
   const sandbox =
@@ -127,7 +132,8 @@ export function billingPage(o: {
   // Paddle Retain identifies the customer by Paddle's own ID only (never our workspace or the email); the pattern also
   // keeps anything unexpected out of the inline script
   const pwCustomer = e && /^ctm_[a-z0-9]+$/.test(e.customer_id) ? `\n    pwCustomer: ${JSON.stringify({ id: e.customer_id })},` : "";
-  const css = `
+  const css = `${install ? INSTALL_CSS : ""}
+.install{display:grid;gap:12px;padding:16px;border:1px solid var(--ink-6);border-radius:var(--radius-card)}.install>*{margin:0}
 .pane{max-width:60rem}
 .plans{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(15rem,100%),1fr))}
 .plan{border:1px solid var(--ink-6);background:var(--ink-3);border-radius:var(--radius-card);padding:16px;display:grid;grid-row:span 5;grid-template-rows:subgrid;gap:12px}.plan>*{margin:0}
@@ -149,7 +155,7 @@ export function billingPage(o: {
   const main = `${BRAND}
 <h1>Billing</h1>
 <p><small>Signed in as ${esc(o.session.email)}</small></p>
-${status}${manage}${plans}${sandbox}
+${status}${manage}${install ? `<section class="install" aria-labelledby="install">${installBlock(`${w.billingNotInstalled} ${w.billingInstall}`, "h2")}</section>` : ""}${plans}${sandbox}
 <p id="msg" role="status" aria-live="polite"></p>
 <h2>Security</h2>
 <div class="row"><button id="signout-all">Sign out everywhere</button><small>Signs every browser out of this account, this one too. Your computers stay linked; unlink one from its own Settings → Phone.</small></div>
@@ -158,6 +164,7 @@ ${status}${manage}${plans}${sandbox}
     css,
     tail: `<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 <script nonce="${o.nonce}">
+${install ? COPY_SCRIPT : ""}
 const msg = (t) => { document.getElementById("msg").textContent = t; };
 const post = async (path, body) => {
   const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body || {}) });
@@ -274,7 +281,7 @@ const FAILED_MS = 60_000;
  * The tagged catalog, cached per isolate for ten minutes, so a price changed in Paddle shows within that, no release.
  * A failed read (Paddle down or slower than 3 s) is remembered for a minute, so a public page never queues on it.
  */
-async function prices(env: Env, now = Date.now()): Promise<Catalog> {
+export async function prices(env: Env, now = Date.now()): Promise<Catalog> {
   const base = paddleBase(env.PADDLE_ENV);
   if (catalog && catalog.base === base && now - catalog.at < CATALOG_MS) return catalog.value;
   if (failed && failed.base === base && now - failed.at < FAILED_MS) throw new Error("Paddle prices unavailable, retrying shortly");
@@ -371,6 +378,7 @@ export async function billingRoute(req: Request, env: Env, url: URL, s: SessionC
       catalog: await prices(env, now).catch(() => null),
       entitlement: await entitlementOf(env.DB, s.ws),
       active: Boolean(await activeEntitlement(env.DB, s.ws)),
+      linked: await hasLink(env.DB, s.ws),
       clientToken: env.PADDLE_CLIENT_TOKEN,
       environment: env.PADDLE_ENV,
       picked: url.searchParams.get("plan") ?? "",

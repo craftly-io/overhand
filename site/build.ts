@@ -46,7 +46,7 @@ import {
   SHIP_DEFAULTS,
   WAY_OF_WORKING,
 } from "@overhand/contract";
-import { LOCAL_PORT, PERMISSIONS } from "@overhand/contract/links";
+import { INSTALL_COMMAND, LOCAL_PORT, PERMISSIONS, SETUP_GUIDE, SETUP_PROMPT } from "@overhand/contract/links";
 import { blankConfig, FIRST_DAY_BUDGET_USD } from "@overhand/core/config";
 import { markSvg } from "@overhand/themes/brand";
 import { SYSTEM, systemSchemeCss } from "@overhand/themes/system";
@@ -369,6 +369,9 @@ export function render(src: string, root: string, self: string, prices: PriceTab
     relayHost: new URL(SITE.app).host,
     // this site's address as people type it: overhand.dev
     host: new URL(SITE.url).host,
+    // the install line and the prompt for your agent, as app.overhand.dev shows them too; the prompt's address a link
+    install: INSTALL_COMMAND,
+    setupPrompt: SETUP_PROMPT.replace(SETUP_GUIDE, `<a href="${root}setup.md">${SETUP_GUIDE}</a>`),
     questionFallback: String(QUESTION_FALLBACK_MS / 60_000),
     docsList: docsListHtml(root),
     docsNav: docsNavHtml(root, self),

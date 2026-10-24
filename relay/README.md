@@ -19,7 +19,9 @@ Dashboard traffic never passes through here. It flows browser ↔ daemon over We
    - You sign in, then confirm the computer's name and key fingerprint.
    - The relay signs a **link certificate** `{ws, email, pub}` and sends the browser back to `http://127.0.0.1:<port>/api/relay/linked` with it.
    - The daemon accepts the certificate only with its own single-use nonce, and only for its own key.
+   - Signed in without a plan, `/` sends you to `/relay/home` (`src/home.ts`). With no computer linked it shows the install line and the prompt for your agent (both from `packages/contract/src/links.ts`, as the site shows them), how to link, and a line that polls `/relay/me` (`linked`) until it says Linked. Once linked, it offers Pro and Team.
 2. **Entitlement.** The daemon POSTs `/relay/entitlement`, signed with its device key over method, path and timestamp, and carrying the certificate.
+   - Its key goes into `links` for the workspace, plan or not, so the hosted home knows a computer is linked (an unlinked key is in `revoked_links` too, and doesn't count).
    - With an active subscription, it gets a 24-hour Ed25519 token.
    - It refreshes every 6 hours. If the relay can't be reached, the last token keeps hosted features on for a 7-day grace period.
    - Payment gates hosted features only.
@@ -72,6 +74,8 @@ Every statement in [`schema.sql`](schema.sql) is `CREATE TABLE IF NOT EXISTS`, s
   `migrations` gained `v2` for the `TeamRoom` Durable Object class, applied by `wrangler deploy`.
 - 2026-10-23: `entitlements` gained `scheduled_change` and `scheduled_at` (a cancel or pause at the period's end), by
   [`migrations/2026-10-23-scheduled-change.sql`](migrations/2026-10-23-scheduled-change.sql): run once per database.
+- 2026-10-24: added `links` (computers linked to a workspace). Re-run `schema.sql` on staging and production; until
+  then the home page treats every account as not linked yet, and entitlements work as before.
 
 ## Why D1 and not KV for entitlements
 

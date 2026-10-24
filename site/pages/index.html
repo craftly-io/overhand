@@ -112,7 +112,7 @@
     <!-- the prompt in full, so people see what they paste into their agent (and can read the steps it follows); the
          command line is in #install, the header's Install -->
     <div class="acts">
-      <div class="ask"><p class="prompt" id="prompt">Set up {{name}} from <a href="{{root}}setup.md">{{host}}/setup.md</a>. Ask me before each step.</p><button type="button" class="pill dark" data-copy="prompt">Copy for your agent</button></div>
+      <div class="ask"><p class="prompt" id="prompt">{{setupPrompt}}</p><button type="button" class="pill dark" data-copy="prompt">Copy for your agent</button></div>
     </div>
     <p class="works">Works with {{agents}}.</p>
     <!-- what sets it apart, in one quiet row: each says more further down the page -->
@@ -209,7 +209,7 @@
     <div class="ways">
       <div class="way">
         <h3>Run one command</h3>
-        <div class="cmd"><code id="cmd2">curl -fsSL {{get}} | sh</code><button type="button" data-copy="cmd2">Copy</button></div>
+        <div class="cmd"><code id="cmd2">{{install}}</code><button type="button" data-copy="cmd2">Copy</button></div>
         <p>macOS and Linux. It checks the download before it installs anything.</p>
       </div>
       <div class="way">

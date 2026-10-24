@@ -32,6 +32,14 @@ CREATE TABLE IF NOT EXISTS revoked_links (
   workspace TEXT NOT NULL,
   revoked_at INTEGER NOT NULL
 );
+-- Computers linked to a workspace, by device public key: recorded when a daemon first asks for its entitlement, so
+-- app.overhand.dev can tell a new account to install first (an unlinked key stays here, refused by revoked_links)
+CREATE TABLE IF NOT EXISTS links (
+  pub TEXT PRIMARY KEY,
+  workspace TEXT NOT NULL,
+  linked_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS links_workspace ON links (workspace);
 -- TURN credential grants per workspace per month (YYYY-MM), for the budget cap
 CREATE TABLE IF NOT EXISTS turn_grants (
   workspace TEXT NOT NULL,

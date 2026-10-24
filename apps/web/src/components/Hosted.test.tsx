@@ -1,8 +1,7 @@
 import { expect, test } from "bun:test";
-import { PLAN_COPY } from "@overhand/contract";
 import { plainWords } from "@overhand/themes";
 import { renderToStaticMarkup } from "react-dom/server";
-import { HostedPublic, HostedUpgrade } from "./Hosted";
+import { HostedPublic } from "./Hosted";
 
 const eur = (amount: number) => ({ amount, currency: "EUR" });
 
@@ -28,29 +27,6 @@ test("signed out, the hosted page shows what Overhand is, the plans with live pr
   for (const page of ["terms", "privacy", "refund", "contact"]) expect(html).toContain(`href="https://overhand.dev/${page}"`);
   expect(html).toContain('href="https://overhand.dev"');
   expect(html.toLowerCase()).not.toContain("dashboard");
-});
-
-test("signed in without a plan: what it is, what each plan adds, how it works, the live starting price, Choose a plan", () => {
-  const html = renderToStaticMarkup(
-    <HostedUpgrade w={plainWords} prices={{ pro: { month: eur(400), year: eur(4000) }, team: { month: eur(800) } }} />,
-  );
-  for (const want of [
-    plainWords.hostedNeedsPlan,
-    plainWords.hostedNeedsPlanLine,
-    ...PLAN_COPY.pro.includes,
-    ...PLAN_COPY.team.includes,
-    plainWords.hostedHow1,
-    plainWords.hostedHow2,
-    plainWords.hostedHow3,
-    "From €4 / month",
-    plainWords.hostedChoosePlan,
-    plainWords.hostedSignOut,
-    plainWords.hostedNeedsPlanBody,
-  ])
-    expect(html).toContain(want.replace(/'/g, "&#x27;"));
-  expect(html.toLowerCase()).not.toContain("dashboard");
-  // prices unread: no price is made up
-  expect(renderToStaticMarkup(<HostedUpgrade w={plainWords} prices={null} />)).not.toContain("€");
 });
 
 test("when prices can't be read, it points at the site's pricing page", () => {

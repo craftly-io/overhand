@@ -27,8 +27,9 @@
     <li><strong>Your account</strong>: your email address and an account id, from sign-in through WorkOS.</li>
     <li><strong>Your subscription</strong>: plan, seat count, status, renewal date, and Paddle's customer and subscription
       ids. Paddle holds your payment details and invoices; we never see your card.</li>
-    <li><strong>Your computer's link</strong>: we sign a certificate binding your computer's public key to your account;
-      we don't store it, and we never hold your computer's private key.</li>
+    <li><strong>Your computer's link</strong>: we sign a certificate binding your computer's public key to your account,
+      and keep that public key with your account so {{relayHost}} can show it's linked. We never hold your computer's
+      private key.</li>
     <!-- retention to be set in legal review -->
     <li><strong>Computers you unlink</strong>: their public keys, so a link certificate for them is refused.</li>
     <li><strong>Sign out everywhere</strong>: the time you last did it, so sessions from before it are refused.</li>

@@ -26,6 +26,7 @@ import { markSvg } from "@overhand/themes/brand";
 import { systemSchemeCss } from "@overhand/themes/system";
 import { z } from "zod";
 import { billingRoute, publicHome } from "./billing";
+import { hasLink, homeRoute, recordLink } from "./home";
 import { applyEvent, type D1, entitlementOf, eventWorkspace, inCidr, paddleBase, paddleIps, verifyPaddleSignature } from "./paddle";
 import { signedIn, signInRoute } from "./signin";
 import { access, teamRoute, tellRoom } from "./team";
@@ -209,24 +210,26 @@ export const page = (
 ): string =>
   `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>${o.description ? `<meta name="description" content="${o.description}">` : ""}<link rel="stylesheet" href="/fonts/instrument.css"><link rel="stylesheet" href="/relay/page.css">${o.css ? `<style>${o.css}</style>` : ""}<body${o.center ? ' class="center"' : ""}><main class="pane">${main}</main>${o.tail ?? ""}</body></html>`;
 
+/**
+ * A relay page's headers: nothing third-party, and no script unless `nonce` allows its one inline script (which may
+ * then read this origin, and nothing else).
+ */
+export const pageHeaders = (nonce = ""): Record<string, string> => ({
+  "content-type": "text/html; charset=utf-8",
+  "cache-control": "no-store",
+  // same-origin, not no-referrer: under no-referrer a browser sends `Origin: null` on a POST, even to this site, and
+  // the link form's Origin check then refuses every real confirmation. Nothing leaves the site either way.
+  "referrer-policy": "same-origin",
+  "permissions-policy": PERMISSIONS,
+  // the fonts and their stylesheet come from this origin (the hosted app's /fonts)
+  "content-security-policy": `default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; ${nonce ? `script-src 'nonce-${nonce}'; connect-src 'self'; ` : ""}form-action 'self' http://127.0.0.1:*; frame-ancestors 'none'`,
+});
+
 /** A relay page: the title as its heading unless the body brings its own. No script, nothing third-party. */
 export const html = (title: string, body: string, status = 200, brand = true, description = "") =>
   new Response(
     page(title, `${brand ? BRAND : ""}${body.startsWith("<h1") ? "" : `<h1>${title}</h1>`}${body}`, { center: true, description }),
-    {
-      status,
-      headers: {
-        "content-type": "text/html; charset=utf-8",
-        "cache-control": "no-store",
-        // same-origin, not no-referrer: under no-referrer a browser sends `Origin: null` on a POST, even to this site, and
-        // the link form's Origin check then refuses every real confirmation. Nothing leaves the site either way.
-        "referrer-policy": "same-origin",
-        "permissions-policy": PERMISSIONS,
-        // the fonts and their stylesheet come from this origin (the hosted app's /fonts)
-        "content-security-policy":
-          "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; form-action 'self' http://127.0.0.1:*; frame-ancestors 'none'",
-      },
-    },
+    { status, headers: pageHeaders() },
   );
 /** Text escaped for HTML. */
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -308,6 +311,8 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
   if (req.method === "POST" && p === "/relay/entitlement") {
     const d = await daemonOf(req, env, now);
     if (!d) return json({ error: "unknown daemon" }, 401);
+    // a daemon holding its certificate asks here first thing after linking: app.overhand.dev then knows it's linked
+    await recordLink(env.DB, d.ws, d.pub, now);
     // their own plan, or a seat on a team with an active Team plan
     const e = await access(env.DB, d.ws, now);
     if (!e) return json({ error: "no paid plan", plan: null }, 402);
@@ -360,6 +365,7 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
   // ── a signed-in browser ──
   const s = await sessionOf(req, env, now);
   if (get && p === "/relay/link") return linkPage(url, s);
+  if (get && p === "/relay/home") return homeRoute(env, s, now);
   const billed = await billingRoute(req, env, url, s, now);
   if (billed) return billed;
   if (req.method === "POST" && p === "/relay/link") {
@@ -388,6 +394,8 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
       email: s.email,
       workspace: s.ws,
       active,
+      // a computer linked to this workspace: the home page's waiting line turns to Linked by itself
+      linked: await hasLink(env.DB, s.ws),
       plan: e?.plan ?? null,
       cycle: e?.cycle ?? null,
       seats: e?.seats ?? 0,
@@ -463,6 +471,9 @@ export default {
       // a session check that fails (D1 down) serves the app as before, never a 500 for everyone
       const s = await sessionOf(req, env).catch(() => undefined);
       if (s === null) return publicHome(env, url);
+      // signed in without a plan: the relay's own home (install, link, then plans); a failing check serves the app
+      if (s && !(await access(env.DB, s.ws, Date.now()).catch(() => true)))
+        return new Response(null, { status: 302, headers: { location: "/relay/home" } });
     }
     return env.ASSETS ? env.ASSETS.fetch(req) : json({ error: "not found" }, 404);
   },

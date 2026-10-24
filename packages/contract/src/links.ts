@@ -21,6 +21,12 @@ export const COMPANY = "Craftly Oy";
 export const EMAIL = "hello@overhand.dev";
 /** The installer: `curl -fsSL INSTALLER | sh`. */
 export const INSTALLER = "https://get.overhand.dev";
+/** The one line that installs Overhand, as the site, its docs and app.overhand.dev show it. */
+export const INSTALL_COMMAND = `curl -fsSL ${INSTALLER} | sh`;
+/** The site's step-by-step setup for an agent to follow, as people type it. */
+export const SETUP_GUIDE = `${new URL(SITE).host}/setup.md`;
+/** The prompt that has your agent install Overhand: the site's "Copy for your agent" and app.overhand.dev's. */
+export const SETUP_PROMPT = `Set up Overhand from ${SETUP_GUIDE}. Ask me before each step.`;
 /**
  * Release files: `${DOWNLOAD}/latest/<file>` or `${DOWNLOAD}/v1.2.3/<file>`. The installer worker redirects them to
  * REPO's GitHub releases; clients never link those directly, so the files can move without a client update.
