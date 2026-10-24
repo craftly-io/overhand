@@ -24,6 +24,7 @@
       <h2 id="h-reach">How it reaches each agent.</h2>
       {{guardTable}}
       <p class="fine">Each account in Settings → Agent accounts says where its agent stands.</p>
+      <p class="fine">Every pull request also runs the guard on each hooked agent's own hook messages: merges, force pushes, deploys, secret reads, protected edits and ordinary work (<a href="{{repo}}/blob/main/packages/core/src/guard-conformance.ts"><code>guard-conformance.ts</code></a>; <code>bun run guard-check</code> from a checkout, per installed agent). That proves the guard's side, not that the agent calls its hook: only a real run confirms that.</p>
     </section>
 
     <section class="block hood" id="list" aria-labelledby="h-list">

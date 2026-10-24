@@ -14,13 +14,12 @@ import {
   QUIET_CLAIM,
   RUNTIME_NAMES,
 } from "@overhand/contract";
-import { AIDER_IGNORE, cursorHooks, GUARD_CONFIG, geminiSettings, opencodePlugin, writeGuardConfigs } from "../src/agent-home";
-import { forgetRun, recordRun } from "../src/control";
+import { AIDER_IGNORE, GUARD_CONFIG, writeGuardConfigs } from "../src/agent-home";
 import { unwrapHeavy } from "../src/governor";
 import { check } from "../src/guard";
+import { CASES, conformance, HOOKED } from "../src/guard-conformance";
 import { eventOf, patchEdits } from "../src/guard-dialects";
 import { RUNTIMES } from "../src/runtimes";
-import { guardArgs } from "../src/runtimes/codex";
 import type { RunInput } from "../src/runtimes/runtime";
 
 const scratch = (): string => mkdtempSync(join(tmpdir(), "overhand-parity-"));
@@ -36,115 +35,11 @@ function home(): string {
   return dir;
 }
 
-/** Runs one generated hook command the way its CLI does: the event on stdin, through sh, with the run's environment. */
-function runHook(command: string, event: object, autonomy: string, dir: string) {
-  // the run is who Overhand recorded for this process tree (this test is the hook's ancestor)
-  recordRun(dir, process.pid, { run: "HONEY-1", autonomy, project: "Honeycrust" });
-  const r = Bun.spawnSync(["sh", "-c", command], {
-    stdin: Buffer.from(JSON.stringify(event)),
-    env: { ...process.env, OVERHAND_HOME: dir },
-  });
-  forgetRun(dir, process.pid);
-  return { code: r.exitCode, out: r.stdout.toString(), err: r.stderr.toString() };
-}
-
-/** What every agent's guard must block, and what it must let through. */
-const BLOCKED = [
-  "gh pr merge 1",
-  "gh api -X PUT repos/o/r/pulls/1/merge",
-  "git push --force origin feature",
-  "npx wrangler deploy",
-  "cat ~/.ssh/id_rsa",
-];
-const ALLOWED = ["git status", "bun test"];
-const SSH_KEY = "/Users/sam/.ssh/id_rsa";
-
-/** Each CLI's event for a shell command, a file read and a source edit, in its own hook dialect. */
-const EVENTS: Record<string, { shell: (c: string) => object; read: (p: string) => object; edit: (p: string) => object }> = {
-  codex: {
-    shell: (command) => ({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command }, cwd: "/repo" }),
-    read: (p) => ({ tool_name: "Bash", tool_input: { command: `sed -n 1,20p ${p}` }, cwd: "/repo" }),
-    edit: (p) => ({
-      tool_name: "apply_patch",
-      tool_input: { command: `*** Begin Patch\n*** Update File: ${p}\n@@\n-a\n+b\n*** End Patch` },
-      cwd: "/repo",
-    }),
-  },
-  gemini: {
-    shell: (command) => ({ hook_event_name: "BeforeTool", tool_name: "run_shell_command", tool_input: { command }, cwd: "/repo" }),
-    read: (p) => ({ tool_name: "read_file", tool_input: { file_path: p }, cwd: "/repo" }),
-    edit: (p) => ({ tool_name: "replace", tool_input: { file_path: p, old_string: "a", new_string: "b" }, cwd: "/repo" }),
-  },
-  cursor: {
-    shell: (command) => ({ hook_event_name: "beforeShellExecution", command, cwd: "/repo", workspace_roots: ["/repo"] }),
-    read: (p) => ({ hook_event_name: "beforeReadFile", file_path: p, content: "", workspace_roots: ["/repo"] }),
-    edit: (p) => ({ hook_event_name: "preToolUse", tool_name: "Edit", tool_input: { file_path: p }, workspace_roots: ["/repo"] }),
-  },
-  opencode: {
-    shell: (command) => ({ tool_name: "bash", tool_input: { command }, cwd: "/repo" }),
-    read: (p) => ({ tool_name: "read", tool_input: { filePath: p }, cwd: "/repo" }),
-    edit: (p) => ({ tool_name: "edit", tool_input: { filePath: p, oldString: "a", newString: "b" }, cwd: "/repo" }),
-  },
-};
-
-/** The guard command each CLI's generated config holds. */
-const COMMANDS: Record<string, string> = {
-  codex: JSON.parse(
-    guardArgs()
-      .at(-1)
-      ?.match(/command=("(?:[^"\\]|\\.)*")/)?.[1] ?? '""',
-  ) as string,
-  gemini: geminiSettings().hooks.BeforeTool[0]?.hooks[0]?.command ?? "",
-  cursor: cursorHooks().hooks.beforeShellExecution[0]?.command ?? "",
-};
-
-test("every hook-capable CLI's generated guard blocks merges, force pushes, deploys and keys, and lets ordinary work through", async () => {
+test("every hook-capable CLI's generated guard blocks merges, force pushes, deploys, keys and protected files, and lets ordinary work through", async () => {
   const dir = home();
-  // OpenCode's runs the guard from inside its plugin: the one written to its config folder
-  const plugin = join(scratch(), "overhand-guard.js");
-  writeFileSync(plugin, opencodePlugin());
-  const { OverhandGuard } = (await import(plugin)) as {
-    OverhandGuard: (ctx: { directory: string }) => Promise<Record<string, (i: object, o: object) => Promise<void>>>;
-  };
-  const before = (await OverhandGuard({ directory: "/repo" }))["tool.execute.before"];
-  const opencode = async (event: object, autonomy: string): Promise<{ code: number; out: string; err: string }> => {
-    const e = event as { tool_name: string; tool_input: object };
-    const saved = { ...process.env };
-    Object.assign(process.env, { OVERHAND_HOME: dir });
-    recordRun(dir, process.pid, { run: "HONEY-1", autonomy, project: "Honeycrust" });
-    try {
-      await before?.({ tool: e.tool_name, sessionID: "s", callID: "c" }, { args: e.tool_input });
-      return { code: 0, out: "", err: "" };
-    } catch (err) {
-      return { code: 2, out: "", err: String(err) };
-    } finally {
-      forgetRun(dir, process.pid);
-      for (const k of ["OVERHAND_HOME"]) {
-        if (saved[k] === undefined) delete process.env[k];
-        else process.env[k] = saved[k];
-      }
-    }
-  };
-
-  for (const [cli, ev] of Object.entries(EVENTS)) {
-    const hook = (event: object, autonomy = "act") =>
-      cli === "opencode" ? opencode(event, autonomy) : Promise.resolve(runHook(COMMANDS[cli] ?? "", event, autonomy, dir));
-    for (const command of BLOCKED) {
-      const r = await hook(ev.shell(command));
-      expect([cli, command, r.code, r.err]).toEqual([cli, command, 2, expect.stringContaining("Blocked by Overhand's guard")]);
-      // Cursor reads its answer on stdout too
-      if (cli === "cursor") expect(JSON.parse(r.out).permission).toBe("deny");
-    }
-    expect([cli, (await hook(ev.read(SSH_KEY))).code]).toEqual([cli, 2]);
-    for (const command of ALLOWED) expect([cli, command, (await hook(ev.shell(command))).code]).toEqual([cli, command, 0]);
-    const edit = await hook(ev.edit("/repo/src/app.ts"));
-    expect([cli, "edit", edit.code, edit.err]).toEqual([cli, "edit", 0, ""]);
-    if (cli === "cursor") expect(JSON.parse(edit.out)).toEqual({ permission: "allow" });
-    // on watch: no edit, no commit
-    expect([cli, "watch edit", (await hook(ev.edit("/repo/src/app.ts"), "watch")).code]).toEqual([cli, "watch edit", 2]);
-    expect([cli, "watch commit", (await hook(ev.shell("git commit -m x"), "watch")).code]).toEqual([cli, "watch commit", 2]);
-    expect([cli, "watch status", (await hook(ev.shell("git status"), "watch")).code]).toEqual([cli, "watch status", 0]);
-  }
+  const rows = await conformance(dir);
+  expect(rows.length).toBe(HOOKED.length * CASES.length);
+  for (const r of rows) expect([r.dialect, r.case, r.pass, r.result]).toEqual([r.dialect, r.case, true, r.result]);
   expect(readFileSync(join(dir, "guardrails.jsonl"), "utf8")).toContain('"run":"HONEY-1"');
 }, 60_000);
 

@@ -40,6 +40,12 @@ bun run test
 bash release/smoke.sh    # builds the release binary and pokes a daemon on a free port with a scratch home
 ```
 
+If you changed the guard or how an agent's hook reaches it, also run `bun run guard-check`: it feeds each installed
+agent's own hook messages through the guard and prints pass or fail per case, with each agent's version. With `--live`
+it also runs each installed agent headless in a scratch home, asked to merge, and checks the guardrail log caught it: one
+short model call each, signed in by an API key in your environment (`CURSOR_API_KEY`, `GEMINI_API_KEY`), since a
+scratch home has no login. A real run that blocks is what lets a row in `packages/contract/src/guard.ts` say `verified`.
+
 If you changed anything in `packages/themes`, also run `bun run brand` and commit what it changes.
 
 For a change to the dashboard or the landing page, also run the responsive sweep:

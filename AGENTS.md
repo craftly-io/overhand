@@ -30,6 +30,7 @@ bun run lint     # Biome, warnings fail
 bun run check    # tsc over packages, relay, site and release; the dashboard: cd apps/web && bunx tsc --noEmit
 bun run build    # the dashboard into apps/web/dist
 bun run shots    # the responsive sweep (heavy: needs disk and a Chromium)
+bun run guard-check  # the guard against each installed agent's hook messages (--live: a real run each)
 bun run brand    # redraws the favicons, icons and brand kit from packages/themes/src/brand.ts
 bun run menubar  # builds the Mac menu bar helper (needs Xcode's Swift); the daemon starts it once it's built
 ```
