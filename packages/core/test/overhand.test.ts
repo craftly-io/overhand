@@ -682,6 +682,9 @@ test("a lead that keeps finding nothing to do rests longer each time, and a real
   st.startedAt = Date.now() - 30 * 60_000; // a half-hour run did real work
   recordLeadExit(g, st, null, 0, "code 0");
   expect(restartDelayMin(g, st)).toBe(5);
+  // the cap bounds the doubling only: a weekly lead rests its week, idle or not
+  expect(restartDelayMin({ restartAfterMin: 10_080 }, { idle: 0 })).toBe(10_080);
+  expect(restartDelayMin({ restartAfterMin: 10_080 }, { idle: 3 })).toBe(10_080);
 });
 
 test("prChanges tells what happened to your open pull requests between two refreshes", () => {

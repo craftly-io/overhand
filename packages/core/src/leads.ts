@@ -94,10 +94,11 @@ const MAX_REST_MIN = 240;
 
 /**
  * Minutes from a lead's exit to its next start: restartAfterMin, doubled for each clean exit in a row that found
- * nothing to do (5, 10, 20 … up to MAX_REST_MIN), so an idle lead stops waking every few minutes all day.
+ * nothing to do (5, 10, 20 … up to MAX_REST_MIN), so an idle lead stops waking every few minutes all day. The cap
+ * bounds only that doubling: a lead set to rest longer (1440 for daily, 10080 for weekly) rests as long as it's set to.
  */
 export const restartDelayMin = (g: Pick<Godmode, "restartAfterMin">, st: Pick<LeadState, "idle">): number =>
-  Math.min(MAX_REST_MIN, g.restartAfterMin * 2 ** Math.min(st.idle ?? 0, 8));
+  Math.max(g.restartAfterMin, Math.min(MAX_REST_MIN, g.restartAfterMin * 2 ** Math.min(st.idle ?? 0, 8)));
 const LEADS_FILE = join(OPS, ".leads.json");
 export const leadChildren = new Map<string, Bun.Subprocess>();
 /** Every lead's supervisor state from .leads.json. */
