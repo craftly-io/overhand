@@ -16,6 +16,9 @@
         <li><b>Asleep until there's work</b> Each lead wakes when its own kind of work shows up on its project, and works only on that.</li>
         <li><b>Within the project's mode</b> A lead goes only as far as the project's <a href="modes.html">mode</a> allows.</li>
         <li><b>Kept running</b> While a lead is On, {{name}} restarts it after it exits, gives up after repeated crashes, and waits while its account is at its usage limit.</li>
+        <li><b>How often</b> An always-on lead starts again a few minutes after it exits, and rests longer each time it finds nothing to do, up to 4 hours. In Settings → Leads, <em>{{w.leadRestartLabel}}</em> set to 1440 makes a daily lead and 10080 a weekly one, and it rests that long.</li>
+        <li><b>Its accounts</b> <em>{{w.leadAccountsLabel}}</em> lists them. At one's usage limit the next run takes the next; with <em>{{w.leadFallbackLabel}}</em> off, it never runs on another, and waits once all of them are used up.</li>
+        <li><b>When it can't start</b> If a start fails before the lead runs, say an account missing its key, Needs you says why, with a button for that account and <em>{{w.signInRetry}}</em>.</li>
       </ul>
     </section>
 

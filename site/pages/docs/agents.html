@@ -27,6 +27,7 @@
         <li><b>What {{name}} reads</b> Only the sign-in link (and a code to show) from what the agent prints. Nothing it prints is logged or kept, and the code you paste goes only to that sign-in. A sign-in still waiting after 10 minutes is stopped.</li>
         <li><b>OpenCode</b> Its sign-in starts with a menu of providers, so it still opens in a terminal, and the app shows its command.</li>
         <li><b>Already signed in</b> A sign-in already on this computer is reused, and so is GitHub through <code>gh</code>.</li>
+        <li><b>Your own sign-in, under the OS sandbox</b> An account still on the sign-in you had before {{name}} can't run where the OS sandbox is on: runs can't reach your own agent config. Such an account is passed over, as one at its usage limit is, and Needs you shows a card to sign it in once, with its sign-in button. Once it's signed in in its own folder, it runs again.</li>
         <li><b>An API key</b> Stored in your keychain, named after its account: <code>anthropic-key-&lt;account&gt;</code>, <code>codex-key-&lt;account&gt;</code>, <code>gemini-key-&lt;account&gt;</code> or <code>cursor-key-&lt;account&gt;</code>. Gemini CLI runs on a Gemini API key.</li>
         <li><b>Never a subscription token</b> {{name}} doesn't ask for, store or pass on the token behind a Claude plan.</li>
       </ul>

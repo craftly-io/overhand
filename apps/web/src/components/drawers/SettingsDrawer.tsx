@@ -474,14 +474,14 @@ function LeadsTab() {
               <Field label="On" path={`godmode.${i}.supervised`} kind="bool" />
               <Field label="Only when Overhand finds work" path={`godmode.${i}.onDemand`} kind="bool" />
               <Field label="Account (empty = the first)" path={`godmode.${i}.account`} />
-              <Field label="Accounts it may use, in order (overrides Account)" path={`godmode.${i}.accounts`} kind="csv" />
-              <Field label="Carry on with any other account at their limits" path={`godmode.${i}.fallbackToAll`} kind="bool" />
+              <Field label={w.leadAccountsLabel} path={`godmode.${i}.accounts`} kind="csv" />
+              <Field label={w.leadFallbackLabel} path={`godmode.${i}.fallbackToAll`} kind="bool" />
             </>
           )}
           <Field label="Lock file" path={`godmode.${i}.lockFile`} kind="list" />
           <Field label="Lock stale after (min)" path={`godmode.${i}.lockStaleMin`} kind="num" />
           <Field label="Questions file" path={`godmode.${i}.inboxFile`} kind="list" />
-          <Field label="Runs again after (minutes; 1440 = a day, 10080 = a week)" path={`godmode.${i}.restartAfterMin`} kind="num" />
+          <Field label={w.leadRestartLabel} path={`godmode.${i}.restartAfterMin`} kind="num" />
           <Field label="Give up after crashes/hour" path={`godmode.${i}.maxCrashesPerHour`} kind="num" />
           <Field label="Go with its default after (h, 0 = wait for you)" path={`godmode.${i}.answerWaitHours`} kind="num" />
         </FieldCard>

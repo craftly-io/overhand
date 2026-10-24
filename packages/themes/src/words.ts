@@ -889,6 +889,10 @@ export const plainWords = {
   alLeadCantStartSay: "{lead} can't start",
   alFixAccount: "Fix {account}",
   leadCantStart: "Can't start on {account}: {why}",
+  /** Settings → Leads: how long a lead rests after it exits, and which accounts it may run on. */
+  leadRestartLabel: "Runs again after (minutes; 1440 = a day, 10080 = a week)",
+  leadAccountsLabel: "Accounts it may use, in order (overrides Account)",
+  leadFallbackLabel: "Carry on with any other account at their limits",
   /** The OS sandbox can't run on this computer, and the config requires it: no run starts until that's settled. */
   alSandboxRefuse: "Agents can't start: the OS sandbox can't run here",
   alSandboxRefuseSay: "agents can't start, because the OS sandbox can't run here",
