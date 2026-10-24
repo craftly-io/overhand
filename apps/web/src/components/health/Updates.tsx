@@ -1,5 +1,8 @@
+import { useActions } from "@/app/actions";
 import type { Model } from "@/app/data";
 import { useWords } from "@/app/theme";
+import { useUi } from "@/app/ui";
+import { Button } from "@/components/ui/button";
 import { ago, fmt } from "@/lib/format";
 import { Dot, Pane } from "../Pane";
 
@@ -8,6 +11,8 @@ const KIND = { slack: "Slack", teams: "Teams", discord: "Discord" } as const;
 /** Each status update channel's last send; a failure in red with its error (which never holds the webhook URL). */
 export function Updates({ m }: { m: Model }) {
   const w = useWords();
+  const ui = useUi();
+  const { updateTest } = useActions();
   const list = m.s.updates;
   if (!list.length) return null;
   const failed = list.filter((u) => u.error).length;
@@ -27,6 +32,17 @@ export function Updates({ m }: { m: Model }) {
                     : w.updatesNever}
               </span>
             </span>
+            {u.error ? (
+              // a failed send's fix: try it now; the channel itself is edited in Settings
+              <div className="col-start-2 mt-1 flex gap-1">
+                <Button size="xs" onClick={() => void updateTest(u.id, u.name)}>
+                  {w.updatesTest}
+                </Button>
+                <Button size="xs" variant="ghost" onClick={() => ui.openDrawer({ kind: "settings", tab: "integrations" })}>
+                  {w.decOpenSettings}
+                </Button>
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>

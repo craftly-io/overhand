@@ -426,6 +426,12 @@ export function useActions() {
         await navigator.clipboard.writeText(link);
         toast(fmt(w.saidGuideCopied, { link }));
       }),
+    /** Sends a status update channel a test now (Settings, and Health beside a failed send). */
+    updateTest: (id: string, name: string) =>
+      guard(false, async () => {
+        await post("/api/updates/test", { id }, Ok);
+        toast(fmt(w.updatesTested, { name }));
+      }),
     selfUpdate: () =>
       guard(false, async () => {
         if (!(await ui.confirm({ title: w.confirmUpdateTitle, body: w.confirmUpdate, go: w.confirmUpdateGo, tone: "primary" }))) return;

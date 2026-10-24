@@ -1,10 +1,9 @@
 import { type Check, UPDATE_KINDS, UPDATE_WHENS, UpdatePreviewSchema, updateSecret } from "@overhand/contract";
 import { toast } from "sonner";
-import { z } from "zod";
+import { useActions } from "@/app/actions";
 import { useTheme } from "@/app/theme";
 import { Button } from "@/components/ui/button";
-import { get, post } from "@/lib/api";
-import { fmt } from "@/lib/format";
+import { get } from "@/lib/api";
 import { isObject, type Json, type JsonObject } from "@/lib/json";
 import { CheckRows, Field, FieldCard, useForm } from "./SettingsFields";
 
@@ -33,14 +32,7 @@ export function StatusUpdates({ checks, store }: { checks: Check[]; store: (serv
         schedule: { when: "daily", hour: 9, weekday: 5 },
       },
     ]);
-  const test = async (id: string, name: string) => {
-    try {
-      await post("/api/updates/test", { id }, z.object({ ok: z.boolean() }));
-      toast(fmt(w.updatesTested, { name }));
-    } catch (e) {
-      toast(e instanceof Error ? e.message : String(e));
-    }
-  };
+  const { updateTest: test } = useActions();
   const markdown = async (id: string) => {
     try {
       const r = await get(`/api/updates/preview?id=${encodeURIComponent(id)}`, UpdatePreviewSchema);
