@@ -29,6 +29,7 @@ import { GuardBlockSchema, RequestSchema, type SessionRequest } from "@overhand/
 import { z } from "zod";
 import type { Config } from "./config";
 import { alive, type Heavy, quietUntil } from "./governor";
+import { lstart, procInfo } from "./platform";
 
 export type Control = Config["control"];
 export type Approval = Control["approvals"][number];
@@ -361,8 +362,15 @@ const runsFile = (ops: string) => join(controlDir(ops), "runs.json");
 
 /** When a process started, as `ps` says it (lstart); "" when there's no such process. */
 export function startOf(pid: number): string {
-  const r = Bun.spawnSync(["ps", "-o", "lstart=", "-p", String(pid)], { stdout: "pipe", stderr: "ignore" });
-  return r.stdout.toString().trim();
+  // macOS: libproc, which works inside the OS sandbox where ps can't run (platform.ts procInfo); the same text as ps's
+  const info = procInfo(pid);
+  if (info) return lstart(info.startSec);
+  try {
+    const r = Bun.spawnSync(["ps", "-o", "lstart=", "-p", String(pid)], { stdout: "pipe", stderr: "ignore" });
+    return r.stdout.toString().trim();
+  } catch {
+    return ""; // ps can't run here: no start time, so no record matches
+  }
 }
 
 /**
@@ -524,11 +532,24 @@ export function runByKey(ops: string, key: string, started: (pid: number) => str
 /** A run's outbox: a sandboxed run's guard writes its heartbeats and blocks there, and the daemon takes them in. */
 export const outboxDir = (ops: string, run: string): string => join(ops, "from-runs", run.replace(/[^\w-]/g, "_") || "run");
 
-/** This process's ancestors, nearest first (its parent, its parent's parent…), from one `ps` call; [] when ps fails. */
+/**
+ * This process's ancestors, nearest first (its parent, its parent's parent…): on macOS from libproc (it works inside
+ * the OS sandbox, where ps can't run), else from one `ps` call; [] when neither can tell.
+ */
 export function ancestors(start = process.ppid): number[] {
-  const r = Bun.spawnSync(["ps", "-A", "-o", "pid=,ppid="], { stdout: "pipe", stderr: "ignore" });
+  if (procInfo(start)) {
+    const out: number[] = [];
+    for (let pid = start; pid > 1 && out.length < 64 && !out.includes(pid); pid = procInfo(pid)?.ppid ?? 0) out.push(pid);
+    return out;
+  }
+  let listed = "";
+  try {
+    listed = Bun.spawnSync(["ps", "-A", "-o", "pid=,ppid="], { stdout: "pipe", stderr: "ignore" }).stdout.toString();
+  } catch {
+    return []; // ps can't run here: no recorded ancestor, so the call is judged with the most care (guard trustIdentity)
+  }
   const parent = new Map<number, number>();
-  for (const line of r.stdout.toString().split("\n")) {
+  for (const line of listed.split("\n")) {
     const [pid, ppid] = line.trim().split(/\s+/).map(Number);
     if (pid && ppid !== undefined) parent.set(pid, ppid);
   }

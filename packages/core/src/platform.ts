@@ -4,11 +4,54 @@
  * osascript, Terminal, caffeinate, lsof and launchd; Linux uses libsecret's secret-tool, notify-send, a desktop
  * terminal, systemd-inhibit, /proc and a systemd user unit. No imports from env.ts, so setup.ts can use it too.
  */
+import { dlopen, FFIType, type Pointer, ptr } from "bun:ffi";
 import { chmodSync, existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
 import { dirname, join } from "node:path";
 
 const MAC = process.platform === "darwin";
+
+type Libproc = { proc_pidinfo: (pid: number, flavor: number, arg: bigint, buf: Pointer, size: number) => number };
+let libproc: Libproc | null | undefined;
+/** proc_pidinfo's PROC_PIDTBSDINFO: struct proc_bsdinfo, 136 bytes; pbi_ppid at 16, pbi_start_tvsec at 120. */
+const BSDINFO = { flavor: 3, size: 136, ppid: 16, startSec: 120 } as const;
+
+/**
+ * A process's parent and start time (seconds) on macOS, from libproc, with no process spawned: inside the OS sandbox
+ * `ps` can't run (it's setuid root, which a sandboxed process may never exec), and the guard needs both. Null for a
+ * process that's gone or another user's (root's launchd at the top of every chain), and off macOS.
+ */
+export function procInfo(pid: number): { ppid: number; startSec: number } | null {
+  if (!MAC || !(pid > 0)) return null;
+  if (libproc === undefined) {
+    try {
+      const lib = dlopen("/usr/lib/libproc.dylib", {
+        proc_pidinfo: { args: [FFIType.i32, FFIType.i32, FFIType.u64, FFIType.ptr, FFIType.i32], returns: FFIType.i32 },
+      });
+      libproc = lib.symbols;
+    } catch {
+      libproc = null;
+    }
+  }
+  if (!libproc) return null;
+  const buf = new Uint8Array(BSDINFO.size);
+  if (libproc.proc_pidinfo(pid, BSDINFO.flavor, 0n, ptr(buf), BSDINFO.size) !== BSDINFO.size) return null;
+  const v = new DataView(buf.buffer);
+  return { ppid: v.getUint32(BSDINFO.ppid, true), startSec: Number(v.getBigUint64(BSDINFO.startSec, true)) };
+}
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const two = (n: number) => String(n).padStart(2, "0");
+/**
+ * A start time in `ps -o lstart=`'s layout ("Sat Oct  4 23:18:31 2026"), always in UTC: the daemon records it and the
+ * guard compares it from different processes, so no time zone either one was given may change it.
+ */
+export function lstart(sec: number): string {
+  const d = new Date(sec * 1000);
+  const time = `${two(d.getUTCHours())}:${two(d.getUTCMinutes())}:${two(d.getUTCSeconds())}`;
+  return `${DAYS[d.getUTCDay()]} ${MONTHS[d.getUTCMonth()]} ${String(d.getUTCDate()).padStart(2, " ")} ${time} ${d.getUTCFullYear()}`;
+}
 
 /** Runs a command; never throws. env so a PATH set at runtime (tests' fake binaries) picks the binary. */
 function run(cmd: string[], stdin?: string): { ok: boolean; out: string; err: string } {
