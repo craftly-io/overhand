@@ -220,7 +220,12 @@ async function deploy(): Promise<void> {
     return;
   }
   const script = await (await fetch(GET)).text();
-  need(script.includes("Installs Overhand"), `${GET} serves the installer`, script.slice(0, 120));
+  // the installer's shape, not its first line's wording: a shell script that fetches Overhand's releases
+  need(
+    script.startsWith("#!/bin/sh") && script.includes("overhand-") && script.includes("SHA256SUMS"),
+    `${GET} serves the installer`,
+    script.slice(0, 120),
+  );
 }
 
 function verifyInstall(): void {
