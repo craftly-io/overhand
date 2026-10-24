@@ -51,7 +51,8 @@ type AlertTarget =
   | { kind: "selfcheck" }
   /** A control-room action card: its buttons are what Overhand does, with your authority. */
   | { kind: "card"; card: ActionCard }
-  | { kind: "none" };
+  /** Quiet mode for `hours`: heavy jobs wait while you need the laptop (a meeting starting soon). */
+  | { kind: "quiet"; hours: number };
 
 export interface Alert {
   /** 3 = act now, 2 = soon, 1 = for your information. */
@@ -270,7 +271,8 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       sev: 1,
       title: fmt(w.alRelease, { version: s.update.latest }),
       sub: fmt(w.alReleaseSub, { current: s.update.current, command: s.update.command }),
-      target: { kind: "none" },
+      go: w.confirmUpdateGo,
+      target: { kind: "update" },
     });
   for (const g of s.godmode) {
     if (g.open && g.inbox)
@@ -319,7 +321,8 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
         title: fmt(w.alMeeting, { title: e.title, n }),
         sub: fmt(w.alMeetingSub, { start: hm(e.start), end: hm(e.end) }),
         say: fmt(w.alMeetingSay, { title: e.title, n }),
-        target: { kind: "none" },
+        // the laptop is needed for the call: hold heavy jobs until it's over
+        target: { kind: "quiet", hours: 1 },
       });
     }
   // the scorecard's suggestion: calm, and only ever a pointer to the project's accounts

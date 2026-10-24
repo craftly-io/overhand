@@ -38,6 +38,8 @@ bun run menubar  # builds the Mac menu bar helper (needs Xcode's Swift); the dae
 
 - **One source.** Every word, fact and piece of logic lives once; CI fails on a repeated sentence or copy-pasted code.
 - **Agent-agnostic names.** Say "agent" in code, files and copy; name a tool only where the code is that tool's.
+- **Every problem comes with its fix.** A card in Needs you carries a button that fixes it, or opens exactly where the
+  fix is; `AlertTarget` (apps/web/src/lib/alerts.ts) has no kind without one. Never show a bare error line.
 - **TypeScript strict.** No `any`, no non-null `!`, no double casts; Biome formats.
 - **A change is done only when it shows everywhere.** [Done means everywhere](CONTRIBUTING.md#done-means-everywhere)
   lists what one pull request updates with it, and the check that fails when you forget.
