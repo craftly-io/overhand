@@ -651,6 +651,76 @@ describe("checkout while on a plan", () => {
   });
 });
 
+describe("switching plans", () => {
+  const TEAM_MONTH = {
+    id: "pri_team_m",
+    status: "active",
+    unit_price: { amount: "800", currency_code: "EUR" },
+    billing_cycle: { interval: "month", frequency: 1 },
+    quantity: { minimum: 2, maximum: 500 },
+    custom_data: { plan: "team", cycle: "month" },
+  };
+  const switchTo = async (body: object) => {
+    const calls: { url: string; method: string; body: unknown }[] = [];
+    const r = await withFetch(
+      async (input, init) => {
+        const url = String(input instanceof Request ? input.url : input);
+        calls.push({ url, method: init?.method ?? "GET", body: init?.body ? JSON.parse(String(init.body)) : null });
+        if (url.includes("/prices")) return Response.json({ data: [TEAM_MONTH], meta: { pagination: { next: null, has_more: false } } });
+        return Response.json({ data: { id: "sub_1" } });
+      },
+      async () =>
+        route(
+          new Request(`${APP}/relay/switch`, {
+            method: "POST",
+            headers: { origin: APP, cookie: await sessionCookie("user_A") },
+            body: JSON.stringify(body),
+          }),
+          env(),
+        ),
+    );
+    return { r, calls };
+  };
+
+  test("on Pro, the page offers Team in the same cycle as a switch, and the switch changes the subscription's item", async () => {
+    expect(await applyEvent(db, subscriptionEvent({ ws: "user_A" }), 0)).toBe("applied");
+    const html = billingPage({
+      session: { typ: "session", ws: "user_A", email: "user_A@x", iat: Date.now(), exp: Date.now() + 60_000 },
+      catalog: { pro: {}, team: { month: { id: "pri_team_m", amount: 800, currency: "EUR", min: 2, max: 500, product: "p" } } },
+      entitlement: await entitlementOf(db, "user_A"),
+      active: true,
+      linked: true,
+      clientToken: "",
+      environment: "sandbox",
+      picked: "",
+      site: "",
+      nonce: "n",
+    });
+    expect(html).toContain('data-plan="team" data-name="Team" data-switch');
+    expect(html).toContain(">Switch to Team</button>");
+    const { r, calls } = await switchTo({ plan: "team", cycle: "month", seats: 3 });
+    expect(await r.json()).toEqual({ ok: true });
+    expect(calls.at(-1)).toEqual({
+      url: "https://sandbox-api.paddle.com/subscriptions/sub_1",
+      method: "PATCH",
+      body: { items: [{ price_id: "pri_team_m", quantity: 3 }], proration_billing_mode: "prorated_immediately" },
+    });
+  });
+
+  test("a switch needs a plan that isn't set to end, to another plan, in its own cycle; refused ones never reach Paddle", async () => {
+    expect((await switchTo({ plan: "team", cycle: "month" })).r.status).toBe(409); // no plan yet
+    expect(await applyEvent(db, subscriptionEvent({ ws: "user_A", scheduled: "cancel" }), 0)).toBe("applied");
+    const ending = await switchTo({ plan: "team", cycle: "month" });
+    expect(ending.r.status).toBe(409);
+    expect(await ending.r.json()).toEqual({ error: plainWords.billingSwitchScheduled });
+    expect(ending.calls).toEqual([]);
+    const at = "2026-10-21T10:00:00.000000Z";
+    expect(await applyEvent(db, subscriptionEvent({ ws: "user_A", type: "subscription.updated", at }), 0)).toBe("applied");
+    expect((await switchTo({ plan: "pro", cycle: "month" })).r.status).toBe(400); // on it already
+    expect((await switchTo({ plan: "team", cycle: "year" })).r.status).toBe(400); // another cycle
+  });
+});
+
 describe("billing actions when Paddle refuses", () => {
   test("the page gets one plain line, never Paddle's own error", async () => {
     const prices = {
@@ -1054,12 +1124,15 @@ describe("billing plans", () => {
     expect(cardOf(html, "free")).toContain(plainWords.billingYourPlan);
   });
 
-  test("on a plan, its card is marked and nothing is for sale a second time", () => {
+  test("on a plan, its card is marked, nothing is for sale a second time, and the other plan is a switch in its cycle", () => {
     const html = render({ active: true });
     expect(cardOf(html, "pro")).toContain(plainWords.billingYourPlan);
     expect(cardOf(html, "free")).not.toContain(plainWords.billingYourPlan);
-    expect(html).not.toContain('<form class="plan');
+    expect([...html.matchAll(/<form class="plan[^"]*" data-plan="(\w+)"[^>]*>/g)].map((m) => m[0])).toEqual([
+      '<form class="plan" data-plan="team" data-name="Team" data-switch aria-labelledby="plan-team">',
+    ]);
     expect(cardOf(html, "team")).toContain("€8<small> per seat / month");
+    expect(cardOf(html, "team")).not.toContain("€80"); // the year isn't offered: a switch keeps Pro's monthly cycle
   });
 
   test("without a catalog the page says prices couldn't be loaded", () => {

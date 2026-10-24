@@ -50,13 +50,18 @@ function cycleText(plan: Plan, cycle: Cycle, c: Catalog): string {
  * One plan's card, the same five rows in every card so plans compare at a glance: name (and Your plan), promise, price,
  * what's included, and the action. A paid plan you can buy is a form: its cycle a real radio choice, Team its seats.
  */
-function planCard(plan: "free" | Plan, c: Catalog, o: { current: boolean; buy: boolean; picked: string; install: boolean }): string {
+function planCard(
+  plan: "free" | Plan,
+  c: Catalog,
+  o: { current: boolean; buy: boolean; picked: string; install: boolean; switchOn?: Cycle | null },
+): string {
   const copy = PLAN_COPY[plan];
   const paid = plan === "free" ? null : plan;
-  const cycles = paid ? CYCLES.filter((cy) => c[paid][cy]) : [];
+  // switching keeps the subscription's billing cycle: only that one is offered
+  const cycles = paid ? CYCLES.filter((cy) => c[paid][cy] && (!o.switchOn || cy === o.switchOn)) : [];
   if (paid && !cycles.length) return "";
   const pickedCycle = cycles.find((cy) => o.picked === `${plan}-${cy}`);
-  const form = Boolean(paid && o.buy);
+  const form = Boolean(paid && (o.buy || o.switchOn));
   const head = `<h3 id="plan-${plan}">${copy.name}${o.current ? ` <span class="badge">${w.billingYourPlan}</span>` : ""}</h3>`;
   const includes = `<ul class="gets">${copy.includes.map((i) => `<li>${i}</li>`).join("")}</ul>`;
   let price = paid ? "" : `<p class="prices">${PLAN_COPY.free.price}<small> ${PLAN_COPY.free.note}</small></p>`;
@@ -75,11 +80,13 @@ function planCard(plan: "free" | Plan, c: Catalog, o: { current: boolean; buy: b
       paid === "team" && p
         ? `<label>Seats <input type="number" name="seats" min="${p.min}" max="${p.max}" value="${p.min}" inputmode="numeric"></label>`
         : "";
-    act = `<div class="act">${seats}<button${pickedCycle ? ' class="primary"' : ""}>${w.billingChoose.replace("{plan}", copy.name)}</button></div>`;
+    const label = (o.switchOn ? w.billingSwitch : w.billingChoose).replace("{plan}", copy.name);
+    act = `<div class="act">${seats}<button${pickedCycle ? ' class="primary"' : ""}>${label}</button></div>`;
   } else if (paid) price = `<p class="prices">${cycles.map((cy) => cycleText(paid, cy, c)).join("<br>")}</p>`;
   const tag = form ? "form" : "section";
   const cls = `plan${pickedCycle ? " picked" : ""}${o.current ? " current" : ""}`;
-  return `<${tag} class="${cls}"${form ? ` data-plan="${plan}"` : ""} aria-labelledby="plan-${plan}">${head}<p>${copy.promise}</p>${price}${includes}${act}</${tag}>`;
+  const data = form ? ` data-plan="${plan}" data-name="${copy.name}"${o.switchOn ? " data-switch" : ""}` : "";
+  return `<${tag} class="${cls}"${data} aria-labelledby="plan-${plan}">${head}<p>${copy.promise}</p>${price}${includes}${act}</${tag}>`;
 }
 
 /** What follows "You're on Pro": the cancel or pause scheduled for the period's end, else when it renews. */
@@ -122,7 +129,17 @@ export function billingPage(o: {
   const install = !o.active && !o.linked;
   const plans = c
     ? `<h2>${w.hostedPlans}</h2><div class="plans">${(["free", ...PLANS] as const)
-        .map((plan) => planCard(plan, c, { current: plan === on, buy: !o.active, picked: o.picked, install }))
+        .map((plan) =>
+          planCard(plan, c, {
+            current: plan === on,
+            buy: !o.active,
+            picked: o.picked,
+            install,
+            // on a plan the other paid one switches it, unless it's set to end (Paddle keeps that change first)
+            switchOn:
+              o.active && e && plan !== "free" && plan !== on && !e.scheduled_change ? (CYCLES.find((cy) => cy === e.cycle) ?? null) : null,
+          }),
+        )
         .join("")}</div><p><small>${PLAN_TAX}</small></p>`
     : "<p role=alert>Prices couldn't be loaded from Paddle just now. Try again in a minute.</p>";
   const sandbox =
@@ -194,8 +211,14 @@ for (const f of document.querySelectorAll("form.plan")) {
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!window.Paddle || !token) return msg("Checkout isn't available right now.");
+    const seats = f.seats ? Number(f.seats.value) : undefined;
+    if (f.dataset.switch !== undefined) {
+      if (!confirm(${JSON.stringify(w.billingSwitchAsk)}.replace("{plan}", f.dataset.name))) return;
+      try { await post("/relay/switch", { plan: f.dataset.plan, cycle: f.cycle.value, seats }); msg(${JSON.stringify(w.billingSwitched)}); setTimeout(() => location.reload(), 3000); }
+      catch (err) { msg(err.message); }
+      return;
+    }
     try {
-      const seats = f.seats ? Number(f.seats.value) : undefined;
       const t = await post("/relay/checkout", { plan: f.dataset.plan, cycle: f.cycle.value, seats });
       Paddle.Checkout.open({ transactionId: t.transactionId, customer: { email: t.email }, settings: { ...${CHECKOUT_SETTINGS}, displayMode: "overlay" } });
     } catch (err) { msg(err.message); }
@@ -299,7 +322,7 @@ export async function prices(env: Env, now = Date.now()): Promise<Catalog> {
 /** Checkout while a plan is on: a second subscription would bill twice, and canceling either would muddle access. */
 export const BILLING_FAILED = `Paddle couldn't do that just now. Try again in a minute; if it keeps failing, write to ${EMAIL}.`;
 /** Checkout while a plan is on: a second subscription would bill twice, and canceling either would muddle access. */
-export const ON_A_PLAN = `You're on a plan already. To switch plans, write to ${EMAIL}.`;
+export const ON_A_PLAN = "You're on a plan already: switch it on this page.";
 
 /** Headers for a page that runs Paddle.js under a nonce. */
 const checkoutHeaders = (nonce: string): Record<string, string> => ({
@@ -390,17 +413,34 @@ export async function billingRoute(req: Request, env: Env, url: URL, s: SessionC
     });
     return new Response(page, { headers: checkoutHeaders(nonce) });
   }
-  if (req.method !== "POST" || !["/relay/checkout", "/relay/portal", "/relay/seats"].includes(p)) return null;
+  if (req.method !== "POST" || !["/relay/checkout", "/relay/switch", "/relay/portal", "/relay/seats"].includes(p)) return null;
   if (!s) return json({ error: "sign in" }, 401);
   if (req.headers.get("origin") !== url.origin) return json({ error: "forbidden" }, 403);
   const body: unknown = await req.json().catch(() => ({}));
   const base = paddleBase(env.PADDLE_ENV);
   try {
-    if (p === "/relay/checkout") {
-      // a draft transaction for the tagged price, with the workspace set here, never by the browser
+    if (p === "/relay/checkout" || p === "/relay/switch") {
       const b = z.object({ plan: z.enum(PLANS), cycle: z.enum(CYCLES), seats: z.number().int().optional() }).safeParse(body);
       if (!b.success) return json({ error: "pick a plan and a billing cycle" }, 400);
-      if (await activeEntitlement(env.DB, s.ws)) return json({ error: ON_A_PLAN }, 409);
+      const on = await activeEntitlement(env.DB, s.ws);
+      if (p === "/relay/switch") {
+        // the subscription's item becomes the other plan's price in the same cycle, prorated today; the
+        // subscription.updated webhook that follows updates the entitlement
+        if (!on) return json({ error: "Choose a plan first: there's none to switch." }, 409);
+        if (on.scheduled_change) return json({ error: w.billingSwitchScheduled }, 409);
+        if (on.plan === b.data.plan || (on.cycle && on.cycle !== b.data.cycle))
+          return json({ error: "Switching changes the plan and keeps its billing cycle." }, 400);
+        const price = (await prices(env, now))[b.data.plan][b.data.cycle];
+        if (!price) return json({ error: `no ${b.data.plan} ${b.data.cycle} price in Paddle` }, 404);
+        const quantity = Math.min(price.max, Math.max(price.min, b.data.seats ?? price.min));
+        await paddle(base, env.PADDLE_API_KEY, `/subscriptions/${encodeURIComponent(on.subscription_id)}`, {
+          method: "PATCH",
+          body: { items: [{ price_id: price.id, quantity }], proration_billing_mode: "prorated_immediately" },
+        });
+        return json({ ok: true });
+      }
+      // a draft transaction for the tagged price, with the workspace set here, never by the browser
+      if (on) return json({ error: ON_A_PLAN }, 409);
       const price = (await prices(env, now))[b.data.plan][b.data.cycle];
       if (!price) return json({ error: `no ${b.data.plan} ${b.data.cycle} price in Paddle` }, 404);
       // Team's seats within the price's own quantity limits (2–500 in the catalog)

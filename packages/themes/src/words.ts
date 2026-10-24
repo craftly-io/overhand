@@ -1477,6 +1477,11 @@ export const plainWords = {
   billingYourPlan: "Your plan",
   billingCycle: "Billing cycle",
   billingChoose: "Choose {plan}",
+  // on a plan, the other paid plan's card switches the subscription (same billing cycle), prorated by Paddle today
+  billingSwitch: "Switch to {plan}",
+  billingSwitchAsk: "Switch to {plan}? Paddle charges or credits the prorated difference today.",
+  billingSwitched: "Switched. Paddle bills the difference, prorated; this page updates in a moment.",
+  billingSwitchScheduled: "Your plan is set to end. Keep it first with Manage billing, then switch.",
   billingMonthsFree: "{n} months free",
   billingSave: "save {amount}",
   // after "You're on Pro": when it renews, or the cancel or pause scheduled for the period's end and how to undo it
