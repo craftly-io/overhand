@@ -957,6 +957,11 @@ export const plainWords = {
   alSignInSub: "Its agents wait for one {tool} sign-in of its own.",
   alSignInSubOthers: "Your other accounts carry its work until then.",
   alSignInSay: "{account} needs one sign-in before its agents can run",
+  /** The Slack inbox's own Slack sign-in expired (Claude Code's, per Slack server): one click opens it in Claude Code. */
+  alSlackSignIn: "Slack needs signing in again for {clients}",
+  alSlackSignInSub: "The Slack inbox can't read Slack until then. It opens Claude Code: type /mcp and sign in to Slack.",
+  alSlackSignInGo: "Sign in to Slack",
+  saidSlackSignIn: "Claude Code opened in a terminal: type /mcp, then sign in to Slack.",
   alBillingAsk: "Is {account} billed per use or part of a plan?",
   alBillingAskSub: "Until you say, its runs count toward the daily budget. It looks like {guess}.",
   alBillingAskSay: "I don't know yet whether {account} is billed per use",

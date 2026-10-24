@@ -346,6 +346,7 @@ export async function dashboardState(): Promise<DashboardState> {
     budgetUsd: CFG.limits.dailyBudgetUsd,
     paceWeekly: CFG.limits.paceWeekly,
     gitBlocked: gitFlagged(),
+    slackSignIn: state.slackSignIn ?? null,
     sandboxRefuse: projectSandbox("").refuse ? projectSandbox("").why || "the OS sandbox can't run here" : "",
     menubar: menubarHelper() ? CFG.menubar : null,
     dayOne: firstDay(),

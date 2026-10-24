@@ -679,6 +679,8 @@ export const DashboardStateSchema = z.object({
   paceWeekly: z.boolean().default(false),
   /** Checkouts where a run changed where git finds the repository: no daemon git there until you allow it; "*" = everywhere. */
   gitBlocked: z.array(z.string()).default([]),
+  /** The Slack inbox found these projects' Slack signed out (its own sign-in, in this account's folder); absent when it reads. */
+  slackSignIn: z.object({ clients: z.array(z.string()), account: z.string() }).nullish(),
   /** Why no run can start on this computer when the OS sandbox can't run here and the config requires it; "" when runs can. */
   sandboxRefuse: z.string().default(""),
   /** The menu bar item is on (`menubar`); null where this computer has none (not a Mac, or not installed). */

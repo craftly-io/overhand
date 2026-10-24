@@ -103,6 +103,9 @@ export const signInHome = (account: string, root = AGENT_HOMES): string => join(
 
 /** The shell command that signs an account in through Claude Code's own flow, in that account's config folder. */
 export const claudeLoginCommand = (home: string): string => `CLAUDE_CONFIG_DIR=${quote(home)} claude auth login`;
+/** Claude Code where the Slack inbox reads Slack, with only its Slack servers: `/mcp` in it signs them in again. */
+export const slackLoginCommand = (home: string, mcp: string): string =>
+  `CLAUDE_CONFIG_DIR=${quote(home)} claude --mcp-config ${quote(mcp)} --strict-mcp-config`;
 
 /**
  * The variable that moves each CLI's login to another folder, for the CLIs where it really moves: Claude Code

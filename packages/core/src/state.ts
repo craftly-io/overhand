@@ -52,6 +52,8 @@ export interface State {
   prs: Record<string, TrackedPr>;
   nextAccount: number;
   slackCursor: number;
+  /** The Slack inbox's last read found these projects' Slack signed out, on this account's folder; gone once it reads again. */
+  slackSignIn?: { clients: string[]; account: string };
   seen: string[];
   pending: Record<string, PendingTicket>;
 }

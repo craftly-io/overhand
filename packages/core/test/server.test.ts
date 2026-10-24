@@ -166,3 +166,8 @@ test("a cleanup is marked started before its worker loads, so a second Scan in t
     rmSync(file, { force: true });
   }
 });
+
+test("the Slack sign-in opens only while the Slack inbox waits for one", async () => {
+  const r = await post("/api/slack-login");
+  expect(r.status).toBe(404);
+});

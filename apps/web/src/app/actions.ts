@@ -454,6 +454,12 @@ export function useActions() {
         await navigator.clipboard.writeText(link);
         toast(fmt(w.saidGuideCopied, { link }));
       }),
+    /** Opens Claude Code where the Slack inbox reads Slack, to sign its Slack servers in again (`/mcp`). */
+    slackSignIn: () =>
+      guard(false, async () => {
+        await post("/api/slack-login", {}, Ok);
+        toast(w.saidSlackSignIn);
+      }),
     /** Sends a status update channel a test now (Settings, and Health beside a failed send). */
     updateTest: (id: string, name: string) =>
       guard(false, async () => {

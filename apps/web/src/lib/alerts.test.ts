@@ -451,3 +451,12 @@ test("a lead whose start fails before it runs says why, with Fix the account and
   expect(card?.sub).toBe("no Anthropic API key for work");
   expect(card?.target).toEqual({ kind: "cantstart", key: g.key, account: "work" });
 });
+
+test("a Slack inbox signed out of Slack says for which projects, with Sign in to Slack", () => {
+  const base = state({});
+  const card = computeAlerts({ ...base, slackSignIn: { clients: ["Acme", "Kite"], account: "work" } }, parsePlan([]), plainWords, NOW).find(
+    (a) => a.target.kind === "slack",
+  );
+  expect(card?.title).toBe("Slack needs signing in again for Acme, Kite");
+  expect(computeAlerts(base, parsePlan([]), plainWords, NOW).some((a) => a.target.kind === "slack")).toBe(false);
+});

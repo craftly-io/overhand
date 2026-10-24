@@ -123,8 +123,9 @@ export async function inbox(state: State): Promise<void> {
   const signIn = needsSignIn(run.transcript);
   if (signIn.length) {
     const names = SLACK.filter((s) => signIn.includes(s.server)).map((s) => s.client);
-    report(`⚠ Slack needs signing in again for ${names.join(", ")}: run \`claude\`, then /mcp, and sign in`);
-  }
+    report(`⚠ Slack needs signing in again for ${names.join(", ")}: Needs you has its Sign in`);
+    state.slackSignIn = { clients: names, account: run.account };
+  } else delete state.slackSignIn;
   if (!Array.isArray(run.out.items)) {
     report("⚠ Slack inbox triage failed, see logs/<date>/inbox-*.json");
     return;

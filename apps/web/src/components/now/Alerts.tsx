@@ -177,7 +177,8 @@ function QuickActions({ a }: { a: Alert }) {
 function Actions({ a }: { a: Alert }) {
   const w = useWords();
   const ui = useUi();
-  const { gitAllow, heldDismiss, heldPost, leadAnswer, leadStart, quiet, ruleAdd, ruleDismiss, run, selfUpdate } = useActions();
+  const { gitAllow, heldDismiss, heldPost, leadAnswer, leadStart, quiet, ruleAdd, ruleDismiss, run, selfUpdate, slackSignIn } =
+    useActions();
   const save = useQuickSave();
   const [open, setOpen] = useState(false);
   const [elsewhere, setElsewhere] = useState(false);
@@ -193,6 +194,7 @@ function Actions({ a }: { a: Alert }) {
   );
   if (t.kind === "card") return <CardButtons card={t.card} />;
   if (t.kind === "restart") return one(w.confirmRestartGo, () => void run({ name: "restart" }));
+  if (t.kind === "slack") return one(w.alSlackSignInGo, () => void slackSignIn());
   if (t.kind === "quiet") return one(fmt(w.decQuiet, { h: t.hours }), () => void quiet(t.hours), "outline");
   if (t.kind === "replan") return one(w.signInRetry, () => void run({ name: "plan" }));
   if (t.kind === "git") return one(w.alGitAllow, () => void gitAllow(t.dir), "outline");
