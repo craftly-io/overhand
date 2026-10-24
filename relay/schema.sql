@@ -1,6 +1,6 @@
 -- The relay's D1 database: one entitlement per workspace, kept by Paddle webhooks, the webhook event ids seen, and the
--- revocation and TURN budget records. Every statement is additive and idempotent, so re-running this whole file is
--- the migration (see "Migrations" in README.md).
+-- revocation and TURN budget records. Every statement is additive and idempotent, so this file makes a new database
+-- whole; an existing one also needs each script in migrations/ it hasn't had yet (see "Migrations" in README.md).
 -- Apply: bunx wrangler@4.151.1 d1 execute overhand-relay --remote --file schema.sql
 CREATE TABLE IF NOT EXISTS entitlements (
   workspace TEXT PRIMARY KEY,

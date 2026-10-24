@@ -89,7 +89,7 @@ D1 gives a transactional `batch` and `ON CONFLICT … WHERE excluded.occurred_at
 
 ## Owner setup
 
-All of this is done for the one relay that runs until launch (sandbox billing, on app.overhand.dev). [`.env.example`](.env.example) lists every var and secret the Worker reads.
+Two relays run, each with its own D1 database and Paddle environment: production on app.overhand.dev, on live Paddle (`PADDLE_ENV: "production"`), and staging on staging-app.overhand.dev, on Paddle's sandbox (`--env staging`, `PADDLE_ENV: "sandbox"`), as [`wrangler.jsonc`](wrangler.jsonc) sets them. Each step below is done once per relay; a secret goes to staging with `--env staging`. [`.env.example`](.env.example) lists every var and secret the Worker reads.
 
 1. **Signing key.** Run `bun relay/keygen.ts`.
    - Put the private half in `bunx wrangler@4.151.1 secret put SIGNING_KEY`.
@@ -108,15 +108,14 @@ All of this is done for the one relay that runs until launch (sandbox billing, o
 4. **TURN.** In Cloudflare dashboard → Realtime → TURN, create a key.
    - Set `TURN_KEY_ID` in vars.
    - Run `secret put TURN_KEY_API_TOKEN`.
-5. **Paddle sandbox:**
-   - In Developer tools → Authentication, create a client-side token (`test_…`) and set it as `PADDLE_CLIENT_TOKEN` in vars (it's public). Create an API key with prices read, transactions write, customers/portal and subscriptions write, then run `secret put PADDLE_API_KEY`.
-   - In Developer tools → Notifications, create a destination at `https://app.overhand.dev/relay/paddle/webhook` with the `subscription.*` events. Run `secret put PADDLE_WEBHOOK_SECRET` with its secret key. The Worker only accepts webhooks from the `CF-Connecting-IP` addresses Paddle lists at `/ips` for the environment, so a webhook sent from anywhere else (your own machine included) gets 403.
-   - Under Checkout settings, set the default payment link to `https://app.overhand.dev/relay/billing`. Transaction checkouts need an approved default link.
-   - Keep `PADDLE_ENV` set to `sandbox`. Only the literal `production` reaches the live API.
-6. **Deploy.** Run `cd relay && bunx wrangler@4.151.1 deploy`. The build copies the dashboard into `relay/public`.
-7. **Live, later:** Paddle account verification, overhand.dev approved in Paddle, production WorkOS environment and Paddle keys, then `PADDLE_ENV=production`.
+5. **Paddle** (live for production; sandbox for staging, in Paddle's sandbox dashboard, its tokens `test_…`):
+   - In Developer tools → Authentication, create a client-side token and set it as `PADDLE_CLIENT_TOKEN` in that environment's vars (it's public). Create an API key with prices read, transactions write, customers/portal and subscriptions write, then run `secret put PADDLE_API_KEY`.
+   - In Developer tools → Notifications, create a destination at that relay's `/relay/paddle/webhook` (`https://app.overhand.dev/…` or `https://staging-app.overhand.dev/…`) with the `subscription.*` events. Run `secret put PADDLE_WEBHOOK_SECRET` with its secret key. The Worker only accepts webhooks from the `CF-Connecting-IP` addresses Paddle lists at `/ips` for the environment, so a webhook sent from anywhere else (your own machine included) gets 403.
+   - Under Checkout settings, set the default payment link to that relay's `/relay/billing`. Transaction checkouts need an approved default link, and live Paddle needs the domain approved.
+   - `PADDLE_ENV` is `production` for app.overhand.dev and `sandbox` for staging. Only the literal `production` reaches the live API, so never set production back to sandbox.
+6. **Deploy.** Staging first, `cd relay && bunx wrangler@4.151.1 deploy --env staging`, then production with `bunx wrangler@4.151.1 deploy`. The build copies the dashboard into `relay/public`.
 
-Test cards (sandbox): `4242 4242 4242 4242`, any future date, any CVC; `4000 0038 0000 0446` for 3-D Secure.
+Test cards (staging, on sandbox): `4242 4242 4242 4242`, any future date, any CVC; `4000 0038 0000 0446` for 3-D Secure.
 
 ## Local end to end
 
