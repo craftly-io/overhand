@@ -4,13 +4,13 @@
  * Codex's login counts only when Codex says so; the list of refused checkouts fails closed.
  */
 import { expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gitRefused, OPS, sh } from "../src/env";
 import { codexSignedIn } from "../src/runtimes/codex";
 import { gitEnv, gitPointersOk } from "../src/runtimes/runtime";
-import { projectCommand, real, sandboxPolicy } from "../src/sandbox";
+import { flagRepo, projectCommand, real, sandboxPolicy } from "../src/sandbox";
 
 const scratch = () => real(mkdtempSync(join(tmpdir(), "overhand-review2-")));
 const git = (cwd: string, ...args: string[]) =>
@@ -66,6 +66,26 @@ test("a corrupt list of refused checkouts refuses every one (fails closed)", () 
   expect(gitRefused(scratch(), file)).toBe(true);
   writeFileSync(file, "[]");
   expect(gitRefused(scratch(), file)).toBe(false);
+});
+
+test("flagging a checkout keeps an unreadable list as it is, so every earlier flag still holds", () => {
+  const ops = scratch();
+  const file = join(ops, "control", "git-tampered.json");
+  mkdirSync(join(ops, "control"));
+  writeFileSync(file, '["/code/a", "/code/b"');
+  flagRepo(join(ops, "c"), "L-1", ops);
+  expect(readFileSync(file, "utf8")).toBe('["/code/a", "/code/b"');
+  expect(gitRefused(scratch(), file)).toBe(true);
+});
+
+test("a flagged checkout refuses git in itself and inside it, not in a neighbour sharing its name", () => {
+  const root = scratch();
+  for (const d of ["app", "app/src", "app-web"]) mkdirSync(join(root, d));
+  const file = join(root, "git-tampered.json");
+  writeFileSync(file, JSON.stringify([join(root, "app")]));
+  expect(gitRefused(join(root, "app"), file)).toBe(true);
+  expect(gitRefused(join(root, "app", "src"), file)).toBe(true);
+  expect(gitRefused(join(root, "app-web"), file)).toBe(false);
 });
 
 test.skipIf(process.platform !== "darwin")("a project's own command the daemon runs goes under its sandbox when on, as is when off", () => {

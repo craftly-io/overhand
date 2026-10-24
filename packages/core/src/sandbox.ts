@@ -25,7 +25,7 @@ import { plainWords } from "@overhand/themes";
 import { AGENT_HOMES } from "./agent-home";
 import { RUN_CACHES, runCacheKey } from "./cleanup-sources";
 import type { RuntimeId } from "./config";
-import { controlDir, outboxDir, RUN_KEY_ENV, runKey } from "./control";
+import { controlDir, outboxDir, RUN_KEY_ENV, runKey, writeAtomic } from "./control";
 import { CFG, OPS, safeCmd, shAsync } from "./env";
 import { projectAt, selfPaths } from "./guard";
 import { report } from "./notify";
@@ -668,14 +668,20 @@ export function gitPointers(cwd: string, gitDir: string): string {
 export function flagRepo(cwd: string, run: string, ops = OPS): void {
   const file = join(controlDir(ops), "git-tampered.json");
   let list: string[] = [];
-  try {
-    const v: unknown = JSON.parse(readFileSync(file, "utf8"));
-    if (Array.isArray(v)) list = v.filter((x): x is string => typeof x === "string");
-  } catch {
-    // none yet
+  if (existsSync(file)) {
+    try {
+      const v: unknown = JSON.parse(readFileSync(file, "utf8"));
+      if (!Array.isArray(v)) throw new Error("not a list");
+      list = v.filter((x): x is string => typeof x === "string");
+    } catch {
+      // an unreadable list already refuses all git (env.ts gitRefused); rewriting it would drop every earlier flag
+      report(
+        `⚠ ${run} changed where git finds the repository in ${cwd}, and ${file} can't be read: Overhand runs no git anywhere until you fix it`,
+      );
+      return;
+    }
   }
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify([...new Set([...list, real(cwd)])]), { mode: 0o600 });
+  writeAtomic(file, JSON.stringify([...new Set([...list, real(cwd)])]));
   report(`⚠ ${run} changed where git finds the repository in ${cwd}: Overhand runs no git there until you look (${file})`);
 }
 

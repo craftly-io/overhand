@@ -157,8 +157,8 @@ export function gitRefused(cwd: string, file = join(OPS, "control", "git-tampere
   try {
     const v: unknown = JSON.parse(readFileSync(file, "utf8"));
     if (!Array.isArray(v)) return true;
-    const at = resolve(cwd);
-    return v.some((d) => typeof d !== "string" || at === d || at.startsWith(`${d}/`) || realpathOr(at).startsWith(d));
+    const paths = [resolve(cwd), realpathOr(resolve(cwd))];
+    return v.some((d) => typeof d !== "string" || paths.some((at) => at === d || at.startsWith(`${d}/`)));
   } catch {
     return true;
   }
