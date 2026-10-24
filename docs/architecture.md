@@ -7,7 +7,7 @@ How Overhand fits together, in five minutes. Folder by folder detail lives in [A
 flowchart LR
   subgraph computer["Your computer (or a server)"]
     daemon["Daemon<br/>packages/core"]
-    web["Dashboard<br/>apps/web, 127.0.0.1:4317"]
+    web["The Overhand app<br/>apps/web, 127.0.0.1:4317"]
     agents["Agent runs<br/>guard hook + OS sandbox"]
     ops[("OPS folder<br/>config, state, local key")]
   end
@@ -39,13 +39,13 @@ flowchart LR
   paddle -- webhooks --> relay
   relay -- checkout, portal --> paddle
   get -- redirects downloads --> github
-  site -- demo build of the dashboard --> web
+  site -- demo build of the app --> web
 ```
 
 ## The daemon
 
 `packages/core`, started by `run.ts` (`overhand daemon`, kept alive by launchd or systemd). It never listens beyond
-loopback: the dashboard server (`src/server.ts`) binds `127.0.0.1:4317` by default.
+loopback: the app's server (`src/server.ts`) binds `127.0.0.1:4317` by default.
 
 - **OPS folder.** `OVERHAND_HOME`, else `~/.overhand` for the installed binary (`src/env.ts`). It holds
   `overhand.config.json`, `state.json`, run outboxes and `control/`. Mode 0700.
@@ -65,7 +65,7 @@ loopback: the dashboard server (`src/server.ts`) binds `127.0.0.1:4317` by defau
   [docs/cleanup-sources.md](cleanup-sources.md).
 - **Notifications.** `src/notify.ts` posts to ntfy when `ntfySecret` is set; `src/webpush.ts` sends web push itself.
 
-## The dashboard
+## The app
 
 `apps/web`, React. The daemon serves its build (`apps/web/dist`) and `/api/state`. The same build is the hosted page on
 app.overhand.dev, reaching the daemon over WebRTC. With `?demo` it runs on the sample data in `apps/web/src/demo`: the
@@ -74,7 +74,7 @@ site copies that build to `/demo` and embeds it on the landing page. `apps/desig
 
 ## Shared packages
 
-- `packages/contract` (Apache-2.0): the typed API between daemon and dashboard (Zod), links, features and the
+- `packages/contract` (Apache-2.0): the typed API between the daemon and the app (Zod), links, features and the
   `CLAIMS` the site makes (`guard.ts`, `sandbox.ts`).
 - `packages/themes` (Apache-2.0): colours, type, the brand mark and every word in `src/words.ts`.
 
@@ -83,7 +83,7 @@ site copies that build to `/demo` and embeds it on the landing page. `apps/desig
 `relay/`, one Cloudflare Worker on app.overhand.dev, deployed by hand with wrangler. It signs people in through WorkOS,
 links a daemon to an account, signals WebRTC through a Durable Object per workspace, hands out TURN credentials,
 issues entitlement tokens, runs Paddle billing and its webhooks, and hosts teams (a `TeamRoom` Durable Object per team,
-data in D1). Dashboard traffic never passes through it. The full flow, migrations and owner setup:
+data in D1). The app's traffic never passes through it. The full flow, migrations and owner setup:
 [relay/README.md](../relay/README.md); teams: [docs/teams.md](teams.md); cost: [relay/COST.md](../relay/COST.md).
 
 ## The site and the installer
@@ -123,7 +123,7 @@ When the npm job needs another go after a fix, run the `npm-publish` workflow by
 ## Checks on every pull request
 
 - `ci.yml`, job `checks`: brand files unchanged, `tsc`, Biome, jscpd (`.jscpd.json`, no copy-pasted code), the tests
-  (`bun run test`, the sandbox inside real bubblewrap), the dashboard build, `release/smoke.sh`. The tests include
+  (`bun run test`, the sandbox inside real bubblewrap), the app build, `release/smoke.sh`. The tests include
   `release/dupes.test.ts` (no sentence written twice) and `release/shots.test.ts`; the full responsive sweep
   (`bun run shots`) runs locally and in release preflight.
 - `leakcheck.yml`: `release/leakcheck.ts` against a deny-list; forks skip it.
