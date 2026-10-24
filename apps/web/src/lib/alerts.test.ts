@@ -390,10 +390,35 @@ test("every problem's card carries its fix: restart when offline, start a crashe
   );
   expect(tracker?.target).toEqual({ kind: "settings", tab: "integrations", project: "Acme" });
   expect(tracker?.go).toBe("Reconnect");
-  // no problem is left with nothing to click
-  for (const s of [
-    { ...base, daemon: false },
-    { ...base, tickets: { Acme: "x" } },
-  ])
-    expect(computeAlerts(s, parsePlan([]), plainWords, NOW).filter((a) => a.target.kind === "none")).toEqual([]);
+  // no card can be left with nothing to click: AlertTarget has no "none" (tsc fails on one); each kind has its button
+});
+
+test("a sandbox that can't run, a failed plan and blocked git each come with their fix", () => {
+  const base = state({});
+  const by = (s: typeof base) => computeAlerts(s, parsePlan([]), plainWords, NOW);
+  const sb = by({ ...base, sandboxRefuse: "sandbox-exec is missing" }).find((a) => a.title === plainWords.alSandboxRefuse);
+  expect([sb?.sub, sb?.target]).toEqual(["sandbox-exec is missing", { kind: "settings", tab: "system" }]);
+  const failed = ["08:00 📋 plan written: 3 agent tasks ready", "09:00 ✗ plan failed (no capacity)"];
+  expect(by({ ...base, reports: failed }).some((a) => a.target.kind === "replan")).toBe(true);
+  expect(by({ ...base, reports: [...failed, "10:00 📋 plan written: 2 agent tasks ready"] }).some((a) => a.target.kind === "replan")).toBe(
+    false,
+  );
+  const git = by({ ...base, gitBlocked: ["/code/app"] }).find((a) => a.target.kind === "git");
+  expect([git?.title, git?.target]).toEqual(["Git is stopped in /code/app", { kind: "git", dir: "/code/app" }]);
+});
+
+test("a new release offers Update and restart; a meeting soon offers quiet mode for the call", () => {
+  const base = state({});
+  const upd = computeAlerts(
+    { ...base, update: { ...base.update, latest: "9.0.0", current: "1.0.0" } },
+    parsePlan([]),
+    plainWords,
+    NOW,
+  ).find((a) => a.target.kind === "update");
+  expect(upd?.go).toBe(plainWords.confirmUpdateGo);
+  const call = { title: "Standup", start: NOW + 10 * 60_000, end: NOW + 25 * 60_000, allDay: false };
+  const meeting = computeAlerts({ ...base, status: { ...base.status, calendar: [call] } }, parsePlan([]), plainWords, NOW).find(
+    (a) => a.target.kind === "quiet",
+  );
+  expect(meeting?.target).toEqual({ kind: "quiet", hours: 1 });
 });

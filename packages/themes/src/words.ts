@@ -884,6 +884,23 @@ export const plainWords = {
   alLeadNeeds: "Question from {lead}",
   alLeadNeedsSay: "{lead} has a question for you",
   alLeadCrashed: "{lead} stopped",
+  /** The OS sandbox can't run on this computer, and the config requires it: no run starts until that's settled. */
+  alSandboxRefuse: "Agents can't start: the OS sandbox can't run here",
+  alSandboxRefuseSay: "agents can't start, because the OS sandbox can't run here",
+  alSandboxFix: "Open sandbox settings",
+  /** Today's plan didn't come out (the planner failed, or every account was cooling down). */
+  alPlanFailed: "Today's plan failed",
+  alPlanFailedSub: "Planning didn't finish, so nothing new is queued today. Try again; Health has its log.",
+  alPlanFailedSay: "today's plan failed",
+  /** A run changed where git finds a checkout's repository (sandbox.ts flagRepo): no daemon git there until you allow it. */
+  alGitBlocked: "Git is stopped in {dir}",
+  alGitBlockedAll: "Git is stopped in every checkout",
+  alGitBlockedSub:
+    "An agent run changed where git finds this repository, so Overhand runs no git there. Look at it first, then allow it again.",
+  alGitAllow: "Allow again",
+  confirmGitAllowTitle: "Run git there again?",
+  confirmGitAllow: "Only if you've looked at {dir} and its .git is as it should be: an agent run changed where git finds the repository.",
+  saidGitAllowed: "Git runs in {dir} again.",
   alLeadCrashedSay: "{lead} keeps crashing",
   alReview: "Review requested: {repo} #{n}",
   alReviewMany: "{n} reviews requested in {repo}",

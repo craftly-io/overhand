@@ -675,6 +675,10 @@ export const DashboardStateSchema = z.object({
   budgetUsd: z.number().default(0),
   /** Claude accounts are paced across their week (`limits.paceWeekly`). Optional for older daemons. */
   paceWeekly: z.boolean().default(false),
+  /** Checkouts where a run changed where git finds the repository: no daemon git there until you allow it; "*" = everywhere. */
+  gitBlocked: z.array(z.string()).default([]),
+  /** Why no run can start on this computer when the OS sandbox can't run here and the config requires it; "" when runs can. */
+  sandboxRefuse: z.string().default(""),
   /** The menu bar item is on (`menubar`); null where this computer has none (not a Mac, or not installed). */
   menubar: z.boolean().nullable().default(null),
   /** No agent has run on an earlier day: a fresh install's first day. Optional for older daemons. */

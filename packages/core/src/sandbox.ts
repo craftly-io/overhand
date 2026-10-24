@@ -693,6 +693,30 @@ export function flagRepo(cwd: string, run: string, ops = OPS): void {
   report(`⚠ ${run} changed where git finds the repository in ${cwd}: Overhand runs no git there until you look (${file})`);
 }
 
+/**
+ * The checkouts a run flagged (flagRepo), where the daemon runs no git until you look; ["*"] when the list can't be read,
+ * which refuses git everywhere (env.ts gitRefused). Needs you lists each with Allow again.
+ */
+export function gitFlagged(ops = OPS): string[] {
+  const file = join(controlDir(ops), "git-tampered.json");
+  if (!existsSync(file)) return [];
+  try {
+    const v: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (!Array.isArray(v)) return ["*"];
+    return v.filter((x): x is string => typeof x === "string");
+  } catch {
+    return ["*"];
+  }
+}
+
+/** Lets the daemon run git in `dir` again, after you looked; "*" replaces a list that can't be read with an empty one. */
+export function allowGit(dir: string, ops = OPS): void {
+  const file = join(controlDir(ops), "git-tampered.json");
+  const rest = dir === "*" ? [] : gitFlagged(ops).filter((d) => d !== dir && d !== "*");
+  writeAtomic(file, JSON.stringify(rest));
+  report(`🔓 git allowed again in ${dir === "*" ? "every checkout" : dir}, after you looked`);
+}
+
 /** What the macOS sandbox wrote to the unified log since `since` (a few seconds' slack), in the compact style. */
 async function sandboxLog(since: number): Promise<string> {
   const secs = Math.ceil((Date.now() - since) / 1000) + 5;

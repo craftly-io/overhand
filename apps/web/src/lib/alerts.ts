@@ -34,6 +34,10 @@ type AlertTarget =
   | { kind: "signin"; account: string; tool: string }
   /** The daemon's work loop stopped: Restart Overhand. */
   | { kind: "restart" }
+  /** Today's plan failed: plan again. */
+  | { kind: "replan" }
+  /** No daemon git in `dir` ("*" = every checkout) until you allow it again, after looking. */
+  | { kind: "git"; dir: string }
   /** A lead that crashed out: Start it again, or open its log. */
   | { kind: "crashed"; key: string }
   /** Today's budget is used up: raise it to `usd` in one click. */
@@ -47,7 +51,8 @@ type AlertTarget =
   | { kind: "selfcheck" }
   /** A control-room action card: its buttons are what Overhand does, with your authority. */
   | { kind: "card"; card: ActionCard }
-  | { kind: "none" };
+  /** Quiet mode for `hours`: heavy jobs wait while you need the laptop (a meeting starting soon). */
+  | { kind: "quiet"; hours: number };
 
 export interface Alert {
   /** 3 = act now, 2 = soon, 1 = for your information. */
@@ -266,7 +271,8 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       sev: 1,
       title: fmt(w.alRelease, { version: s.update.latest }),
       sub: fmt(w.alReleaseSub, { current: s.update.current, command: s.update.command }),
-      target: { kind: "none" },
+      go: w.confirmUpdateGo,
+      target: { kind: "update" },
     });
   for (const g of s.godmode) {
     if (g.open && g.inbox)
@@ -315,7 +321,8 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
         title: fmt(w.alMeeting, { title: e.title, n }),
         sub: fmt(w.alMeetingSub, { start: hm(e.start), end: hm(e.end) }),
         say: fmt(w.alMeetingSay, { title: e.title, n }),
-        target: { kind: "none" },
+        // the laptop is needed for the call: hold heavy jobs until it's over
+        target: { kind: "quiet", hours: 1 },
       });
     }
   // the scorecard's suggestion: calm, and only ever a pointer to the project's accounts
@@ -419,6 +426,28 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       say: w.alDiskWarnSay,
       item: "disk",
       target: { kind: "sweep" },
+    });
+  if (s.sandboxRefuse)
+    a.push({
+      sev: 3,
+      broken: true,
+      title: w.alSandboxRefuse,
+      sub: s.sandboxRefuse,
+      say: w.alSandboxRefuseSay,
+      go: w.alSandboxFix,
+      target: { kind: "settings", tab: "system" },
+    });
+  // today's plan failed when its newest word is a failure, not "plan written"
+  const planned = s.reports.findLastIndex((l) => l.includes("plan written"));
+  if (s.reports.findLastIndex((l) => l.includes("plan failed")) > planned)
+    a.push({ sev: 2, broken: true, title: w.alPlanFailed, sub: w.alPlanFailedSub, say: w.alPlanFailedSay, target: { kind: "replan" } });
+  for (const dir of s.gitBlocked)
+    a.push({
+      sev: 3,
+      broken: true,
+      title: dir === "*" ? w.alGitBlockedAll : fmt(w.alGitBlocked, { dir }),
+      sub: w.alGitBlockedSub,
+      target: { kind: "git", dir },
     });
   if (!s.daemon)
     a.push({
