@@ -18,6 +18,7 @@ import { Button } from "./components/ui/button";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Unpaired } from "./lib/api";
+import { fmt } from "./lib/format";
 import "./index.css";
 
 /** What the page tells the helper. */
@@ -40,6 +41,9 @@ const tell = (m: ToHelper): void => {
 /** Opens the full dashboard in the browser at `query` (the daemon keeps only `drawer` and `run`). */
 const openFull = (query = "?") => tell({ type: "open", query });
 
+/** How many of Needs you the popover shows. */
+const GLANCE_NEEDS = 2;
+
 /** A drawer a click opened here opens in the full dashboard instead: the popover has no room for one. */
 function useDrawersOpenFull(): void {
   const ui = useUi();
@@ -60,7 +64,18 @@ function Body({ m }: { m: Model }) {
   return (
     <div className="grid gap-3">
       <Prologue m={m} greeting={false} />
-      {list.length ? <NeedsList list={list.slice(0, 4)} /> : null}
+      {/* the top two, so quiet mode and the buttons fit without scrolling; the rest are one click away */}
+      {list.length ? <NeedsList list={list.slice(0, GLANCE_NEEDS)} /> : null}
+      {list.length > GLANCE_NEEDS ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="justify-self-start"
+          onClick={() => openFull(`?drawer=${encodeURIComponent('{"kind":"alerts"}')}`)}
+        >
+          {fmt(w.glanceMore, { n: list.length - GLANCE_NEEDS })}
+        </Button>
+      ) : null}
       <QuietRow m={m} />
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={() => openFull()}>

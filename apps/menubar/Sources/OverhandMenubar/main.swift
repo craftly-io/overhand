@@ -8,7 +8,7 @@ import WebKit
 
 /// The popover's width; its height follows the page, between these bounds.
 let width = 360.0
-let heights = 120.0...560.0
+let heights = 120.0...640.0
 
 final class Item: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
   let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)

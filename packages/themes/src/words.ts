@@ -83,6 +83,7 @@ export const plainWords = {
   menubarHint: "The Overhand mark in your Mac's menu bar: what needs you and what's running, one click away.",
   glanceOpen: "Open Overhand",
   glanceHide: "Hide from the menu bar",
+  glanceMore: "And {n} more in Needs you",
   quickProjects: "What agents do",
   quickAll: "All settings",
   /** Focus: outcomes only, the steps folded; a switch in Quick settings and the F key. */
