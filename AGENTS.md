@@ -5,6 +5,8 @@ What the product does, for any agent: <https://overhand.dev/llms-full.txt>, or [
 
 ## Where things live
 
+How the parts connect, staging, releases and secrets: [docs/architecture.md](docs/architecture.md).
+
 | Folder | What it holds |
 | --- | --- |
 | `run.ts` | The one entry point: `bun run.ts daemon`, and what the release binary compiles |

@@ -87,6 +87,8 @@ that you read before it goes. Or open an issue here with the bug report or feedb
 theme's colours, type and words, `apps/web` the React dashboard, `site/` the public site and docs, and `release/` the
 packages and the installer.
 
+What connects to what, and how a release goes out: [docs/architecture.md](docs/architecture.md).
+
 ## Done means everywhere
 
 Overhand is built by agents, so nothing may go stale. A change ships in one pull request with every place it shows:
