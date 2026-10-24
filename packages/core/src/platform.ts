@@ -382,16 +382,31 @@ export function lingerNote(user = userInfo().username): string {
   return `Linger is off, so Overhand stops when you log out and waits for your next login after a reboot. To keep it running: sudo loginctl enable-linger ${user}`;
 }
 
-/** Stops the login service (or the background loop standing in for it) and keeps it from starting at the next login. */
+/** The unit `bun run setup` wrote on Linux checkouts before they used `overhand start`'s; stop removes it too. */
+const OLD_UNIT = "ops.service";
+
+/**
+ * Stops the login service (or the background loop standing in for it) and removes its plist or unit file, so it doesn't
+ * start at the next login. ok while it's no longer running, including when it wasn't installed.
+ */
 export function uninstallService(home: string, logDir: string): { ok: boolean; err: string } {
   if (MAC) {
     const r = run(["launchctl", "bootout", `gui/${UID}/${SERVICE}`]);
     rmSync(join(home, "Library", "LaunchAgents", `${SERVICE}.plist`), { force: true });
-    return r;
+    return run(["launchctl", "print", `gui/${UID}/${SERVICE}`]).ok
+      ? { ok: false, err: r.err || "it's still loaded" }
+      : { ok: true, err: "" };
   }
   stopLoop(logDir);
   if (!systemdUser()) return { ok: true, err: "" };
-  return run(["systemctl", "--user", "disable", "--now", SERVICE]);
+  const dir = join(home, ".config", "systemd", "user");
+  const r = run(["systemctl", "--user", "disable", "--now", SERVICE]);
+  if (existsSync(join(dir, OLD_UNIT))) run(["systemctl", "--user", "disable", "--now", OLD_UNIT]);
+  for (const unit of [SERVICE, OLD_UNIT]) rmSync(join(dir, unit), { force: true });
+  run(["systemctl", "--user", "daemon-reload"]);
+  return run(["systemctl", "--user", "is-active", "--quiet", SERVICE]).ok
+    ? { ok: false, err: r.err || "it's still running" }
+    : { ok: true, err: "" };
 }
 
 /**

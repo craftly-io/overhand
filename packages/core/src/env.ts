@@ -24,7 +24,7 @@ export type InstallKind = "checkout" | "curl" | "brew" | "npx";
 /**
  * How the binary at `exec` was installed: Homebrew keeps it in <prefix>/Cellar/overhand/<version>/libexec (or reaches
  * it through <prefix>/opt/overhand), the npx launcher in ~/.overhand/npm/<version>, the curl installer in
- * ~/.overhand/app. A binary anywhere else updates like the curl one.
+ * ~/.overhand/app (a link to ~/.overhand/releases/<id>). A binary anywhere else updates like the curl one.
  */
 export function installKind(exec = process.execPath, bundled = BUNDLED, home = homedir()): InstallKind {
   if (!bundled) return "checkout";
@@ -35,12 +35,14 @@ export function installKind(exec = process.execPath, bundled = BUNDLED, home = h
 /**
  * The path that keeps leading to the current binary across updates, for the login service and the agents' guard hook:
  * Homebrew's opt link rather than a versioned Cellar folder (`brew cleanup` deletes those), the launcher's npm/current
- * link rather than npm/<version>. The curl installer updates in place, so there `exec` already is that path.
+ * link rather than npm/<version>, the curl installer's app link rather than releases/<id> (Linux resolves the path a
+ * binary started from).
  */
 export function stableExec(exec = process.execPath, home = homedir()): string {
   const prefix = exec.match(/^(.*)\/Cellar\/overhand\/[^/]+\/libexec\/overhand$/)?.[1];
   if (prefix !== undefined) return join(prefix, "opt", "overhand", "libexec", "overhand");
   const npm = join(home, ".overhand", "npm");
+  if (exec.startsWith(`${join(home, ".overhand", "releases")}/`)) return join(home, ".overhand", "app", "overhand");
   return exec.startsWith(`${npm}/`) ? join(npm, "current", "overhand") : exec;
 }
 

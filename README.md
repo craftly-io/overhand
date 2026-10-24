@@ -36,6 +36,7 @@ Set up Overhand from overhand.dev/setup.md. Ask me before each step.
 ```
 
 You also need `git`, the GitHub CLI and one signed-in agent. `overhand doctor` says what's missing.
+`overhand update` updates it; `overhand uninstall` removes it.
 
 ## Your first night
 

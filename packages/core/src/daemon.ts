@@ -30,6 +30,7 @@ import {
   SELF_EXEC,
   SLACK_MCP,
   SRC,
+  sh,
   today,
   UI_PORT,
 } from "./env";
@@ -61,6 +62,7 @@ import { latestRelease, restartIfRequested, updateRoute, VERSION } from "./selfu
 import { cleanupActive, PORT_BUSY, portInUse, pushState, serveDashboard, spawnCleanup } from "./server";
 import { checks } from "./setup";
 import { currentRuns, loadState, readJson, saveState } from "./state";
+import { uninstallCli } from "./uninstall";
 import { tickUpdates } from "./updates";
 import { tickReports } from "./workreport";
 
@@ -217,6 +219,8 @@ const USAGE = `Overhand ${VERSION}: mission control for your AI coding agents.
   overhand status    whether it's running: port, version, last heartbeat, agents at work, free disk
   overhand logs      the daemon's log (-f keeps following it)
   overhand update    update to the latest release
+  overhand uninstall stop it and remove the program; --remove-data also deletes ~/.overhand (asks first),
+                     --dry-run only lists what it would remove and keep
   overhand doctor    check what Overhand needs on this machine
   overhand version   print the version
   overhand answer <lead> "<text>"   answer a lead's open question (--default: go with the default it gave)
@@ -466,6 +470,13 @@ async function update(): Promise<void> {
     console.error(`The update didn't install; Overhand is unchanged. To update by hand: ${say}`);
     process.exit(1);
   }
+  // the path the service runs now leads to the new binary, so its version is what runs after the restart
+  const now = sh([SELF_EXEC, "version"]).out || "?";
+  if (now === VERSION) {
+    console.log(`Overhand ${VERSION} is the latest version.`);
+    return;
+  }
+  console.log(`Updated Overhand ${VERSION} to ${now}.`);
   if (!(await running())) return;
   // the running daemon still runs the old binary: it restarts itself between work passes, and its service brings it back
   const res = await fetch(`${DASHBOARD}/api/restart`, { method: "POST", headers: localHeaders(DASHBOARD) }).catch(() => null);
@@ -548,6 +559,7 @@ export async function main(mode: string | undefined): Promise<void> {
     if (!r.ok) process.exitCode = 1;
   } else if (mode === "logs") logs(process.argv.slice(3).some((a) => a === "-f" || a === "--follow"));
   else if (mode === "update") await update();
+  else if (mode === "uninstall") process.exitCode = await uninstallCli(process.argv.slice(3));
   else if (mode === "doctor") await doctor();
   else if (mode === "version" || mode === "--version") console.log(VERSION);
   else if (mode === "cleanup") await cleanup(process.argv[3] ?? "");

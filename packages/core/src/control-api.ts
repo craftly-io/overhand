@@ -174,7 +174,8 @@ async function call(path: string, body: unknown): Promise<{ ok: boolean; data: R
   }
 }
 
-async function confirm(q: string): Promise<boolean> {
+/** Asks a yes/no question in the terminal; only "y" or "yes" is a yes. */
+export async function confirm(q: string): Promise<boolean> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const a = await rl.question(`${q} [y/N] `);
   rl.close();

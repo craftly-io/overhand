@@ -55,7 +55,8 @@
     <section class="block hood" id="update" aria-labelledby="h-update">
       <h2 id="h-update">Updating.</h2>
       <ul class="facts">
-        <li><b><samp>The update didn't install; Overhand is unchanged.</samp></b> The message ends with the command to update by hand for the way you installed.</li>
+        <li><b><samp>The update didn't install; Overhand is unchanged.</samp></b> The line above it says why (no network, a checksum that didn't match, a full disk). The message ends with the command to update by hand for the way you installed.</li>
+        <li><b><samp>This Linux uses musl</samp></b> Alpine and other musl systems can't run the Linux builds. Use a glibc system such as Debian or Ubuntu.</li>
         <li><b>Still on the old version</b> It restarts on the new one once no agent is running. To restart now: <code>overhand stop &amp;&amp; overhand start</code>.</li>
       </ul>
     </section>

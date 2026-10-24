@@ -28,6 +28,8 @@ curl -fsSL https://get.overhand.dev | sh
 - `overhand doctor`: what's missing on this machine, with the fix for each.
 - `overhand logs` (`-f` to follow): the daemon's log.
 - `overhand start` / `overhand stop` / `overhand update`: start at login, stop, update.
+- `overhand uninstall`: stop it and remove the program, keeping `~/.overhand`. `--remove-data` deletes that too; run it
+  only when the person asks for it, and `--dry-run` first to show them what goes.
 - `overhand open`: the dashboard in the browser, signed in.
 
 ## Answer what it asks

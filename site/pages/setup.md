@@ -67,3 +67,5 @@ Suggest these to the person, and set them only with their yes, in Overhand:
 - `overhand logs` shows Overhand's log (`overhand logs -f` keeps following it).
 - `overhand stop` stops it and keeps it from starting at login.
 - `overhand update` updates to the latest release.
+- `overhand uninstall` stops it and removes the program; it keeps `~/.overhand` unless the person asks to delete it
+  too (`--remove-data`). `--dry-run` lists what it would remove and keep.

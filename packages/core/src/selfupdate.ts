@@ -45,16 +45,24 @@ async function checkRelease(url = RELEASES_API, now = Date.now()): Promise<void>
  * What `overhand update` runs for each kind of install, and `say`: the command the dashboard and `status` suggest.
  * Homebrew's upgrade is non-interactive, so update runs it rather than only telling you to. The npx launcher fetches a
  * version on its first run and moves npm/current to it; `say` is a full update through the latest launcher, since
- * `overhand` itself isn't on PATH there. `npx`: whether npx is on PATH (bunx users may have only bunx).
+ * `overhand` itself isn't on PATH there. `npx`: whether npx is on PATH (bunx users may have only bunx); `installer` is
+ * for tests.
  */
-export function updateRoute(kind: InstallKind, npx = Bun.which("npx") !== null): { run: string[]; say: string } {
+export function updateRoute(kind: InstallKind, npx = Bun.which("npx") !== null, installer = INSTALLER): { run: string[]; say: string } {
   if (kind === "brew") return { run: ["brew", "upgrade", "overhand"], say: "brew upgrade overhand" };
   if (kind === "npx") {
     const x = npx ? ["npx", "-y"] : ["bunx"];
     return { run: [...x, "overhand@latest", "version"], say: `${x[0]} overhand@latest update` };
   }
   if (kind === "checkout") return { run: [], say: "git pull" };
-  return { run: ["sh", "-c", `curl -fsSL ${INSTALLER} | sh`], say: "overhand update" };
+  // the installer goes to a file first: `curl | sh` exits 0 when the download fails, as sh runs the empty script
+  const fetchThenRun = [
+    'f="$(mktemp)" || exit 1',
+    `if curl -fsSL "$1" -o "$f" && [ -s "$f" ]; then sh "$f"; s=$?; else echo "Couldn't download the installer from $1." >&2; s=1; fi`,
+    'rm -f "$f"',
+    'exit "$s"',
+  ].join("; ");
+  return { run: ["sh", "-c", fetchThenRun, "sh", installer], say: "overhand update" };
 }
 
 /** The binary this process started from, resolved, to notice when its stable path moves on to another one. */

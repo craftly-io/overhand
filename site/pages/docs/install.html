@@ -25,7 +25,8 @@
       <h2 id="h-what">What the installer does.</h2>
       <ul class="facts">
         <li><b>Checks the download</b> It fetches the package for your machine (macOS or Linux, arm64 or x64) and stops if its SHA-256 doesn't match the release's <code>SHA256SUMS</code>.</li>
-        <li><b>One folder, one link</b> The app goes in <code>~/.overhand/app</code> and <code>overhand</code> is linked into <code>~/.local/bin</code>. Everything {{name}} keeps lives under <code>~/.overhand</code>.</li>
+        <li><b>One folder, one link</b> Each version unpacks into its own folder in <code>~/.overhand/releases</code>, and <code>~/.overhand/app</code> links to the one in use. <code>overhand</code> is linked into <code>~/.local/bin</code>. Everything {{name}} keeps lives under <code>~/.overhand</code>.</li>
+        <li><b>The right build</b> In a Rosetta terminal on an Apple silicon Mac it still picks the arm64 build. On Alpine and other musl Linux systems it stops and says so: the Linux builds need glibc.</li>
         <li><b>Your PATH</b> When <code>~/.local/bin</code> isn't on it, the installer prints the exact line for your shell and the file to put it in.</li>
         <li><b>Then it opens</b> {{name}} answers on <a href="{{localUrl}}">{{localUrl}}</a>, where setup finishes. Set <code>OVERHAND_NO_START=1</code> to install without starting it.</li>
       </ul>
@@ -54,11 +55,25 @@ overhand stop &amp;&amp; overhand start</code></pre></li>
     </section>
 
     <section class="block hood" id="update" aria-labelledby="h-update">
-      <h2 id="h-update">Updates.</h2>
+      <h2 id="h-update">Update.</h2>
       <ul class="facts">
         <li><b>It tells you</b> Once a day {{name}} looks for a new release on GitHub, and Needs you shows the command for the way you installed.</li>
-        <li><b>One command</b> <code>overhand update</code> reruns the installer, runs <code>brew upgrade overhand</code>, or for npx is <code>npx overhand@latest update</code>. It restarts on the new version once no agent is running.</li>
-        <li><b>Your own <code>brew upgrade</code></b> Works too. The login service runs the binary through a path that follows updates.</li>
+        <li><b>One command</b> <code>overhand update</code> reruns the installer, runs <code>brew upgrade overhand</code>, or for npx is <code>npx overhand@latest update</code>. It prints the version it installed and restarts on it once no agent is running.</li>
+        <li><b>All or nothing</b> The new version is downloaded, checked and unpacked beside the one in use, then swapped in at once. If any step fails, it says so, exits with an error, and the installed {{name}} is unchanged.</li>
+        <li><b>Your own <code>brew upgrade</code> or installer run</b> Works too. The login service runs the binary through a path that follows updates, so a running {{name}} restarts on the new version by itself.</li>
+      </ul>
+    </section>
+
+    <section class="block hood" id="uninstall" aria-labelledby="h-uninstall">
+      <h2 id="h-uninstall">Uninstall.</h2>
+      <ul class="facts">
+        <li><b>One command</b> Stops {{name}}, removes its login service (the launch agent on macOS, the systemd unit on Linux), the <code>~/.local/bin/overhand</code> link and the program in <code>~/.overhand</code>, then lists what it kept.
+          <pre><code>overhand uninstall --dry-run   # see what it removes and keeps
+overhand uninstall</code></pre></li>
+        <li><b>Your data stays</b> Settings, history and logs in <code>~/.overhand</code> are kept. To delete them too, add <code>--remove-data</code>; it asks before deleting anything.</li>
+        <li><b>Also kept</b> Secrets in Keychain or the keyring, and the hooks <code>overhand connect</code> wrote into projects. Run <code>overhand disconnect</code> in each connected project before you uninstall.</li>
+        <li><b>Homebrew</b> Run <code>overhand uninstall</code>, then <code>brew uninstall overhand</code>.</li>
+        <li><b>npx or bunx</b> <code>npx overhand uninstall</code> removes the service and the copy in <code>~/.overhand/npm</code>.</li>
       </ul>
     </section>
   </div>

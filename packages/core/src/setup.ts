@@ -2,15 +2,15 @@
  * What `bun run setup` (setup-cli.ts) runs. First run: it asks a few questions and writes overhand.config.json, then checks everything ops needs.
  * With a config already present it only runs the checks (`bun run setup` again any time something breaks).
  */
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { homedir, userInfo } from "node:os";
+import { existsSync, writeFileSync } from "node:fs";
+import { userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { updateSecret } from "@overhand/contract";
 import { accountLoginCommand, claudeLoginCommand, ownSignInHome } from "./agent-home";
 import { type Config, ConfigError, FIRST_DAY_BUDGET_USD, loadConfig } from "./config";
 import { OPS } from "./env";
 import { subscriptionTokensAllowed } from "./legacy-token";
-import { PLATFORM_TOOLS, readSecret, SECRET_STORE, secretCommand, serviceEnv, systemdUnitFile } from "./platform";
+import { PLATFORM_TOOLS, readSecret, SECRET_STORE, secretCommand } from "./platform";
 import { RUNTIMES, versionOf } from "./runtimes";
 import { claudeSignedIn } from "./runtimes/claude-code";
 
@@ -237,22 +237,12 @@ export async function checks(c: Config, code = CODE): Promise<Check[]> {
   return out;
 }
 
-/** How to start the daemon; on Linux it first writes a systemd user unit (once) so ops runs as a service. */
-function startHint(): string {
-  const dash = "(Overhand on http://127.0.0.1:4317)";
-  if (process.platform !== "linux") return `Start it: bun run.ts daemon  ${dash}`;
-  const dir = join(homedir(), ".config", "systemd", "user");
-  const unit = join(dir, "ops.service");
-  if (!existsSync(unit)) {
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(unit, systemdUnitFile(OPS, [process.execPath, "run.ts", "daemon"], serviceEnv()));
-  }
-  return [
-    `Service unit: ${unit}. Start it ${dash}:`,
-    "  systemctl --user daemon-reload && systemctl --user enable --now ops",
-    "  loginctl enable-linger   # keeps it running when you log out",
-  ].join("\n");
-}
+/**
+ * How to start the daemon: `start` installs the same login service as the installed binary (launchd or systemd, one
+ * name), so `stop` and `uninstall` stop it too; `daemon` runs it in this terminal.
+ */
+const startHint = (): string =>
+  "Start it at every login: bun run.ts start  (Overhand on http://127.0.0.1:4317; bun run.ts daemon runs it in this terminal)";
 
 /** Interviews when there is no config yet, then prints every check and exits 1 when something must be fixed. */
 export async function runSetup(): Promise<void> {
