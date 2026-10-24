@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { UpdateChannelSchema } from "@overhand/contract";
 import { loadConfig, saveConfig } from "../src/config";
 import { applyConfig, CFG, OPS, SLACK_MCP, UI_PORT } from "../src/env";
-import { handle, stateKey, withoutBrowser } from "../src/server";
+import { handle, markCleanup, stateKey, withoutBrowser } from "../src/server";
 import { localRequest } from "./local";
 
 const origin = `http://127.0.0.1:${UI_PORT}`;
@@ -152,5 +152,17 @@ test("Add an agent account signs in without a terminal: the app gets the link, s
     expect(await state()).toEqual({ state: "done", why: "" });
   } finally {
     process.env.PATH = path;
+  }
+});
+
+test("a cleanup is marked started before its worker loads, so a second Scan in that gap is refused", async () => {
+  const file = join(OPS, ".cleanup.json");
+  markCleanup("plan");
+  try {
+    const r = await post("/api/cleanup/plan");
+    expect(r.status).toBe(409);
+    expect(((await r.json()) as { error: string }).error).toBe("cleanup is already planning");
+  } finally {
+    rmSync(file, { force: true });
   }
 });

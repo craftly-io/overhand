@@ -155,6 +155,7 @@ export const gitEnv = (env: Record<string, string | undefined> = process.env): R
   ...env,
   GIT_CONFIG_NOSYSTEM: "1",
   GIT_CONFIG_GLOBAL: ownGitConfig(homedir(), env),
+  GIT_TERMINAL_PROMPT: "0", // nobody is there to type a password: fail instead of waiting
 });
 
 /**

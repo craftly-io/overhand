@@ -15,7 +15,6 @@ import {
   type Stats,
   statfsSync,
   statSync,
-  writeFileSync,
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -32,6 +31,7 @@ import {
   source,
 } from "./cleanup-sources";
 import { type Config, loadConfig } from "./config";
+import { writeAtomic } from "./control";
 import { gitRefused, OPS, SRC } from "./env";
 import { cwdOf } from "./platform";
 import { gitEnv, isGit, safeCmd } from "./runtimes/runtime";
@@ -85,14 +85,28 @@ const run = (cmd: string[], cwd?: string, timeout = 120_000, env?: Record<string
     return { ok: false, out: "" }; // cwd gone, or the binary vanished
   }
 };
-/** Like run, but async, so independent fetches and `du`s overlap. */
-const runAsync = async (cmd: string[], cwd?: string) => {
+/** Like run, but async, so independent fetches and `du`s overlap; killed after `timeout`, so a stuck one can't hang the scan. */
+export const runAsync = async (cmd: string[], cwd?: string, timeout = 10 * 60_000) => {
   const git = isGit(cmd);
   if (git && gitRefused(cwd ?? process.cwd())) return { ok: false, out: "" };
-  const p = Bun.spawn(safeCmd(cmd), { cwd, env: git ? gitEnv() : process.env, stdout: "pipe", stderr: "ignore" });
-  const out = await new Response(p.stdout).text();
-  return { ok: (await p.exited) === 0, out: out.trim() };
+  try {
+    const p = Bun.spawn(safeCmd(cmd), {
+      cwd,
+      env: git ? gitEnv() : process.env,
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "ignore",
+      timeout,
+      killSignal: "SIGKILL",
+    });
+    const out = await new Response(p.stdout).text();
+    return { ok: (await p.exited) === 0, out: out.trim() };
+  } catch {
+    return { ok: false, out: "" }; // cwd gone, or the binary vanished
+  }
 };
+/** How long one project's fetch may take before the scan carries on without it. */
+const FETCH_MS = 60_000;
 const expand = (p: string, home: string, tmp = "") =>
   p.startsWith("~/") ? join(home, p.slice(2)) : p.startsWith("$TMPDIR/") ? (tmp ? join(tmp, p.slice(8)) : "") : p;
 const lstat = (p: string): Stats | null => {
@@ -1228,7 +1242,7 @@ const mayBeRepo = (i: CleanupItem): boolean =>
  * A folder's size is what `du` counts, except for sources that share files with what they made (unknown: 0).
  */
 export async function planCleanup(s: Scope): Promise<CleanupItem[]> {
-  await pool(projectRepos(s), PARALLEL, (repo) => runAsync(["git", "fetch", "--prune", "--quiet"], repo));
+  await pool(projectRepos(s), PARALLEL, (repo) => runAsync(["git", "fetch", "--prune", "--quiet"], repo, FETCH_MS));
   const items = CLEANUP_CATEGORIES.flatMap((c) => scan(c, s));
   const shared = new Set(SOURCES.filter((x) => x.shared).map((x) => x.id));
   await pool(items, PARALLEL, async (it) => {
@@ -1331,7 +1345,7 @@ export function liveScope(cfg: Config, code: string, ops: string, src: string): 
  */
 export async function cleanupJob(mode: string, cfg: Config, code: string, ops: string, src = ops): Promise<CleanupResult | null> {
   const file = join(ops, ".cleanup.json");
-  const write = (x: object) => writeFileSync(file, JSON.stringify({ at: Date.now(), ...x }), { mode: 0o600 });
+  const write = (x: object) => writeAtomic(file, JSON.stringify({ at: Date.now(), ...x })); // the dashboard never reads half
   const s = liveScope(cfg, code, ops, src);
   const refresh = () => ({ busy: busyPaths(cfg, code, ops, src), cwds: processCwds(), procs: processCommands() });
   try {

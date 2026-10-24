@@ -5,6 +5,7 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import {
   askGate,
   CleanupCategorySchema,
+  type CleanupItem,
   type CleanupStatus,
   CleanupStatusSchema,
   CleanupSwitchesSchema,
@@ -48,7 +49,7 @@ import { noteCalls } from "./calls";
 import { type Checked, cachedCheckup } from "./checkup";
 import { refreshUsage, testAccount } from "./claude";
 import { type Config, parseConfig, RUNTIME_IDS, type RuntimeId, saveConfig, withQuick } from "./config";
-import { beatOf, loadRequests, RUN_KEY_HEADER, type RunWho, runByKey } from "./control";
+import { beatOf, loadRequests, RUN_KEY_HEADER, type RunWho, runByKey, writeAtomic } from "./control";
 import { controlRoute } from "./control-api";
 import { dashboardState, migrateLabels, roomChanged, startStateRefresh } from "./dashboard";
 import { briefFor, moreFacts, snoozeItem } from "./decide";
@@ -184,8 +185,18 @@ function cleanupStatus(): CleanupStatus {
 export const cleanupActive = (st = cleanupStatus()): boolean =>
   (st.status === "planning" || st.status === "running") && Date.now() - st.at < 30 * MIN;
 
+/**
+ * Marks a cleanup started before its worker loads, so a second Scan, a Run or the automatic pass in that gap finds it
+ * active and is refused (the worker reads a run's ticked `items` from here).
+ */
+export function markCleanup(mode: "plan" | "run" | "auto", items?: CleanupItem[]): void {
+  const status = mode === "run" ? "running" : "planning";
+  writeAtomic(join(OPS, ".cleanup.json"), JSON.stringify({ status, at: Date.now(), items, auto: mode === "auto" || undefined }));
+}
+
 /** Starts the cleanup worker out of process: a scan runs git fetch and du across every repo and would block the dashboard. */
-export function spawnCleanup(mode: "plan" | "run" | "auto"): void {
+export function spawnCleanup(mode: "plan" | "run" | "auto", items?: CleanupItem[]): void {
+  markCleanup(mode, items);
   const self = BUNDLED ? [process.execPath] : [process.execPath, join(SRC, "run.ts")];
   Bun.spawn([...self, "cleanup", mode], { cwd: OPS, stdout: "ignore", stderr: "ignore" });
 }
@@ -1026,10 +1037,9 @@ export async function handle(req: Request): Promise<Response> {
         if (!items.some((i) => i.checked)) return json({ error: "nothing ticked" }, 400);
         const unconfirmed = items.filter((i) => i.checked && i.personal && !i.confirmed).map((i) => i.path);
         if (unconfirmed.length) return json({ error: `confirm removing from your own checkout: ${unconfirmed.join(", ")}` }, 400);
-        writeFileSync(join(OPS, ".cleanup.json"), JSON.stringify({ ...st, items }), { mode: 0o600 });
         report(`🧹 cleanup started: ${ids.size} items`);
-      }
-      spawnCleanup(go ? "run" : "plan");
+        spawnCleanup("run", items);
+      } else spawnCleanup("plan");
       return json({ ok: true });
     }
     case "/api/settings/quick": {

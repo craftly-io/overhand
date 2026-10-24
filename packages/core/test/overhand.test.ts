@@ -31,6 +31,7 @@ import {
   pool,
   refusePath,
   remoteKey,
+  runAsync,
   runCleanup,
   type Scope,
   scan,
@@ -67,6 +68,7 @@ import {
   upsertPlanItem,
 } from "../src/index";
 import { subscriptionTokensAllowed } from "../src/legacy-token";
+import { gitEnv } from "../src/runtimes/runtime";
 import { spendOn } from "../src/usage";
 
 test("eventsToday expands recurring meetings and honours exceptions", () => {
@@ -1380,6 +1382,13 @@ test("Names from disk never become flags or escape: an Ollama model named like a
   const s = { ...s0, which: (b: string) => (b === "ollama" ? "/fake/ollama" : null) };
   expect(scan("models", s)).toEqual([]);
   expect(scan("versions", s).map((i) => i.path)).toEqual([join(ext, "pub.tool-1.0.0")]);
+});
+
+test("a scan's command that never returns is killed after its time, and the daemon's git never waits for a password", async () => {
+  const t = Date.now();
+  expect(await runAsync(["sleep", "30"], undefined, 200)).toEqual({ ok: false, out: "" });
+  expect(Date.now() - t).toBeLessThan(5_000);
+  expect(gitEnv({}).GIT_TERMINAL_PROMPT).toBe("0");
 });
 
 test("olderVersions keeps the newest build of each name; dockerBytes reads Docker's decimal units", () => {
