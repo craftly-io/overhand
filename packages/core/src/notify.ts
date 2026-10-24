@@ -51,6 +51,9 @@ const REPEAT_MS = 30 * 60_000;
 /** Warning and failure lines (⚠, ✗) reported since start, so a one-shot CLI step can exit non-zero when it hit one. */
 export let problems = 0;
 
+/** What went wrong, as a report line says it: an error's own message, never "Error: …". */
+export const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
 /**
  * Appends a line to today's report (reports/YYYY-MM-DD.md) and logs it. The same line again within 30 minutes is
  * dropped: a failing loop would otherwise write it every pass.

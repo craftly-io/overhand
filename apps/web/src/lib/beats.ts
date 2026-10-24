@@ -42,7 +42,8 @@ const RULES: Rule[] = [
     (x) => said("other", x[1], `${x[1]} was cut off by an Overhand restart after ${x[2]} min`, "warn"),
   ],
   [
-    /^(.+?) exited \((?:code )?(-?\d+)\) after (\d+) min$/,
+    // "(code 1)", "(0, sandboxed)", "(code 1, sandboxed, 2 sandbox refusals)": the exit code first, then notes
+    /^(.+?) exited \((?:code )?(-?\d+)(?:, [^)]*)?\) after (\d+) min$/,
     (x) =>
       x[2] !== "0"
         ? said("other", x[1], `${x[1]} failed after ${x[3]} min`, "bad")

@@ -5,6 +5,15 @@ test("log lines become sentences, and chatter is dropped", () => {
   expect(parseLine("⚡ Ops lead started headless (pid 10128, work)")?.text).toBe("Ops lead woke up on work");
   expect(parseLine("⚡ Ops lead exited (while Overhand was restarting) after 43 min")?.tone).toBe("warn");
   expect(parseLine("⚡ PLAN exited (code 1) after 3 min")).toMatchObject({ text: "PLAN failed after 3 min", tone: "bad" });
+  // a sandboxed lead's exit carries notes after its code: still a failure, or a finish
+  expect(parseLine("⚡ Core exited (code 1, sandboxed, 2 sandbox refusals) after 1 min")).toMatchObject({
+    text: "Core failed after 1 min",
+    tone: "bad",
+  });
+  expect(parseLine("⚡ Research exited (0, sandboxed) after 1 min")).toMatchObject({
+    text: "Research finished after 1 min",
+    tone: "quiet",
+  });
   expect(parseLine("💬 answered Bluekite lead")?.text).toBe("You answered Bluekite lead");
   expect(parseLine("📥 inbox: 1 items (personal, $0.12)")?.text).toBe("Slack checked: 1 new item");
   expect(parseLine('🌐 new AI word "Herding digital cats" (Gemini CLI latest): herding')).toBeNull();

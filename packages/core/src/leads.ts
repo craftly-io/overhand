@@ -24,7 +24,7 @@ import { autonomyFor, groupOf, leadAccounts } from "./groups";
 import { GUARD_LOG } from "./guard";
 import { identityOf } from "./history";
 import { backAt, bench, benchedUntil, outOfUsage } from "./limits";
-import { diskLow, enforceBudget, notify, report } from "./notify";
+import { diskLow, enforceBudget, errorText, notify, report } from "./notify";
 import { keepAwakeWhile, readSecret } from "./platform";
 import { branchesPushed, prsOpened } from "./proof";
 import { type NtfyAction, replyActions } from "./replies";
@@ -640,7 +640,7 @@ function startLead(g: Godmode, st: LeadState, account: string, brief = ""): void
     );
   } catch (e) {
     // a CLI that refuses this repo, or an account missing its key: the lead waits and says why, like a held one
-    report(`⚠ ${leadName(g)} can't start on ${account}: ${e instanceof Error ? e.message : String(e)}`);
+    report(`⚠ ${leadName(g)} can't start on ${account}: ${errorText(e)}`);
     st.lastExit = Date.now();
     return;
   }
@@ -840,7 +840,7 @@ function holdArmed(armed: [string, TrackedPr][], run: Run): boolean {
 
 /** `shipHolds`' work: auto-merge off on each, then their state saved with their proof cleared (`proofOff`). */
 export async function releaseLeadPrs(armed: readonly [string, TrackedPr][], run: Run = shAsync): Promise<void> {
-  for (const [key, pr] of armed) await disarmForPush(key, pr, run).catch((e: unknown) => report(`⚠ ${key}: Ship: ${String(e)}`));
+  for (const [key, pr] of armed) await disarmForPush(key, pr, run).catch((e: unknown) => report(`⚠ ${key}: Ship: ${errorText(e)}`));
   // read-modify-write of state.json: a work pass that saves an older copy can only re-mark one armed, which the next
   // tick turns off again (already off on GitHub counts as off); its stale proof can't arm it, as its head moved on
   const s = loadState();

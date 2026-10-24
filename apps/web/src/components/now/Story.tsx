@@ -241,12 +241,32 @@ export function Prologue({ m, greeting = true }: { m: Model; greeting?: boolean 
 export function BeatCaption({ m }: { m: Model }) {
   const beat = newestBeat(m.s);
   const focus = useFocus();
+  const ui = useUi();
+  const w = useWords();
   if (!beat || focus) return null;
   const color = beat.tone === "quiet" || beat.tone === "info" ? (beat.client ? m.hue(beat.client) : undefined) : TONE[beat.tone];
+  const text = <span style={{ color }}>{withNames(beat.text, m.s.godmode, m.s.names)}</span>;
+  // something that went wrong is never a dead end: it opens its ticket or its lead, else Needs you, where its fix is
+  const trouble = beat.tone === "bad" || beat.tone === "warn";
+  const key = /^([A-Z][A-Z0-9]+-\d+)\b/.exec(beat.text)?.[1];
+  const lead = beat.who ? leadNamed(m.s.godmode, m.s.names, beat.who) : undefined;
+  const open = () =>
+    key
+      ? ui.openDrawer({ kind: "ticket", key })
+      : lead
+        ? ui.openDrawer({ kind: "lead", key: lead.key })
+        : ui.openDrawer({ kind: "alerts" });
   return (
     <p key={beat.text} className="scrim m-enter max-w-[72ch] text-sm text-foreground/80" aria-live="polite">
       <time className="mr-2 font-mono text-xs text-muted-foreground">{beat.time}</time>
-      <span style={{ color }}>{withNames(beat.text, m.s.godmode, m.s.names)}</span>
+      {trouble ? (
+        <button type="button" className="text-left hover:underline" onClick={open}>
+          {text}
+          <span className="ml-2 text-xs text-muted-foreground">{w.open} →</span>
+        </button>
+      ) : (
+        text
+      )}
     </p>
   );
 }

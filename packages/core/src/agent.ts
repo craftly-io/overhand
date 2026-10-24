@@ -34,7 +34,7 @@ import { recordOutcome } from "./history";
 import { createPendingTickets } from "./inbox";
 import { adoptLeadPrs, leadShipStep } from "./lead-prs";
 import { learnFrom } from "./learn";
-import { diskLow, enforceBudget, notify, report } from "./notify";
+import { diskLow, enforceBudget, errorText, notify, report } from "./notify";
 import { cleared, HeldError, holdLeak, scanOutward } from "./outward";
 import { editPlan, parsePlan, planFile, upsertPlanItem } from "./plan";
 import { previewOf } from "./preview";
@@ -148,7 +148,7 @@ async function proveWork(c: Client, key: string, wt: Worktree, transcript: strin
 }
 
 /** A Ship step that threw: reported, and the PR simply waits for your merge (nothing turned on). */
-const shipFailed = (key: string) => (e: unknown) => report(`⚠ ${key}: Ship: ${String(e)}`);
+const shipFailed = (key: string) => (e: unknown) => report(`⚠ ${key}: Ship: ${errorText(e)}`);
 
 /** A PR's diff size for outcomes.jsonl, which the work report's time-saved estimate reads. */
 const sizeOf = (pr: TrackedPr) => (pr.proof ? { added: pr.proof.added, removed: pr.proof.removed, docsOnly: pr.proof.docsOnly } : {});
@@ -393,7 +393,7 @@ async function checkCorners(key: string, pr: TrackedPr): Promise<void> {
     const n = pr.corners?.length ?? 0;
     if (n && n !== before) report(`🚩 ${key}: ${n} thing${n === 1 ? "" : "s"} to check before merging ${pr.url}`);
   } catch (e) {
-    report(`⚠ ${key}: couldn't check the diff for cut corners: ${String(e)}`);
+    report(`⚠ ${key}: couldn't check the diff for cut corners: ${errorText(e)}`);
   }
 }
 
@@ -589,7 +589,7 @@ async function runFirstWin(state: State): Promise<boolean> {
     return true;
   } catch (e) {
     save({ state: "failed", message: e instanceof Error ? e.message : String(e) });
-    report(`⚠ ${w.key} first task: ${String(e)}`);
+    report(`⚠ ${w.key} first task: ${errorText(e)}`);
     return true;
   }
 }
@@ -643,7 +643,7 @@ async function runGuides(state: State, budget: number): Promise<number> {
       notify(pr.draft ? `Onboarding guide to review: ${project}` : `Onboarding guide PR: ${project}`, r.pr_title);
     } catch (e) {
       save({ run: "failed", message: e instanceof Error ? e.message : String(e) });
-      report(`⚠ ${g.key} onboarding guide: ${String(e)}`);
+      report(`⚠ ${g.key} onboarding guide: ${errorText(e)}`);
     }
   }
   return ran;
@@ -860,7 +860,7 @@ export async function work(): Promise<boolean> {
     const queue: Ticket[] = [];
     for (const c of CLIENTS) {
       const labelled = await tickets(c, { label: LABEL.queue }).catch((e: unknown) => {
-        report(`⚠ ${c.name}: ${String(e)}`);
+        report(`⚠ ${c.name}: ${errorText(e)}`);
         return [];
       });
       for (const tk of labelled) {
@@ -898,7 +898,7 @@ export async function work(): Promise<boolean> {
         if ((state.attempts[tk.key] ?? 0) >= CFG.limits.maxAttempts) return true;
         budget--;
         const r = await handleTicket(state, tk).catch(async (e: unknown) => {
-          report(`⚠ ${tk.key}: ${String(e)}`);
+          report(`⚠ ${tk.key}: ${errorText(e)}`);
           await setLabels(tk, [], [LABEL.working]).catch(() => undefined);
           return "ok" as const;
         });
