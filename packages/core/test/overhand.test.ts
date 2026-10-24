@@ -429,46 +429,41 @@ test("GitHub tracker reads, labels, comments on and files issues through gh", as
     ].join("\n"),
   );
   chmodSync(join(bin, "gh"), 0o755);
-  const path = process.env.PATH;
-  process.env.PATH = [bin, path].join(":");
-  try {
-    const c: Client = {
-      name: "Honeycrust",
-      dir: "honeycrust",
-      prefix: "AC",
-      host: "github",
-      tracker: { kind: "github", repo: "o/r" },
-      aliases: [],
-      accounts: [],
-      fallbackToAll: true,
-      autonomy: "act",
-      assignedAutonomy: "act",
-      status: { vercelSecrets: [], sentrySecrets: [] },
-    };
-    const [tk] = await tickets(c, { key: "AC-7" });
-    expect(tk).toMatchObject({ key: "AC-7", id: "7", labels: ["agent"], comments: ["someone: hi"], statusType: "started" });
-    expect((await tickets(c, { label: "agent" })).map((t) => t.key)).toEqual(["AC-7"]);
-    if (!tk) throw new Error("no ticket");
+  process.env.PATH = [bin, process.env.PATH].join(":"); // put back after the test (test-home.ts)
+  const c: Client = {
+    name: "Honeycrust",
+    dir: "honeycrust",
+    prefix: "AC",
+    host: "github",
+    tracker: { kind: "github", repo: "o/r" },
+    aliases: [],
+    accounts: [],
+    fallbackToAll: true,
+    autonomy: "act",
+    assignedAutonomy: "act",
+    status: { vercelSecrets: [], sentrySecrets: [] },
+  };
+  const [tk] = await tickets(c, { key: "AC-7" });
+  expect(tk).toMatchObject({ key: "AC-7", id: "7", labels: ["agent"], comments: ["someone: hi"], statusType: "started" });
+  expect((await tickets(c, { label: "agent" })).map((t) => t.key)).toEqual(["AC-7"]);
+  if (!tk) throw new Error("no ticket");
 
-    await setLabels(tk, ["agent-working", "agent"], ["agent", "missing"]);
-    expect(tk.labels).toEqual(["agent-working"]);
-    await comment(tk, "done, see PR");
-    expect(await createTicket(c, "New", "d\n\nFrom Ana on Slack: https://slack/x", "from-slack")).toBe("AC-9");
+  await setLabels(tk, ["agent-working", "agent"], ["agent", "missing"]);
+  expect(tk.labels).toEqual(["agent-working"]);
+  await comment(tk, "done, see PR");
+  expect(await createTicket(c, "New", "d\n\nFrom Ana on Slack: https://slack/x", "from-slack")).toBe("AC-9");
 
-    const calls = readFileSync(log, "utf8")
-      .trim()
-      .split("\n")
-      .map((l) => JSON.parse(l) as string[]);
-    expect(calls.every((a) => a.slice(-2).join(" ") === "-R o/r")).toBe(true);
-    expect(calls).toContainEqual(["label", "create", "agent-working", "--color", "D97757", "--force", "-R", "o/r"]);
-    expect(calls).toContainEqual(["issue", "edit", "7", "--add-label", "agent-working", "--remove-label", "agent", "-R", "o/r"]);
-    expect(calls).toContainEqual(["issue", "comment", "7", "--body", "done, see PR\n\n<!-- overhand -->", "-R", "o/r"]); // marked: never read back as your feedback
-    expect(calls.find((a) => a[0] === "issue" && a[1] === "create")).toContain("d\n\nFrom Ana on Slack: https://slack/x");
+  const calls = readFileSync(log, "utf8")
+    .trim()
+    .split("\n")
+    .map((l) => JSON.parse(l) as string[]);
+  expect(calls.every((a) => a.slice(-2).join(" ") === "-R o/r")).toBe(true);
+  expect(calls).toContainEqual(["label", "create", "agent-working", "--color", "D97757", "--force", "-R", "o/r"]);
+  expect(calls).toContainEqual(["issue", "edit", "7", "--add-label", "agent-working", "--remove-label", "agent", "-R", "o/r"]);
+  expect(calls).toContainEqual(["issue", "comment", "7", "--body", "done, see PR\n\n<!-- overhand -->", "-R", "o/r"]); // marked: never read back as your feedback
+  expect(calls.find((a) => a[0] === "issue" && a[1] === "create")).toContain("d\n\nFrom Ana on Slack: https://slack/x");
 
-    await expect(comment({ ...tk, id: "404" }, "x")).rejects.toThrow("gh issue comment AC-7: not found");
-  } finally {
-    process.env.PATH = path;
-  }
+  await expect(comment({ ...tk, id: "404" }, "x")).rejects.toThrow("gh issue comment AC-7: not found");
 });
 
 test("spendOn sums a day's run costs, billed only for billed accounts, and tolerates junk lines", () => {

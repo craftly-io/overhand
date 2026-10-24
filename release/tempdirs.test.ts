@@ -4,7 +4,8 @@
  * (release scripts, the relay's e2e, the daemon itself) must remove that same folder in the same file.
  */
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Glob } from "bun";
 
@@ -38,4 +39,34 @@ test("the check catches a folder made and never removed", () => {
   const made = 'const home = mkdtempSync(join(tmpdir(), "overhand-x-"));';
   expect(leaked(made)).toEqual(["home"]);
   expect(leaked(`${made}\ntry {} finally { rmSync(home, { recursive: true }); }`)).toEqual([]);
+});
+
+test("a test that throws before its cleanup leaves PATH and other variables as they were for the next test", () => {
+  // a child run of two tests: the first changes PATH, adds a variable and fails; the second checks
+  const dir = mkdtempSync(join(tmpdir(), "overhand-env-leak-"));
+  const file = join(dir, "leak.test.ts");
+  writeFileSync(
+    file,
+    [
+      'import { expect, test } from "bun:test";',
+      "const path = process.env.PATH;",
+      'test("leaves a mess", () => {',
+      '  process.env.PATH = ["/nowhere", path].join(":");',
+      '  process.env.OVERHAND_LEAK = "1";',
+      '  throw new Error("deliberate");',
+      "});",
+      'test("finds it clean", () => {',
+      "  expect(process.env.PATH).toBe(path);",
+      "  expect(process.env.OVERHAND_LEAK).toBeUndefined();",
+      "});",
+    ].join("\n"),
+  );
+  try {
+    const out = Bun.spawnSync(["bun", "test", file], { cwd: ROOT, env: process.env }).stderr.toString();
+    expect(out).toContain("(fail) leaves a mess");
+    expect(out).not.toContain("(fail) finds it clean");
+    expect(out).toContain(" 1 pass\n 1 fail");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

@@ -6,7 +6,7 @@
  * Every scratch folder a test makes in the temp folder, and every one the programs it starts make, lands in one folder
  * for the run (TMPDIR), removed when the run ends: a test can't leave `overhand-*` folders behind by forgetting.
  */
-import { afterAll } from "bun:test";
+import { afterAll, afterEach, beforeEach } from "bun:test";
 import { copyFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -21,3 +21,15 @@ afterAll(() => rmSync(runTmp, { recursive: true, force: true }));
 process.env.OVERHAND_HOME ??= mkdtempSync(join(runTmp, "overhand-test-"));
 const config = join(process.env.OVERHAND_HOME, "overhand.config.json");
 if (!existsSync(config)) copyFileSync(join(root, "overhand.config.example.json"), config);
+
+// Each test gets back the environment it started with, even when it throws before its own cleanup: a fake `gh` put
+// first on PATH by one test must never answer for the next. Spies stay per file: withDom undoes its fetch stub after
+// the file (render.test-util.tsx).
+let env: Record<string, string | undefined> = {};
+beforeEach(() => {
+  env = { ...process.env };
+});
+afterEach(() => {
+  for (const k of Object.keys(process.env)) if (!(k in env)) delete process.env[k];
+  Object.assign(process.env, env);
+});

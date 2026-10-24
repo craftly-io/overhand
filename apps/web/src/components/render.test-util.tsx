@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, spyOn } from "bun:test";
+import { afterAll, beforeAll, mock, spyOn } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { ReactNode } from "react";
 
@@ -35,6 +35,7 @@ export function withDom(): void {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   });
   afterAll(async () => {
+    mock.restore(); // the stubbed fetch, and any spy a test left, never reach the next file
     await GlobalRegistrator.unregister();
   });
 }
