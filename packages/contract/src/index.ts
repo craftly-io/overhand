@@ -673,6 +673,8 @@ export const DashboardStateSchema = z.object({
   budgetUsd: z.number().default(0),
   /** Claude accounts are paced across their week (`limits.paceWeekly`). Optional for older daemons. */
   paceWeekly: z.boolean().default(false),
+  /** The menu bar item is on (`menubar`); null where this computer has none (not a Mac, or not installed). */
+  menubar: z.boolean().nullable().default(null),
   /** No agent has run on an earlier day: a fresh install's first day. Optional for older daemons. */
   dayOne: z.boolean().default(false),
   sessions: z.array(SessionSchema),
@@ -996,11 +998,12 @@ export const CleanupSwitchesSchema = z.object({
 
 /**
  * `POST /api/settings/quick`: one day-to-day switch from Quick settings, saved into the config without opening the
- * whole Settings form: the daily budget (0 = off), weekly pacing, or one project's autonomy.
+ * whole Settings form: the daily budget (0 = off), weekly pacing, the menu bar item, or one project's autonomy.
  */
 export const QuickSettingSchema = z.union([
   z.object({ budgetUsd: z.number().min(0).max(100_000) }),
   z.object({ paceWeekly: z.boolean() }),
+  z.object({ menubar: z.boolean() }),
   z.object({ project: z.string().min(1), autonomy: AutonomySchema }),
 ]);
 export type QuickSetting = z.infer<typeof QuickSettingSchema>;

@@ -13,13 +13,15 @@ export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   // The big drawers (Settings, Sweep, Work/Inbox/Health) and the scene painters load lazily, keeping the first page
   // under the limit.
-  // piece.html: one live piece of the dashboard, framed into the public site's pages (src/piece.tsx)
+  // piece.html: one live piece of the dashboard, framed into the public site's pages (src/piece.tsx);
+  // glance.html: the menu bar item's popover on a Mac (src/glance.tsx)
   build: {
     chunkSizeWarningLimit: 800,
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
         piece: fileURLToPath(new URL("./piece.html", import.meta.url)),
+        glance: fileURLToPath(new URL("./glance.html", import.meta.url)),
       },
     },
   },

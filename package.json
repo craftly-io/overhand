@@ -24,6 +24,7 @@
     "shots": "bun release/shots.ts",
     "build:css": "bun packages/themes/build-css.ts",
     "brand": "bun packages/themes/build-brand.ts",
+    "menubar": "swift build -c release --package-path apps/menubar",
     "lint": "biome check --error-on-warnings ."
   },
   "devDependencies": {

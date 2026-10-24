@@ -637,11 +637,15 @@ export async function handle(req: Request): Promise<Response> {
   // Another device needs a session from pairing; this machine's own callers need the local key (devices.ts localKey):
   // its file for the CLI, a cookie for a browser that opened an open link, which this trades for it
   const here = isLocal(req);
-  if (here && req.method === "GET" && useOpenLink(url.searchParams.get("open") ?? ""))
+  if (here && req.method === "GET" && useOpenLink(url.searchParams.get("open") ?? "")) {
+    // the page it named, with the rest of its query (a drawer to open), minus the spent link
+    const rest = new URLSearchParams(url.search);
+    rest.delete("open");
     return new Response(null, {
       status: 303,
-      headers: { location: url.pathname, "set-cookie": localCookie(), "cache-control": "no-store" },
+      headers: { location: `${url.pathname}${rest.size ? `?${rest}` : ""}`, "set-cookie": localCookie(), "cache-control": "no-store" },
     });
+  }
   const local = here && hasLocalKey(req);
   // a run's own key (control.ts runKey) reaches only the routes a run calls, as that run (runRoute)
   const asRun =

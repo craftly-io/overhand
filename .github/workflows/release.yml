@@ -6,7 +6,18 @@ on:
 permissions:
   contents: write
 jobs:
+  # the Mac menu bar item's helper (apps/menubar), one binary for Apple silicon and Intel; it needs a Mac to build
+  menubar:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build -c release --arch arm64 --arch x86_64 --package-path apps/menubar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: menubar
+          path: apps/menubar/.build/apple/Products/Release/overhand-menubar
   release:
+    needs: menubar
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +30,14 @@ jobs:
             exit 1
           fi
       - run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: menubar
+          path: release/menubar
+      - run: chmod +x release/menubar/overhand-menubar
       - run: bun release/build.ts release/out
+        env:
+          MENUBAR: release/menubar/overhand-menubar
       - run: bash release/smoke.sh release/out/overhand-linux-x64
       - run: gh release create "$GITHUB_REF_NAME" --generate-notes release/out/*.tar.gz release/out/SHA256SUMS
         env:

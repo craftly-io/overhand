@@ -8,7 +8,17 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { deflateSync, inflateSync } from "node:zlib";
-import { type Drawing, type IconOptions, iconDrawing, iconSvg, lockupSvg, MARK_GROUND, markSvg, type Shape } from "./src/brand";
+import {
+  type Drawing,
+  type IconOptions,
+  iconDrawing,
+  iconSvg,
+  lockupSvg,
+  MARK_GROUND,
+  markSvg,
+  menubarDrawing,
+  type Shape,
+} from "./src/brand";
 
 const ROOT = join(import.meta.dir, "../..");
 const FONT = readFileSync(join(ROOT, "site/public/fonts/atkinson-next-latin-700.woff2")).toString("base64");
@@ -71,6 +81,8 @@ export const BRAND_FILES: BrandFile[] = [
   ...served("apps/web/public"),
   ...served("site/public"),
   { path: "apps/web/public/manifest.webmanifest", text: manifest },
+  // the Mac menu bar item's mark, shipped beside the dashboard (core menubar.ts passes its path)
+  { path: "apps/web/public/menubar.png", png: menubarDrawing() },
 ];
 
 /** How much of pixel row/column [p, p+1] the span [a, b] covers, 0–1. */

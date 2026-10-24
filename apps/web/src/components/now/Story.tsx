@@ -80,7 +80,7 @@ function crewAt(m: Model): Map<string, number> {
  * The opening of the Now view: who's at work and where, what waits on you, what the week delivered and what it cost,
  * told as sentences built from live state, over a ribbon of the day.
  */
-export function Prologue({ m }: { m: Model }) {
+export function Prologue({ m, greeting = true }: { m: Model; greeting?: boolean }) {
   const w = useWords();
   const ui = useUi();
   const s = m.s;
@@ -208,6 +208,14 @@ export function Prologue({ m }: { m: Model }) {
         }),
   );
 
+  const story = sentences.map((x, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: sentence order is fixed; keying by index keeps them still between polls
+    <span key={i} className="m-enter" style={nth(i + 2)}>
+      {x}{" "}
+    </span>
+  ));
+  // the menu bar's popover has room for the story, not the date and greeting over it
+  if (!greeting) return <p className="text-sm">{story}</p>;
   const hello = h < 5 ? w.brHelloNight : h < 12 ? w.brHelloMorning : h < 18 ? w.brHelloAfternoon : w.brHelloEvening;
   return (
     <section aria-labelledby="prologue" className="scrim relative max-w-[72ch]">
@@ -221,14 +229,7 @@ export function Prologue({ m }: { m: Model }) {
       >
         {fmt(first(hello), { name: s.owner || "there" })}
       </h1>
-      <p className="story-text mt-2 max-w-[56ch]">
-        {sentences.map((x, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: sentence order is fixed; keying by index keeps them still between polls
-          <span key={i} className="m-enter" style={nth(i + 2)}>
-            {x}{" "}
-          </span>
-        ))}
-      </p>
+      <p className="story-text mt-2 max-w-[56ch]">{story}</p>
     </section>
   );
 }

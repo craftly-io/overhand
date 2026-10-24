@@ -11,7 +11,7 @@ import { handHookCommand } from "./agent-home";
 import { saveConfig } from "./config";
 import { addRequest, applyHook, beatOf, moveRequest, nextAt, repoOf, setHold, settingsFile, withHook } from "./control";
 import { localHeaders } from "./devices";
-import { applyConfig, CFG, HOME, OPS, sh, UI_PORT } from "./env";
+import { applyConfig, CFG, DASHBOARD, HOME, OPS, sh } from "./env";
 import { readMachine } from "./governor";
 import { projectAt, UNRECORDED_RUN } from "./guard";
 import { leadNameByLabel } from "./leads";
@@ -154,8 +154,6 @@ export async function sampleStrain(): Promise<void> {
 }
 
 // ---------- the CLI ----------
-
-const DASHBOARD = `http://127.0.0.1:${UI_PORT}`;
 
 async function call(path: string, body: unknown): Promise<{ ok: boolean; data: Record<string, unknown> }> {
   try {

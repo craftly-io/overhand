@@ -21,6 +21,7 @@ import {
   CFG,
   CLIENTS,
   CODE,
+  DASHBOARD,
   HOME,
   INSTALL,
   MIN,
@@ -51,6 +52,7 @@ import { windowsFor } from "./groups";
 import { GUARD_LOG, guardHook, guardLogAt, guardWriteRoot, projectAt, trustIdentity } from "./guard";
 import { inbox, inboxReadAt } from "./inbox";
 import { blankLead, leadPid, loadLeads, lockHolder, superviseLeads, watchQuestions } from "./leads";
+import { syncMenubar } from "./menubar";
 import { diskFree, notify, problems, report, stampConsole } from "./notify";
 import { refreshSuggestions } from "./organise";
 import { plan } from "./plan";
@@ -142,6 +144,11 @@ export async function daemon(): Promise<void> {
   pruneRuns(OPS); // runs whose process is gone, or whose pid another process now has
   if (dropVoiceModel(OPS)) report("🧹 removed the old in-page voice model (no longer used)");
   serveDashboard();
+  // the menu bar item: only under the installed login service, so a test's or a script's daemon never puts one up
+  if (isLoginService()) {
+    syncMenubar();
+    setInterval(() => syncMenubar(), 10_000);
+  }
   // an answer written to a questions file by any route (dashboard, phone, terminal, an editor) resumes its lead in
   // seconds; the minute tick stays as the fallback and re-arms the watch when leads change
   const onQuestions = () => {
@@ -308,7 +315,6 @@ function governorTick(): void {
     .catch((e: unknown) => report(`⚠ control room: ${String(e)}`));
 }
 
-const DASHBOARD = `http://127.0.0.1:${UI_PORT}`;
 const LOG = daemonLog(join(OPS, "logs"));
 
 /** True when a Overhand (or ops) dashboard already answers on this machine's port. */

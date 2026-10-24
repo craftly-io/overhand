@@ -98,6 +98,15 @@ export function markDrawing({ size, on }: { size: number; on: "light" | "dark" }
   return { w: size, h: size, shapes: squares(markParts(size), 0, 0, MARK_INK[on]) };
 }
 
+/**
+ * The menu bar's mark (apps/menubar): one ink, so macOS tints it as a template image to suit the bar, light or dark.
+ * 36px is the bar's 18pt at 2x.
+ */
+export function menubarDrawing(size = 36): Drawing {
+  const d = markDrawing({ size, on: "light" });
+  return { ...d, shapes: d.shapes.map((s) => ({ ...s, fill: "#000000" })) };
+}
+
 /** The mark alone at `size` px on `on`: no ground, so it sits on whatever is behind it. "auto" follows light/dark. */
 export function markSvg({ size, on }: { size: number; on: MarkOn }): string {
   if (on !== "auto") return svg(markDrawing({ size, on }));

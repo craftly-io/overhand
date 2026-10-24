@@ -1,5 +1,6 @@
 import type { WordKey } from "@overhand/themes";
 import { createContext, type ReactNode, use, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { z } from "zod";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,6 +82,22 @@ export interface ConfirmRequest {
   tone?: "danger" | "primary";
 }
 
+/** The drawers a link may open (`?drawer=`): the ones a click on the menu bar's popover opens, each by its key or tab. */
+const LinkedDrawer = z.union([
+  z.object({ kind: z.enum(["ticket", "lead", "review"]), key: z.string().min(1) }),
+  z.object({ kind: z.literal("settings"), tab: z.string().optional() }),
+  z.object({ kind: z.enum(["alerts", "crew", "work", "health"]) }),
+]);
+
+/** A drawer from a link's `?drawer=` (its JSON), or null when it names none a link may open. */
+export function drawerParam(v: string | null): Drawer | null {
+  try {
+    return LinkedDrawer.safeParse(JSON.parse(v ?? "")).data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 interface UiContext {
   drawer: Drawer | null;
   /** Opens a drawer; on a phone a place (Work, Crew, Health, Settings) becomes the open tab instead. */
@@ -157,12 +174,15 @@ export function UiProvider({ children }: { children: ReactNode }) {
     resolver.current(ok);
     setAsk(null);
   };
-  // the hosted page's "Open Overhand on this computer" lands on ?settings=phone, where Set it up links this computer
+  // the hosted page's "Open Overhand on this computer" lands on ?settings=phone, where Set it up links this computer;
+  // the menu bar item opens what was clicked on its popover as ?drawer=… (glance.tsx)
   useEffect(() => {
     const q = new URLSearchParams(location.search);
-    if (q.get("settings") !== "phone") return;
-    openDrawer({ kind: "settings", tab: "phone" });
+    const asked: Drawer | null = q.get("settings") === "phone" ? { kind: "settings", tab: "phone" } : drawerParam(q.get("drawer"));
+    if (!asked) return;
+    openDrawer(asked);
     q.delete("settings");
+    q.delete("drawer");
     history.replaceState(null, "", `${location.pathname}${q.size ? `?${q}` : ""}${location.hash}`);
   }, [openDrawer]);
   // the landing page's tour opens the views (it still calls them tabs; "now" is the bridge with nothing open), a lead and settings

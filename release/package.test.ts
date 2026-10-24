@@ -11,10 +11,11 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dir, "..");
 const read = (f: string) => readFileSync(join(ROOT, f), "utf8");
 
-test("a release package holds the binary and the dashboard build only", () => {
+test("a release package holds the binary and the dashboard build only, and a Mac's the menu bar helper too", () => {
   const build = read("release/build.ts");
-  expect([...build.matchAll(/cpSync\((join\([^)]*\))/g)].map((m) => m[1])).toEqual(['join(ROOT, "apps", "web", "dist")']);
-  expect(build).toContain('"-C", dir, "overhand", "web"]');
+  expect([...build.matchAll(/cpSync\((join\([^)]*\)|\w+),/g)].map((m) => m[1])).toEqual(['join(ROOT, "apps", "web", "dist")', "MENUBAR"]);
+  expect(build).toContain('"-C", dir, "overhand", "web", ...helper]');
+  expect(build).toContain('os === "darwin" && MENUBAR');
   expect(build).not.toMatch(/design/);
 });
 

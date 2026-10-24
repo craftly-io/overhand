@@ -42,6 +42,26 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   );
 }
 
+/** Quiet mode's switch, live: in Quick settings and on the menu bar item's popover. */
+export function QuietRow({ m }: { m: Model }) {
+  const { words: w } = useTheme();
+  const { quiet } = useActions();
+  const quietUntil = m.s.governor.quietUntil;
+  const quietOn = quietUntil > Date.now();
+  return (
+    <Row
+      label={w.quiet}
+      hint={
+        quietOn
+          ? fmt(w.quietEndHint, { time: hm(quietUntil), left: uptime((quietUntil - Date.now()) / 1000) })
+          : fmt(w.quietHint, { n: QUIET_HOURS })
+      }
+    >
+      <Switch aria-label={w.quiet} checked={quietOn} onCheckedChange={(on) => void quiet(on ? QUIET_HOURS : 0)} />
+    </Row>
+  );
+}
+
 /** Saves one quick setting, live, and refreshes the state; a refusal (the demo's, a daemon error) shows as a toast. */
 function useQuickSave(): (q: QuickSetting) => Promise<void> {
   const qc = useQueryClient();
@@ -104,12 +124,12 @@ export function ProjectRules({ m }: { m: Model }) {
 
 /**
  * Quick settings, one tap from the header: the day-to-day switches, each one live (no Save) and each one the same
- * setting Settings shows: Focus, pause, quiet mode, the daily budget, pacing, the scene, sound, and how far agents go on each
+ * setting Settings shows: Focus, pause, quiet mode, the daily budget, pacing, the menu bar item, the scene, sound, and how far agents go on each
  * project. Everything else stays in Settings, one link away.
  */
 export function QuickSettings({ m }: { m: Model }) {
   const { words: w } = useTheme();
-  const { run, quiet } = useActions();
+  const { run } = useActions();
   const ui = useUi();
   const sound = useSound();
   const [motion, setMotion] = useMapMode();
@@ -125,8 +145,6 @@ export function QuickSettings({ m }: { m: Model }) {
     if (usd > 0) store.set(LAST_BUDGET, String(usd));
     void save({ budgetUsd: usd });
   };
-  const quietUntil = m.s.governor.quietUntil;
-  const quietOn = quietUntil > Date.now();
   // pacing reads the weekly window Claude Code reports; no Claude account, nothing to pace
   const paceable = m.s.accounts.some((a) => a.runtime === "claude-code");
 
@@ -153,16 +171,7 @@ export function QuickSettings({ m }: { m: Model }) {
         <Row label={w.pause} hint={w.pauseHint}>
           <Switch aria-label={w.pause} checked={m.s.paused} onCheckedChange={(on) => void run({ name: on ? "pause" : "resume" })} />
         </Row>
-        <Row
-          label={w.quiet}
-          hint={
-            quietOn
-              ? fmt(w.quietEndHint, { time: hm(quietUntil), left: uptime((quietUntil - Date.now()) / 1000) })
-              : fmt(w.quietHint, { n: QUIET_HOURS })
-          }
-        >
-          <Switch aria-label={w.quiet} checked={quietOn} onCheckedChange={(on) => void quiet(on ? QUIET_HOURS : 0)} />
-        </Row>
+        <QuietRow m={m} />
         {/* the budget caps billed money only: with every account on a plan or this computer, it says it doesn't apply */}
         <Row
           label={w.quickBudget}
@@ -197,6 +206,12 @@ export function QuickSettings({ m }: { m: Model }) {
         {paceable ? (
           <Row label={w.quickPace} hint={w.quickPaceHint}>
             <Switch aria-label={w.quickPace} checked={m.s.paceWeekly} onCheckedChange={(on) => void save({ paceWeekly: on })} />
+          </Row>
+        ) : null}
+        {/* only where this computer has one: a Mac with the helper installed */}
+        {m.s.menubar !== null ? (
+          <Row label={w.menubar} hint={w.menubarHint}>
+            <Switch aria-label={w.menubar} checked={m.s.menubar} onCheckedChange={(on) => void save({ menubar: on })} />
           </Row>
         ) : null}
         <fieldset className="grid gap-1.5">

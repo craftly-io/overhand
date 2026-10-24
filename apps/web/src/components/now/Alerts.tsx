@@ -91,8 +91,10 @@ const callId = (n: Need): string =>
     ? (n.alert.item ?? `${n.alert.target.kind}:${n.alert.title}`)
     : `inbox:${n.item.kind}:${n.item.kind === "new" ? n.item.title : n.item.text}`;
 
+/** Whether anything that needs you is broken (the count goes red, here and beside the menu bar's mark). */
+export const anyBroken = (list: readonly Need[]): boolean => list.some((n) => "alert" in n && n.alert.broken);
 /** The colour of the Needs you count: red if anything is broken, else amber. */
-export const needsTone = (list: readonly Need[]) => (list.some((n) => "alert" in n && n.alert.broken) ? "var(--bad)" : "var(--warn)");
+export const needsTone = (list: readonly Need[]) => (anyBroken(list) ? "var(--bad)" : "var(--warn)");
 
 /** One alert; clicking it opens whatever it's about (a link, a ticket, a lead…). */
 function AlertCard({ a, brief, className }: { a: Alert; brief?: string; className?: string }) {

@@ -84,8 +84,8 @@ that you read before it goes. Or open an issue here with the bug report or feedb
 ## Layout
 
 `packages/contract` is the typed API between daemon and dashboard, `packages/core` the daemon, `packages/themes` every
-theme's colours, type and words, `apps/web` the React dashboard, `site/` the public site and docs, and `release/` the
-packages and the installer.
+theme's colours, type and words, `apps/web` the React dashboard, `apps/menubar` the Mac menu bar item, `site/` the
+public site and docs, and `release/` the packages and the installer.
 
 What connects to what, and how a release goes out: [docs/architecture.md](docs/architecture.md).
 

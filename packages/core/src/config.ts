@@ -420,6 +420,8 @@ const ConfigSchema = z.object({
       paceWeekly: z.boolean().default(false),
     })
     .prefault({}),
+  /** The menu bar item on a Mac (menubar.ts): what needs you, what's running, quiet mode, one click from anywhere. */
+  menubar: z.boolean().default(true),
   bitbucket: z.object({ email: z.string(), workspace: z.string(), secret: z.string() }).optional(),
   slack: z.array(z.object({ server: z.string(), client: z.string() })).default([]),
   /** Keychain items for status sources shared across projects; items are matched to projects by name and aliases. */
@@ -808,6 +810,7 @@ export function saveConfig(dir: string, raw: unknown): Config {
 export function withQuick(c: Config, q: QuickSetting): Config {
   if ("budgetUsd" in q) return { ...c, limits: { ...c.limits, dailyBudgetUsd: q.budgetUsd } };
   if ("paceWeekly" in q) return { ...c, limits: { ...c.limits, paceWeekly: q.paceWeekly } };
+  if ("menubar" in q) return { ...c, menubar: q.menubar };
   if (!c.clients.some((x) => x.name === q.project)) throw new Error(`no project ${q.project}`);
   return { ...c, clients: c.clients.map((x) => (x.name === q.project ? { ...x, autonomy: q.autonomy } : x)) };
 }

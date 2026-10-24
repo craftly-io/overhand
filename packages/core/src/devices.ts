@@ -191,8 +191,15 @@ const browserMac = (key: string): string => createHmac("sha256", key).update("br
 // ponytail: used open links in memory until they expire; a restart forgets them, and they expire in two minutes anyway
 const usedOpen = new Map<string, number>();
 
-/** The dashboard address with a one-time open link that works for OPEN_TTL_MS: what `overhand start` and `open` open. */
-export const openLink = (base: string, now = Date.now(), key = localKey()): string => `${base}/?open=${now}.${mac(key, now)}`;
+/**
+ * The dashboard address with a one-time open link that works for OPEN_TTL_MS: what `overhand start` and `open` open.
+ * `base` may name a page and a query (the menu bar's glance page, a drawer to open); the link keeps both.
+ */
+export function openLink(base: string, now = Date.now(), key = localKey()): string {
+  const u = new URL(base);
+  u.searchParams.set("open", `${now}.${mac(key, now)}`);
+  return u.toString();
+}
 
 /** Whether `code` is a fresh open link this install made, never used before; using it burns it. */
 export function useOpenLink(code: string, now = Date.now(), key = localKey()): boolean {

@@ -79,7 +79,11 @@ export const DOCS = [
   },
   { slug: "teams", title: "Teams", line: "Each person's agents side by side, and questions that find the right person." },
   { slug: "cleanup", title: "Cleanup and quiet mode", line: "Disk space back, and your laptop back when you need it." },
-  { slug: "everyday", title: "Day to day", line: "Focus, the night report, share cards, updates, feedback and what's new." },
+  {
+    slug: "everyday",
+    title: "Day to day",
+    line: "Focus, the menu bar item, the night report, share cards, updates, feedback and what's new.",
+  },
   { slug: "privacy", title: "Privacy and what leaves your machine", line: "What stays on your computer, and the little that doesn't." },
   { slug: "troubleshooting", title: "Troubleshooting", line: "What to run, and what the messages mean." },
   { slug: "cli", title: "Command reference", line: "Every overhand command, from its own help." },

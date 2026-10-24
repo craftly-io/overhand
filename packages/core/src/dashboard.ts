@@ -41,6 +41,7 @@ import {
 } from "./leads";
 import { ruleOffers } from "./learn";
 import { benchedUntil } from "./limits";
+import { menubarHelper } from "./menubar";
 import { diskFree, report } from "./notify";
 import { reviewRound } from "./onpreview";
 import { loadActions, room, toCard, toSession } from "./room";
@@ -333,6 +334,7 @@ export async function dashboardState(): Promise<DashboardState> {
     budgetSpent: budgeted, // what the daily budget checks: billed, and accounts whose billing isn't known yet
     budgetUsd: CFG.limits.dailyBudgetUsd,
     paceWeekly: CFG.limits.paceWeekly,
+    menubar: menubarHelper() ? CFG.menubar : null,
     dayOne: firstDay(),
     sessions,
     tickets: ticketCache.data,

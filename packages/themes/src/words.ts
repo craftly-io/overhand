@@ -78,6 +78,11 @@ export const plainWords = {
   quickBudgetAmount: "Daily budget in dollars",
   quickPace: "Pace to usage limits",
   quickPaceHint: "Holds a Claude account that has used more of its week than has passed, so it lasts the week",
+  /** The menu bar item on a Mac (core menubar.ts): a switch in Quick settings, and its popover's own words. */
+  menubar: "Menu bar item",
+  menubarHint: "The Overhand mark in your Mac's menu bar: what needs you and what's running, one click away.",
+  glanceOpen: "Open Overhand",
+  glanceHide: "Hide from the menu bar",
   quickProjects: "What agents do",
   quickAll: "All settings",
   /** Focus: outcomes only, the steps folded; a switch in Quick settings and the F key. */

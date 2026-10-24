@@ -225,6 +225,8 @@ export function clientOf(key: string): Client | undefined {
 }
 
 export const UI_PORT = Number(process.env.OVERHAND_PORT ?? LOCAL_PORT);
+/** The dashboard on this computer, as its own CLI and helpers reach it. */
+export const DASHBOARD = `http://127.0.0.1:${UI_PORT}`;
 
 /** Display client for a GitHub org login: a tracked client by alias, then config.otherOrgs, else the login itself. */
 export const clientOfOrg = (login: string): string =>

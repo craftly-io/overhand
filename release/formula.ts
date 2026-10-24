@@ -42,8 +42,9 @@ ${pkg("linux", "x64", "      ")}
   end
 
   def install
-    # the binary serves the dashboard from web/ beside it, so both stay together
+    # the binary serves the dashboard from web/ beside it, so both stay together; on a Mac its menu bar helper too
     libexec.install "overhand", "web"
+    libexec.install "overhand-menubar" if File.exist?("overhand-menubar")
     bin.install_symlink libexec/"overhand"
   end
 

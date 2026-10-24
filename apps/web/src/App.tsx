@@ -1,5 +1,6 @@
 import { AlertTriangle } from "lucide-react";
-import { type CSSProperties, type ReactNode, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
+import { useActions } from "@/app/actions";
 import { type Model, useLiveState, useModel, useStateQuery } from "@/app/data";
 import { useFreshOnReturn } from "@/app/fresh";
 import { useEventChimes } from "@/app/sound";
@@ -205,6 +206,18 @@ const docked = (dock: number): CSSProperties => {
   return { width: "auto", marginLeft: side, marginRight: `calc(${dock}px + ${side})` };
 };
 
+/** The menu bar item's Night report opens the dashboard on `?run=brief`: the report, once the state is in. */
+function useBriefParam(ready: boolean) {
+  const { run } = useActions();
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    if (!ready || q.get("run") !== "brief") return;
+    q.delete("run");
+    history.replaceState(null, "", `${location.pathname}${q.size ? `?${q}` : ""}${location.hash}`);
+    void run({ name: "brief" });
+  }, [ready, run]);
+}
+
 /** The dashboard: header, the bridge, drawers and the command bar. */
 export function App() {
   const { words: w, theme } = useTheme();
@@ -215,6 +228,7 @@ export function App() {
   const setup = m?.s.setup ?? false;
   const bridge = Boolean(m?.s.clients.length && !setup);
   useLiveState();
+  useBriefParam(Boolean(m));
   useFreshOnReturn(m?.s);
   useEventChimes(m?.s.reports, theme.id);
   const ui = useUi();

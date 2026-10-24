@@ -72,6 +72,11 @@ app.overhand.dev, reaching the daemon over WebRTC. With `?demo` it runs on the s
 site copies that build to `/demo` and embeds it on the landing page. `apps/design` is the design catalog at
 `/docs/design`.
 
+On a Mac the daemon also starts the menu bar item (`src/menubar.ts`): `apps/menubar`, a small Swift helper that shows
+the mark and the count of what needs you, and holds the app's `glance.html` page in a popover. It never reads the local
+key: the daemon hands it a signed-in address over its stdin, and opens anything it asks for in the browser. The release
+workflow builds it on a Mac, for Apple silicon and Intel, into the Mac packages.
+
 ## Shared packages
 
 - `packages/contract` (Apache-2.0): the typed API between the daemon and the app (Zod), links, features and the

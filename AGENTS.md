@@ -14,6 +14,7 @@ How the parts connect, staging, releases and secrets: [docs/architecture.md](doc
 | `packages/contract` | The typed API between daemon and dashboard (Zod), shared facts, test fixtures |
 | `packages/themes` | Colours, type, the brand mark, the hour's light, and every plain word (`src/words.ts`) |
 | `apps/web` | The React dashboard, its demo data and the attention map |
+| `apps/menubar` | The Mac menu bar item's helper (Swift): the mark, the count, and the dashboard's glance page in a popover |
 | `apps/design` | The design catalog served at /docs/design/ |
 | `site` | overhand.dev: pages, docs and the build; `site/get` is the installer worker |
 | `relay` | The hosted relay worker behind app.overhand.dev (Access from anywhere, sign-in, billing, teams) |
@@ -30,6 +31,7 @@ bun run check    # tsc over packages, relay, site and release; the dashboard: cd
 bun run build    # the dashboard into apps/web/dist
 bun run shots    # the responsive sweep (heavy: needs disk and a Chromium)
 bun run brand    # redraws the favicons, icons and brand kit from packages/themes/src/brand.ts
+bun run menubar  # builds the Mac menu bar helper (needs Xcode's Swift); the daemon starts it once it's built
 ```
 
 ## Rules
