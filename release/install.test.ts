@@ -56,7 +56,9 @@ async function install(
   script(join(bin, "uname"), `case "$1" in -s) echo ${os} ;; -m) echo ${machine} ;; esac`);
   script(join(bin, "sysctl"), `echo ${m.translated ?? "0"}`);
   script(join(bin, "ldd"), `echo '${m.ldd ?? "ldd (GNU libc) 2.36"}'`);
-  const p = Bun.spawn(["sh", INSTALLER], {
+  // output goes to a file, not a pipe: reading the pipes of a quickly exiting process can fail on Linux (EBADF, epoll_ctl)
+  const log = join(mkdtempSync(join(tmpdir(), "overhand-install-log-")), "out");
+  const p = Bun.spawn(["sh", "-c", 'sh "$0" >"$1" 2>&1', INSTALLER, log], {
     cwd: home,
     env: {
       PATH: [bin, process.env.PATH].join(":"),
@@ -66,11 +68,10 @@ async function install(
       NO_COLOR: "1",
       ...m.env,
     },
-    stdout: "pipe",
-    stderr: "pipe",
+    stdio: ["ignore", "ignore", "ignore"],
   });
-  const [code, out, err] = await Promise.all([p.exited, new Response(p.stdout).text(), new Response(p.stderr).text()]);
-  return { code, out: `${out}${err}`, home };
+  const code = await p.exited;
+  return { code, out: readFileSync(log, "utf8"), home };
 }
 
 /** What the installed `overhand` prints (the fake package's platform). */
