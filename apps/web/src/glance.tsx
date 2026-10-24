@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { type Model, useLiveState, useModel, useStateQuery } from "./app/data";
-import { ThemeProvider, useWords } from "./app/theme";
+import { ThemeProvider, useTheme, useWords } from "./app/theme";
 import { UiProvider, useUi } from "./app/ui";
 import { Logo } from "./components/Logo";
 import { anyBroken, NeedsList, needs } from "./components/now/Alerts";
@@ -56,6 +56,9 @@ function useDrawersOpenFull(): void {
 
 function Body({ m }: { m: Model }) {
   const w = useWords();
+  // the look picked in the dashboard: this popover's web view keeps no choice of its own
+  const { showTheme } = useTheme();
+  useEffect(() => showTheme(m.s.look), [showTheme, m.s.look]);
   const list = needs(m);
   const broken = anyBroken(list);
   useEffect(() => {

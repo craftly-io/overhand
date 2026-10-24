@@ -422,6 +422,8 @@ const ConfigSchema = z.object({
     .prefault({}),
   /** The menu bar item on a Mac (menubar.ts): what needs you, what's running, quiet mode, one click from anywhere. */
   menubar: z.boolean().default(true),
+  /** The look last picked in the dashboard (packages/themes ids), so the menu bar item draws in it too. */
+  look: z.string().default("overhand"),
   bitbucket: z.object({ email: z.string(), workspace: z.string(), secret: z.string() }).optional(),
   slack: z.array(z.object({ server: z.string(), client: z.string() })).default([]),
   /** Keychain items for status sources shared across projects; items are matched to projects by name and aliases. */
@@ -813,6 +815,7 @@ export function withQuick(c: Config, q: QuickSetting): Config {
   if ("budgetUsd" in q) return { ...c, limits: { ...c.limits, dailyBudgetUsd: q.budgetUsd } };
   if ("paceWeekly" in q) return { ...c, limits: { ...c.limits, paceWeekly: q.paceWeekly } };
   if ("menubar" in q) return { ...c, menubar: q.menubar };
+  if ("look" in q) return { ...c, look: q.look };
   if (!c.clients.some((x) => x.name === q.project)) throw new Error(`no project ${q.project}`);
   return { ...c, clients: c.clients.map((x) => (x.name === q.project ? { ...x, autonomy: q.autonomy } : x)) };
 }

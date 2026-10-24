@@ -350,6 +350,17 @@ export const FEATURES: readonly Feature[] = [
     place: "none",
     docs: "docs/agents.html#billing",
   },
+  {
+    id: "looks",
+    name: "Looks",
+    line: "Five looks for the app, each in light and dark: new art, colour and motion, the same words and controls.",
+    area: "overhand",
+    since: "2026-10-25",
+    source: "packages/themes/src/index.ts",
+    place: "none",
+    docs: "docs/everyday.html#looks",
+    tip: { text: "New: pick a look for the app. Every word and control stays put.", where: "settings-look" },
+  },
 ];
 
 /** The features newest first; within a day, in the registry's order. */

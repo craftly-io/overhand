@@ -51,8 +51,8 @@ If you changed anything in `packages/themes`, also run `bun run brand` and commi
 For a change to the dashboard or the landing page, also run the responsive sweep:
 
 ```sh
-bun run shots            # builds the web app, then every screen × 16 sizes (320px phone to 5120px ultra-wide) × 5 themes
-bun run shots --viewports 390x844,1440x900 --themes observatory --screens now,work --no-build   # a quick subset
+bun run shots            # builds the web app, then every screen × 16 sizes (320px phone to 5120px ultra-wide) × 10 looks (each in light and dark)
+bun run shots --viewports 390x844,1440x900 --themes observatory-dark --screens now,work --no-build   # a quick subset
 ```
 
 It serves the landing page and the demo locally, screenshots each frame and checks the DOM: the page scrolling

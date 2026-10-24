@@ -349,6 +349,7 @@ export async function dashboardState(): Promise<DashboardState> {
     slackSignIn: state.slackSignIn ?? null,
     sandboxRefuse: projectSandbox("").refuse ? projectSandbox("").why || "the OS sandbox can't run here" : "",
     menubar: menubarHelper() ? CFG.menubar : null,
+    look: CFG.look,
     dayOne: firstDay(),
     sessions,
     tickets: ticketCache.data,

@@ -1058,7 +1058,7 @@ export async function handle(req: Request): Promise<Response> {
       return json({ ok: true });
     }
     case "/api/settings/quick": {
-      // one switch from Quick settings: the daily budget, weekly pacing, or a project's autonomy
+      // one switch from Quick settings: the daily budget, weekly pacing, the menu bar, the look, or a project's autonomy
       const parsed = QuickSettingSchema.safeParse(body);
       if (!parsed.success) return json({ error: "bad quick setting" }, 400);
       try {

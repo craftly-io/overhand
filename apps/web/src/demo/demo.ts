@@ -283,6 +283,8 @@ export function demoPost(url: string, body: Record<string, unknown>): unknown {
     });
     return {};
   }
+  // the look is kept in this browser; the demo has no menu bar item to tell
+  if (url === "/api/settings/quick" && typeof body.look === "string") return {};
   const a = AutonomySchema.safeParse(body.autonomy);
   if (url === "/api/settings/quick" && typeof body.project === "string" && a.success) return did.autonomy.set(body.project, a.data) && {};
   // review on the preview: a drawn page to pin on, the notes "sent", and the approval (the visitor is the PR's author)

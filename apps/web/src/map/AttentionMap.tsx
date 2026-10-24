@@ -78,7 +78,9 @@ export function AttentionMap({ m, world, still }: { m: Model; world: WorldId; st
   const w = WORLDS[world];
   const reduced = useSyncExternalStore(subscribeReduced, () => matchMedia(REDUCED).matches);
   const [resting, stir] = useResting(sig);
-  const gl = useAtmosphere(w.atmosphere, still || reduced || resting);
+  // ponytail: the GPU atmospheres are night and dusk only; by day the world's 2D ground is the whole drawing
+  const atmosphere = light ? undefined : w.atmosphere;
+  const gl = useAtmosphere(atmosphere, still || reduced || resting);
   // Instrument takes the real hour's light: warm at dawn and dusk, cool at night, working lights brighter after dark
   const hour = w.id === "instrument" ? hourLight(m.s.now) : null;
   const tint = hour ? ({ "--hour-tint": hour.tint, "--hour-night": hour.night } as CSSProperties) : undefined;
@@ -90,7 +92,7 @@ export function AttentionMap({ m, world, still }: { m: Model; world: WorldId; st
       data-gl={gl.on ? "" : undefined}
       onPointerMove={stir}
     >
-      {w.atmosphere ? <canvas ref={gl.ref} className="atmosphere absolute inset-0 size-full" /> : null}
+      {atmosphere ? <canvas ref={gl.ref} className="atmosphere absolute inset-0 size-full" /> : null}
       {size > 0 ? (
         <MapSvg
           model={model}

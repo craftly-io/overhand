@@ -53,7 +53,7 @@ export const plainWords = {
   voiceHint: "Hold to talk. Uses your browser's speech service.",
   soundOn: "Turn sound on",
   soundOff: "Turn sound off",
-  theme: "Theme",
+  theme: "Look",
   appearance: "Appearance",
   appearanceSystem: "System",
   appearanceLight: "Light",
@@ -64,7 +64,7 @@ export const plainWords = {
   sceneStill: "Still",
   soundSetting: "Sound",
   soundChimes: "Sounds for new activity",
-  soundChimesHint: "One short sound per event, in this theme's own voice. Off by default.",
+  soundChimesHint: "One short sound per event, in this look's own voice. Off by default.",
 
   // Quick settings: the day-to-day switches, one tap from the header
   quickSettings: "Quick settings",
@@ -1044,7 +1044,7 @@ export const plainWords = {
   saidFreed: "Freed about {size}.",
   saidHeard: "Heard: “{text}”",
   saidVoiceFailed: "Voice didn't work: {error}",
-  saidTheme: "{name} theme",
+  saidTheme: "{name} look",
   saidUnknown: "“{cmd}” isn't a command. Try queue, plan, inbox, lead, overdrive, sweep, settings, pause or resume.",
 
   // confirmations
@@ -1436,7 +1436,7 @@ export const plainWords = {
   cmdBrief: "What happened and what's next, read aloud",
   cmdPlan: "Rebuild today's plan",
   cmdSweep: "Free disk space",
-  cmdTheme: "Switch to the {name} theme",
+  cmdTheme: "Switch to the {name} look",
 
   // settings drawer (field labels stay plain)
   settingsKicker: "Settings",

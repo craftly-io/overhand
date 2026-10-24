@@ -1,6 +1,6 @@
 # Instrument: Overhand's design system
 
-The house world (`packages/themes/src/overhand`, id `overhand`, shown as Instrument) and every launch world built on it (Observatory, Transit, Koi Pond) share one chrome: palette A, drawn by the `:root[data-chrome="house"]` block in `apps/web/src/index.css`, which applies to any theme with an ink scale. Catnap keeps its own chrome until its upgraded version ships. The approved spec is `docs/design/world.html` (licences `docs/design/CREDITS.md`).
+The house world (`packages/themes/src/overhand`, id `overhand`, shown as Instrument) and every look built on it (Observatory, Transit, Koi Pond, Catnap) share one chrome: palette A, drawn by the `:root[data-chrome="house"]` blocks in `apps/web/src/index.css`, which apply to any theme with an ink scale. A look brings its own ink, its one colour, its map and its greeting face; its panes, glass and controls are the house's, drawn from its ink. Every look has a light and a dark set and follows the computer (or Settings → Look & sound → Appearance). The approved spec is `docs/design/world.html` (licences `docs/design/CREDITS.md`).
 
 ## Principles
 

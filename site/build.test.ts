@@ -393,7 +393,7 @@ test("llms.txt lists every docs page and setup.md", () => {
 });
 
 test("only the What's next page names what isn't built", () => {
-  const unbuilt = /railway|fly\.io|hosted runner|\bSSO\b|single sign-on|add-on look/gi;
+  const unbuilt = /railway|fly\.io|hosted runner|\bSSO\b|single sign-on/gi;
   const next = built.find(([rel]) => rel === "docs/next.html")?.[1] ?? "";
   expect(next.match(unbuilt)?.length).toBeGreaterThanOrEqual(4);
   const others: [string, string][] = [
