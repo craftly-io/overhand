@@ -69,8 +69,9 @@ docs page as `.md`, and the skill [skills/overhand/SKILL.md](skills/overhand/SKI
 
 ## Develop
 
-Bun and TypeScript: the daemon in `packages/core`, the dashboard in `apps/web`, the site in `site/`. Run `bun install`,
-then `bun run test`. [CONTRIBUTING.md](CONTRIBUTING.md) has setup and checks; agents start at [AGENTS.md](AGENTS.md).
+Bun and TypeScript: the daemon in `packages/core`, the dashboard in `apps/web`, the site in `site/`. From a fresh
+clone to passing tests and a local Overhand takes a few minutes: [CONTRIBUTING.md](CONTRIBUTING.md) has the steps and
+the checks a pull request needs. Agents start at [AGENTS.md](AGENTS.md).
 
 ## License
 

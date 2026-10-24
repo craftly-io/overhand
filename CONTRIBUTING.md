@@ -2,40 +2,45 @@
 
 Thanks for helping. Overhand is TypeScript end to end, run with [Bun](https://bun.sh).
 
-## Licence
+## From clone to green tests
 
-Overhand is fair source ([FSL-1.1-ALv2](LICENSE.md)); `packages/contract` and `packages/themes` are Apache-2.0. By
-opening a pull request you agree to the [contributor licence agreement](CLA.md): you keep your copyright, and the
-project can ship your change under the FSL, a commercial licence, and Apache-2.0 when a release converts. Tick the box
-in the pull request template to confirm. The docs, the agent skill and the llms files are [CC0 1.0](LICENSE-docs).
-
-## Layout
-
-`packages/contract` is the typed API between daemon and dashboard, `packages/core` the daemon, `packages/themes` every
-theme's colours, type and words, `apps/web` the React dashboard, `site/` the public site and docs, and `release/` the
-packages and the installer.
-
-## Setup
+You need git and [Bun](https://bun.sh) 1.3 or newer (`curl -fsSL https://bun.sh/install | bash`). No accounts or keys.
 
 ```sh
+git clone https://github.com/craftly-io/overhand && cd overhand
 bun install
-bun run --filter web build
-bun run.ts daemon        # dashboard on http://127.0.0.1:4317
+bunx playwright-core install chromium-headless-shell   # once, about 200 MB: some tests drive a real headless browser
+bun run test                                           # about a minute and a half
 ```
 
-Running from a checkout keeps config and state in the checkout. To try a clean first run, point `OVERHAND_HOME` at an empty
-folder and `OVERHAND_PORT` at a free port: `OVERHAND_HOME=$(mktemp -d) OVERHAND_PORT=4320 bun run.ts daemon`.
+The tests give themselves a scratch home, so they never touch your own Overhand. They print error lines and stack
+traces on the way: those are tests checking failure paths. Only the summary at the end counts (`0 fail`).
+
+## Run Overhand from your checkout
+
+```sh
+bun run build                                       # the dashboard
+export OVERHAND_HOME=$(mktemp -d) OVERHAND_PORT=4320
+bun run.ts daemon                                   # serves http://127.0.0.1:4320
+```
+
+Then, in a second terminal with the same two `export`s, `bun run.ts open` signs your browser in. A browser that isn't
+signed in sees "Pair this device" instead of the dashboard. Without the two variables the daemon uses port 4317 and
+keeps its config and state in the checkout, which clashes with an Overhand you have installed.
 
 ## Before a pull request
+
+These are the checks CI runs on every pull request; each takes seconds except the tests:
 
 ```sh
 bunx tsc --noEmit && (cd apps/web && bunx tsc --noEmit)
 bun run lint
-bun run test             # uses a scratch OVERHAND_HOME; it never touches your own state
+bunx jscpd@4.0.5 --config .jscpd.json   # no copy-pasted code
+bun run test
 bash release/smoke.sh    # builds the release binary and pokes a daemon on a free port with a scratch home
 ```
 
-CI runs the same checks, the web build and the smoke test on every pull request to `main` (and on pushes to it).
+If you changed anything in `packages/themes`, also run `bun run brand` and commit what it changes.
 
 For a change to the dashboard or the landing page, also run the responsive sweep:
 
@@ -47,15 +52,40 @@ bun run shots --viewports 390x844,1440x900 --themes observatory --screens now,wo
 It serves the landing page and the demo locally, screenshots each frame and checks the DOM: the page scrolling
 sideways, controls overlapping and, on the site (swept in light and dark), text under WCAG AA contrast are hard
 failures (exit 1); clipped text, tap targets under 32px on touch sizes,
-text under 11px, reading lines over ~95 characters and badly used ultra-wide width are listed as soft findings. Open
+text under 11px, reading lines over about 95 characters and badly used ultra-wide width are listed as soft findings. Open
 `release/out/shots/index.html` for the contact sheet; `report.json` has every finding. It uses `playwright-core` (a dev
-dependency) and its Chromium: `bunx playwright-core install chromium-headless-shell` once, or point
-`PLAYWRIGHT_BROWSERS_PATH` at an existing install. The release preflight runs it and blocks on hard failures.
+dependency) and the Chromium installed above, or the one `PLAYWRIGHT_BROWSERS_PATH` points at. The release
+preflight runs it and blocks on hard failures.
 
 - One change per pull request, with a test for any logic it adds.
 - TypeScript strict: no `any`, no non-null `!`, no double casts.
 - Commit messages follow Conventional Commits: `feat(scope): …`, `fix(scope): …`.
 - Every dashboard label comes from the plain words (`packages/themes/src/words.ts`); worlds don't reword them.
+
+## The contributor licence agreement
+
+In short: you keep the copyright in what you write, and you let Craftly Oy ship it with Overhand under any of its
+licences. Overhand is fair source ([FSL-1.1-ALv2](LICENSE.md)) and also sold under a commercial licence, so a
+contribution has to be usable under both. `packages/contract` and `packages/themes` are Apache-2.0. The full text is
+short: [CLA.md](CLA.md). Opening a pull request means you agree to it; tick the box in the pull request template to
+say so. Nothing to sign. The docs, the agent skill and the llms files are [CC0 1.0](LICENSE-docs).
+
+## Where to help
+
+- Issues labelled [good first issue](https://github.com/craftly-io/overhand/labels/good%20first%20issue) and
+  [help wanted](https://github.com/craftly-io/overhand/labels/help%20wanted).
+- Docs (`site/pages/docs`): anything unclear, wrong or missing.
+- A new theme (see [Themes](#themes) below).
+- Running Overhand on Linux and telling us what broke.
+
+Found a bug or have an idea? Use "Send feedback" in the dashboard: it drafts a public issue with a diagnostics summary
+that you read before it goes. Or open an issue here with the bug report or feedback form.
+
+## Layout
+
+`packages/contract` is the typed API between daemon and dashboard, `packages/core` the daemon, `packages/themes` every
+theme's colours, type and words, `apps/web` the React dashboard, `site/` the public site and docs, and `release/` the
+packages and the installer.
 
 ## Done means everywhere
 

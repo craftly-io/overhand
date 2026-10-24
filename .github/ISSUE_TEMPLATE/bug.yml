@@ -1,0 +1,22 @@
+name: Something's wrong
+description: Overhand did something it shouldn't, or didn't do something it should.
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to see it again
+      placeholder: "1. …"
+  - type: input
+    attributes:
+      label: Overhand version and system
+      placeholder: "overhand --version, and macOS or Linux"
+  - type: textarea
+    attributes:
+      label: Anything else
+      description: Log lines or a screenshot. Check them for private names, keys and paths first.

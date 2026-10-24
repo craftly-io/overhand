@@ -1,0 +1,14 @@
+name: Idea or feedback
+description: Something you'd like Overhand to do, or to do differently.
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: Your idea
+      description: What you'd like, in a sentence or two.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Why it matters to you
+      description: What you were trying to do when you thought of it.
