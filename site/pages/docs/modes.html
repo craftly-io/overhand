@@ -34,7 +34,7 @@
         <li><b>Your click, one project</b> Never for a group of projects and never as a global switch. It works on GitHub only.</li>
         <li><b>A required check first</b> The base branch needs branch protection or a ruleset with at least one required status check; without one, the project keeps working as on {{modeAct}} and says why.</li>
         <li><b>Its defaults</b> Up to {{shipPerDay}} merges a day; changes to {{shipProtect}} wait for your merge. Both are per project.</li>
-        <li><b>Undo</b> Every {{modeShip}} merge shows up in the day's log and the morning brief, with an Undo that opens a revert pull request.</li>
+        <li><b>Undo</b> Every {{modeShip}} merge shows up in the day's log and the night report, with an Undo that opens a revert pull request.</li>
         <li><b>All of its rules</b> <a href="{{root}}under-the-hood.html#ship">Ship's safety rules</a>, under the hood.</li>
       </ul>
     </section>
@@ -47,7 +47,7 @@
         <li><b>Config</b> Protected paths are <code>ship.protect</code>; the daily cap is <code>ship.perDay</code>. A pull request held by either says so on the pull request.</li>
         <li><b>Turned off again</b> A request for changes, a push onto a protected path, or the project leaving {{modeShip}} turns auto-merge off.</li>
         <li><b>Leads too</b> A lead's pull requests take the same step: its run's checks go on the pull request as its proof. Auto-merge is on only while none of the project's leads is running.</li>
-        <li><b>Told everywhere</b> Each merge is in the day's log, the morning brief and a push notification.</li>
+        <li><b>Told everywhere</b> Each merge is in the day's log, the night report and a push notification.</li>
         <li><b>Undo, safely</b> The revert pull request comes from a new branch: never a push to the base, never forced.</li>
       </ul>
     </section>

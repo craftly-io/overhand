@@ -5,7 +5,7 @@ description: Install and work with Overhand, the program on a person's computer 
 
 # Overhand
 
-Overhand is a local daemon. It runs agent CLIs (Aider, Claude Code, Codex, Cursor Agent, Gemini CLI, OpenCode) headless on
+Overhand is a local daemon. It runs coding agents (Aider, Claude Code, Codex, Cursor Agent, Gemini CLI, OpenCode) headless on
 the person's projects and serves a dashboard at http://127.0.0.1:4317. State lives in `~/.overhand`.
 
 ## Ground rules

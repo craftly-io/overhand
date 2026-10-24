@@ -27,6 +27,7 @@ export type Command =
 
 const SIMPLE = {
   brief: "brief",
+  night: "brief",
   share: "share",
   alerts: "alerts",
   plan: "plan",
@@ -65,7 +66,7 @@ export function parseCommand(text: string): Command | null {
   return { name: "unknown", text: cmd };
 }
 
-/** What a spoken sentence asks for: "hand EW 123 to the agent", "brief me", "pause"… */
+/** What a spoken sentence asks for: "hand EW 123 to the agent", "night report", "pause"… */
 export function parseVoice(text: string): Command {
   const s = text.toLowerCase();
   const key = s.match(/\b([a-z]{2,5})[\s-]*(\d{1,5})\b/);
@@ -73,7 +74,7 @@ export function parseVoice(text: string): Command {
     const k = `${key[1]}-${key[2]}`.toUpperCase();
     return /hand|queue|give|agent|take/.test(s) ? { name: "queue", key: k } : { name: "open", key: k };
   }
-  if (/brief|status|what('?s| is) (up|going on)/.test(s)) return { name: "brief" };
+  if (/brief|night report|status|what('?s| is) (up|going on)/.test(s)) return { name: "brief" };
   if (/alert|urgent|need/.test(s)) return { name: "alerts" };
   if (/\b(resume|continue)\b/.test(s)) return { name: "resume" };
   if (/\b(pause|hold)\b/.test(s)) return { name: "pause" };

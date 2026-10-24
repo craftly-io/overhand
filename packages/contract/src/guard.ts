@@ -111,7 +111,7 @@ export const GUARD_REACH = join(
     ? `${listOf(NO_SHELL_CONFIRMED)} ${verb(NO_SHELL_CONFIRMED, "has", "have")} no pre-tool hook: ${verb(NO_SHELL_CONFIRMED, "it runs", "they run")} no shell commands (confirmed), and the OS sandbox, when on, holds its writes to the run's folder as it does every agent's.`
     : "",
   GUARD_UNCONFIRMED.length
-    ? `Set up to each CLI's documented pre-tool hook, not yet confirmed in a real run: ${listOf(GUARD_UNCONFIRMED)}.`
+    ? `Set up to each agent's documented pre-tool hook, not yet confirmed in a real run: ${listOf(GUARD_UNCONFIRMED)}.`
     : "",
 );
 

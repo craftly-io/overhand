@@ -12,17 +12,17 @@
     <section class="block hood" id="daemon" aria-labelledby="h-daemon">
       <h2 id="h-daemon">One program does the rounds.</h2>
       <ul class="facts">
-        <li><b>The daemon</b> It plans the day, runs each account's agent headless on tickets, supervises leads, reads CI, deploys and errors, and serves the dashboard.</li>
+        <li><b>The daemon</b> It plans the day, runs each account's agent headless on tickets, supervises leads, reads checks, deploys and errors, and serves the dashboard.</li>
         <li><b>One at a time per project</b> One ticket run per project at a time, in parallel across projects.</li>
         <li><b>Secrets</b> In the macOS Keychain or the Linux keyring, or the file you opted in to with <code>OVERHAND_SECRETS_FILE</code>.</li>
       </ul>
     </section>
 
     <section class="block hood" id="clis" aria-labelledby="h-clis">
-      <h2 id="h-clis">How each agent CLI is run.</h2>
+      <h2 id="h-clis">How each agent is run.</h2>
       <ul class="facts">
         <li><b>Verified</b> A real run went end to end through {{name}}'s own arguments, environment, output parser and schema check: a ticket answer validated against the ticket schema, and an edit (create <code>hello.txt</code>) found on disk afterwards.</li>
-        <li><b>Flags checked</b> Checked against the CLI's <code>--help</code> and docs only. Recorded output is in <a href="{{repo}}/tree/main/packages/core/test/fixtures/runtimes"><code>packages/core/test/fixtures/runtimes</code></a>.</li>
+        <li><b>Flags checked</b> Checked against the agent's own <code>--help</code> and docs only. Recorded output is in <a href="{{repo}}/tree/main/packages/core/test/fixtures/runtimes"><code>packages/core/test/fixtures/runtimes</code></a>.</li>
         <li><b>Claude Code</b> Verified; the default and the reference. <code>claude -p --output-format stream-json --json-schema … --permission-mode auto</code>. Model: the account's backend (see <a href="agents.html#backends">Agents and accounts</a>).</li>
         <li><b>Codex</b> Verified on 0.163.0 with Ollama <code>qwen3:1.7b</code>. <code>codex exec --json --sandbox workspace-write -c sandbox_workspace_write.network_access=true --output-schema &lt;file&gt;</code>. Model: <code>-m</code>; a gateway account adds <code>--oss --local-provider ollama</code>.</li>
         <li><b>Cursor Agent</b> Verified on 2026.01.23 with model <code>auto</code>. <code>cursor-agent -p … --output-format json -f</code>. Model: <code>--model</code>.</li>
@@ -35,13 +35,13 @@
     <section class="block hood" id="findings" aria-labelledby="h-findings">
       <h2 id="h-findings">What the real runs showed.</h2>
       <ul class="facts">
-        <li><b>Codex's sandbox</b> In <code>workspace-write</code> it blocks the network (a sandboxed <code>git push</code> fails with "Operation not permitted") and keeps <code>.git</code> read-only (a sandboxed <code>git commit</code> fails on <code>.git/index.lock</code>). {{name}} turns the network on and makes the repo's git folder writable; a Codex run then committed and pushed to a <code>git://127.0.0.1</code> remote.</li>
+        <li><b>Codex's sandbox</b> In <code>workspace-write</code> it blocks the network (a sandboxed <code>git push</code> fails with "Operation not permitted") and keeps <code>.git</code> read-only (a sandboxed <code>git commit</code> fails on <code>.git/index.lock</code>). {{name}} turns the network on and makes the project's git folder writable; a Codex run then committed and pushed to a <code>git://127.0.0.1</code> remote.</li>
         <li><b>Codex and the network</b> Per Codex's config reference, the setting allows outbound network in general, so GitHub is reachable too (not tried).</li>
         <li><b>Codex's schemas</b> They go to <code>--output-schema</code> in OpenAI's strict form: closed objects, every property required, optional ones nullable. The nulls are dropped before validation.</li>
         <li><b>Codex on a gateway</b> It runs <code>--oss</code> against the gateway's URL. There Ollama enforces <code>--output-schema</code> on every model call, so the model can't call tools and never edits (it answered "done" without creating the file). Local runs are asked for JSON in the prompt instead.</li>
         <li><b>Small local models are flaky</b> <code>qwen2.5-coder:7b</code> writes tool calls as text, so it can't edit through Codex or OpenCode. <code>qwen3:1.7b</code> can, but sometimes mistypes a long path or wraps its answer, which {{name}}'s one retry usually fixes. Use the biggest coding model your machine runs well.</li>
         <li><b>Aider</b> Its edits and the JSON answer come in one reply. An edit it couldn't apply ("did not conform to the edit format") fails the run, even though Aider exits 0.</li>
-        <li><b>Aider leaves no trace</b> No history files land in the repo, and <code>.aider*</code> goes to <code>.git/info/exclude</code> instead of the repo's <code>.gitignore</code>.</li>
+        <li><b>Aider leaves no trace</b> No history files land in the project, and <code>.aider*</code> goes to <code>.git/info/exclude</code> instead of the project's <code>.gitignore</code>.</li>
         <li><b>Cursor Agent</b> On a free plan it only runs model <code>auto</code> ("Named models unavailable" otherwise).</li>
         <li><b>Gemini CLI</b> Not run: its cached login had expired, and an expired login opens a browser prompt and waits until the task timeout instead of failing. In an untrusted folder it also drops <code>yolo</code> ("Approval mode overridden to default"), so {{name}} passes <code>--skip-trust</code>.</li>
       </ul>
@@ -51,17 +51,17 @@
       <h2 id="h-output">Answers and output.</h2>
       <ul class="facts">
         <li><b>Checked answers</b> Every answer is validated against its schema. A wrong one is retried once, with what was wrong.</li>
-        <li><b>Claude Code only</b> Only Claude Code reports usage windows and takes the Slack inbox's MCP flags; the inbox skips accounts on other agents.</li>
+        <li><b>Claude Code only</b> Only Claude Code reports usage windows and takes the Slack inbox's MCP flags (Model Context Protocol, how an agent reaches other tools); the inbox skips accounts on other agents.</li>
         <li><b>The live line</b> "What is it doing" and a lead's log read each agent's own output: Claude Code's transcripts, Codex's and OpenCode's JSON events (commands, edits, what it said), Aider's last lines.</li>
         <li><b>One object at the end</b> Cursor Agent and Gemini CLI print one JSON object when they finish, so their line shows only the result.</li>
-        <li><b>Installed?</b> <code>overhand doctor</code> checks each agent CLI in use is installed and shows its version.</li>
+        <li><b>Installed?</b> <code>overhand doctor</code> checks each agent's command-line app in use is installed and shows its version.</li>
       </ul>
     </section>
 
     <section class="block hood" id="told" aria-labelledby="h-told">
       <h2 id="h-told">What every run is told.</h2>
       <ul class="facts">
-        <li><b>{{name}}'s agent instructions</b> The ticket workflow, when to ask instead of guess, and the hard limits. They live in {{name}}'s own folder (<code>~/.overhand/agent-home/claude-code/CLAUDE.md</code>), never in your repo.</li>
+        <li><b>{{name}}'s agent instructions</b> The ticket workflow, when to ask instead of guess, and the hard limits. They live in {{name}}'s own folder (<code>~/.overhand/agent-home/claude-code/CLAUDE.md</code>), never in your project.</li>
         <li><b>How each agent gets them</b> Claude Code reads them from its config folder. Codex gets <code>-c developer_instructions=…</code>, OpenCode <code>instructions</code> in its inline config, and Aider <code>--read</code>. Cursor Agent and Gemini CLI read rules only from the project, so they get them at the head of the prompt.</li>
         <li><b>Your project's own instructions</b> Each project's row in Crew (or the command bar) shows its <code>CLAUDE.md</code>, <code>AGENTS.md</code>, <code>GEMINI.md</code> and rules files as written, which agents read each one, and any gaps and contradictions.</li>
         <li><b>A rule from review</b> When review asks for the same thing on two pull requests within 30 days, and no instruction file says it yet, Needs you offers it as a rule. <em>{{w.ruleAdd}}</em> opens a small draft pull request adding it to the file the project's agent reads.</li>

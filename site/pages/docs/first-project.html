@@ -13,7 +13,7 @@
       <h2 id="h-setup">Setup is one screen.</h2>
       <ul class="facts">
         <li><b>What it found</b> {{name}} looks at your computer first and shows, in order: GitHub (through <code>gh</code>), your projects, your agent, its model. Change any of it, then press Start {{name}}.</li>
-        <li><b>Projects</b> Pick repos from your GitHub and your organisations (searchable, grouped by owner), or paste a URL. Untick any you don't want. <em>{{w.setupPickLocal}}</em> scans one folder you choose instead.</li>
+        <li><b>Projects</b> Pick projects from your GitHub and your organisations (searchable, grouped by owner), or paste a URL. Untick any you don't want. <em>{{w.setupPickLocal}}</em> scans one folder you choose instead.</li>
         <li><b>Your agent</b> Setup asks which AI you already pay for and picks the agent that comes with it.</li>
         <li><b>Which one</b> Claude Pro or Max: Claude Code. ChatGPT Plus or Pro: Codex. Gemini: Gemini CLI on a Gemini API key (free from <a href="https://aistudio.google.com/app/apikey">Google AI Studio</a>, kept in your keychain, passed as <code>GEMINI_API_KEY</code>). None of these: Claude Code on an Anthropic API key.</li>
         <li><b>Missing one?</b> <em>{{w.setupAgentConnect}}</em> shows the vendor's own install command and runs it in a terminal you can watch. Then it opens that agent's own sign-in.</li>
@@ -25,7 +25,7 @@
     <section class="block hood" id="checkout" aria-labelledby="h-checkout">
       <h2 id="h-checkout">Your checkout stays yours.</h2>
       <ul class="facts">
-        <li><b>A copy you already have</b> For each project, {{name}} looks for your own clone in <code>~/Code</code>, <code>~/Projects</code>, <code>~/Developer</code>, <code>~/src</code>, <code>~/GitHub</code> and similar folders. It looks only for those repos and reads nothing but their git remotes.</li>
+        <li><b>A copy you already have</b> For each project, {{name}} looks for your own clone in <code>~/Code</code>, <code>~/Projects</code>, <code>~/Developer</code>, <code>~/src</code>, <code>~/GitHub</code> and similar folders. It looks only for those projects and reads nothing but their git remotes.</li>
         <li><b>Otherwise its own clone</b> In <code>~/Overhand/projects/&lt;owner&gt;</code> (<code>projectsDir</code> in the config). A checkout of yours uses its own code root.</li>
         <li><b>Agents work beside it</b> Each piece of work gets its own git worktree and branch, in the checkout's <code>.claude/worktrees</code>. <code>.git/info/exclude</code> keeps them out of <code>git status</code>. Your branch and uncommitted changes are left as they are.</li>
       </ul>
@@ -34,7 +34,7 @@
     <section class="block hood" id="win" aria-labelledby="h-win">
       <h2 id="h-win">Your first win, right away.</h2>
       <ul class="facts">
-        <li><b>One small, safe task</b> Straight after setup, {{name}} searches your repos on your computer, read-only and in under 30 seconds, for a check your own scripts report failing, a patch-level dependency upgrade, a README with no way to run the project, or a test for an untested pure function.</li>
+        <li><b>One small, safe task</b> Straight after setup, {{name}} searches your projects on your computer, read-only and in under 30 seconds, for a check your own scripts report failing, a patch-level dependency upgrade, a README with no way to run the project, or a test for an untested pure function.</li>
         <li><b>An agent starts on it</b> Now shows Your first win until its draft pull request is ready for you.</li>
         <li><b>Nothing in your tracker</b> The first win never adds a ticket anywhere.</li>
       </ul>
@@ -48,7 +48,7 @@
         <li><b>Plan the day</b> {{name}} gathers what's on your plate and proposes work; you arm what should start.</li>
         <li><b>Standing work</b> A project's view in Crew suggests <a href="leads.html">leads</a> from its own work, each previewed before it starts.</li>
         <li><b>Come back to pull requests</b> They wait under Needs you, with any question an agent couldn't answer alone. Review opens the diff: mark it ready, ask for changes (the agent's next round) or close it.</li>
-        <li><b>A careful start</b> New projects start on {{modePropose}}: draft pull requests only. See <a href="modes.html">Modes</a>.</li>
+        <li><b>A careful start</b> New projects start on {{modePropose}}. See <a href="modes.html">Modes</a>.</li>
         <li><b>Only what you label</b> On a new install, agents take only the issues you label, under a {{firstDayCap}} <a href="agents.html#cap">daily cap</a>.</li>
       </ul>
     </section>
@@ -56,8 +56,8 @@
     <section class="block hood" id="connect" aria-labelledby="h-connect">
       <h2 id="h-connect">Connect your tools.</h2>
       <ul class="facts">
-        <li><b>What already reaches them</b> Setup and Settings → Integrations show what reaches GitHub, Linear, Jira, Slack, Sentry and Vercel: the <code>gh</code> and <code>vercel</code> logins, stored tokens, and the MCP servers your agents are set up with.</li>
-        <li><b>Linear, Jira and Sentry</b> <em>{{w.connectButton}}</em> signs {{name}} in to the service's official MCP server in your browser (OAuth, no app to create). {{name}} then reads tickets and errors through it, with no model in between. A stored API token still works.</li>
+        <li><b>What already reaches them</b> Setup and Settings → Integrations show what reaches GitHub, Linear, Jira, Slack, Sentry and Vercel: the <code>gh</code> and <code>vercel</code> logins, stored tokens, and the MCP servers your agents are set up with (MCP, the Model Context Protocol, is how an agent reaches other tools).</li>
+        <li><b>Linear, Jira and Sentry</b> <em>{{w.connectButton}}</em> signs {{name}} in to the service's official MCP server in your browser (a standard OAuth sign-in, no app to create). {{name}} then reads tickets and errors through it, with no model in between. A stored API token still works.</li>
         <li><b>Slack</b> Its MCP server doesn't allow that sign-in. The Slack inbox reads through the servers listed in <code>slack-mcp.json</code> (Claude Code's <code>--mcp-config</code> format) in the config folder: <code>~/.overhand/slack-mcp.json</code>, or the checkout's root when you run from source. It reads Slack on its schedule, and again when you come back to Overhand after {{freshMin}} minutes away; Needs you says when it last read. There is nothing to press.</li>
         <li><b>Its path</b> A <code>slack-mcp.json</code> left beside an installed binary moves to the config folder on the next start. Settings → Integrations shows the full path.</li>
         <li><b>Your own MCP servers</b> Claude Code runs also get the ones in your <code>~/.claude.json</code>.</li>

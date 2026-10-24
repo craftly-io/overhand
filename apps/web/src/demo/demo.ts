@@ -343,7 +343,7 @@ export const PIECE_PLAYS: Record<string, Play> = {
   ),
   cast: still(MOMENTS.started, "SHOP-142"),
   firstwin: still(MOMENTS.morning),
-  // the brief's numbers count up again when it plays
+  // the night report's numbers count up again when it plays
   morning: still(MOMENTS.morning, "brief"),
   review: still(MOMENTS.review),
 };

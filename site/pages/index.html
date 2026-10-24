@@ -3,13 +3,13 @@
 <head>
 {{> head}}
 <title>{{name}}: stop babysitting your coding agents</title>
-<meta name="description" content="Stop babysitting your coding agents. Get your day back: they keep working, and only call you when it matters. Works with {{agents}}.">
+<meta name="description" content="{{tagline}} {{lede}} Works with {{agents}}.">
 <link rel="canonical" href="{{url}}/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="{{name}}">
 <meta property="og:url" content="{{url}}/">
 <meta property="og:title" content="{{name}}: stop babysitting your coding agents">
-<meta property="og:description" content="Runs the agents you already use, across every project, by your rules. Only interrupts you when a decision is yours.">
+<meta property="og:description" content="{{lede}}">
 <meta property="og:image" content="{{url}}/og.png?v=2026-10-22c">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -25,7 +25,13 @@
   /* the home hero sits centred in one column, words and the one prompt, so no half of the screen stands empty */
   .hero { justify-items: center; text-align: center; padding-block: clamp(72px, 12vw, 160px) clamp(48px, 8vw, 96px); }
   .hero h1, .hero .lede { margin-inline: auto; }
+  .hero .lede { max-width: 38em; }
   .hero .acts { justify-content: center; }
+  /* the three differentiators: a quiet row under the prompt, the facts' hairline and label, smaller; one column on a phone */
+  .hero .edge { grid-template-columns: repeat(3, minmax(0, 1fr)); width: min(100%, 60em); margin-top: clamp(16px, 3vw, 32px); text-align: start; }
+  .hero .edge li { padding: 14px 0; font-size: var(--t-small-size); }
+  .hero .edge a { color: inherit; text-underline-offset: .2em; }
+  @media (max-width: 760px) { .hero .edge { grid-template-columns: minmax(0, 1fr); margin-top: 16px; } .hero .edge li { padding: 10px 0; } }
   .hero .ask { margin-inline: auto; text-align: start; }
   /* the prompt you hand your agent, in full: read what you copy, and its steps one click away */
   .ask { display: flex; align-items: center; gap: 16px; max-width: 46em; padding: 12px 8px 12px 20px; border-radius: var(--radius-inset);
@@ -102,13 +108,19 @@
 <main id="main">
   <section class="wrap hero" aria-labelledby="hook">
     <h1 id="hook">Stop babysitting your coding agents.</h1>
-    <p class="lede">Get your day back. They keep working, and only call you when it matters.</p>
+    <p class="lede">{{lede}}</p>
     <!-- the prompt in full, so people see what they paste into their agent (and can read the steps it follows); the
          command line is in #install, the header's Install -->
     <div class="acts">
       <div class="ask"><p class="prompt" id="prompt">Set up {{name}} from <a href="{{root}}setup.md">{{host}}/setup.md</a>. Ask me before each step.</p><button type="button" class="pill dark" data-copy="prompt">Copy for your agent</button></div>
     </div>
-    <p class="works">{{agents}}. <a href="{{root}}docs/agents.html#accounts">Any model</a>, even local.</p>
+    <p class="works">Works with {{agents}}.</p>
+    <!-- what sets it apart, in one quiet row: each says more further down the page -->
+    <ul class="facts edge" aria-label="What sets {{name}} apart">
+      <li><b>Your agents, any model</b> <a href="{{root}}docs/agents.html#accounts">Local models too.</a></li>
+      <li><b>On your machine</b> Your code stays with you.</li>
+      <li><b>A pull request with proof</b> With the checks it ran and screenshots.</li>
+    </ul>
   </section>
 
   <section class="live" id="try" aria-label="Try it live">
@@ -164,7 +176,7 @@
         <h2 id="p5">I can't explain what happened.</h2>
         <p>Updates anyone on the team can read, and a report for a client or a manager.</p>
       </div>
-      <div class="piece" data-piece="morning" data-title="The morning update, live on sample data: what happened, in plain words"></div>
+      <div class="piece" data-piece="morning" data-title="The night report, live on sample data: what happened, in plain words"></div>
     </article>
   </div>
 

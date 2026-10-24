@@ -169,7 +169,7 @@ test("the gate: a required status check on the base, from branch protection or a
     ["repos/o/r ", { out: JSON.stringify({ private: true, allow_auto_merge: false }) }],
   ]);
   expect(await repoGate("o/r", "main", free.run)).toBe(
-    "GitHub only enforces required checks on private repos with a paid plan; this repo stays on Build and open PRs.",
+    "GitHub only enforces required checks on private repositories with a paid plan; this one stays on Open pull requests.",
   );
   const pub = fake([
     ["/rules/", { out: "[]" }],

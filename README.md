@@ -2,9 +2,10 @@
 
 **Stop babysitting your coding agents.**
 
-Overhand is a program on your computer. It keeps the coding agents you already use busy on all your projects, day
-and night, and calls you only when a person is needed. It runs Aider, Claude Code, Codex, Cursor Agent, Gemini CLI and
-OpenCode, on Claude, your own cloud, a gateway or a local model.
+Overhand is a program on your computer that runs the coding agents you already use across all your projects. They
+work through tickets, red builds, review comments and upkeep, and every change comes back as a pull request with the
+checks it ran and, for screen changes, screenshots. You only see the decisions. It runs Aider, Claude Code, Codex,
+Cursor Agent, Gemini CLI and OpenCode, on Claude, your own cloud, a gateway or a local model.
 
 ## Why
 
@@ -16,7 +17,7 @@ OpenCode, on Claude, your own cloud, a gateway or a local model.
 - **A guard checks every step first.** It stops merges, force pushes, deploys and secret files before they run.
   Confirmed blocking in a real run: Claude Code, Codex and OpenCode. Aider has no pre-tool hook: it runs no shell
   commands (confirmed), and the OS sandbox, when on, holds its writes to the run's folder as it does every agent's. Set
-  up to each CLI's documented pre-tool hook, not yet confirmed in a real run: Cursor Agent and Gemini CLI.
+  up to each agent's documented pre-tool hook, not yet confirmed in a real run: Cursor Agent and Gemini CLI.
 
 See a sample night: <https://overhand.dev>
 
@@ -40,9 +41,10 @@ You also need `git`, the GitHub CLI and one signed-in agent. `overhand doctor` s
 
 - **Setup is one screen.** Pick projects, an agent and its model. Every sign-in is your click.
 - **A first win.** An agent takes one small, safe task and opens a draft pull request.
-- **Give it work.** Label a GitHub issue `agent`, or press *Plan the day*. Projects start on Draft PRs only,
+- **Give it work.** Label a GitHub issue `agent`, or press *Plan the day*. Projects start on Draft pull requests,
   under a $10 daily cap.
-- **Morning.** Needs you holds the pull requests to review and the questions agents asked.
+- **The night report.** Each morning: what merged and opened overnight, and what waits on you. Needs you holds the
+  pull requests to review and the questions agents asked.
 
 ## Learn more
 
@@ -61,7 +63,7 @@ You also need `git`, the GitHub CLI and one signed-in agent. `overhand doctor` s
 [Day to day](https://overhand.dev/docs/everyday.html),
 [Privacy](https://overhand.dev/docs/privacy.html),
 [Troubleshooting](https://overhand.dev/docs/troubleshooting.html),
-[CLI](https://overhand.dev/docs/cli.html),
+[Commands](https://overhand.dev/docs/cli.html),
 [What's next](https://overhand.dev/docs/next.html).
 
 **For agents:** [llms.txt](https://overhand.dev/llms.txt), [llms-full.txt](https://overhand.dev/llms-full.txt), any

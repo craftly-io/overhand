@@ -83,7 +83,7 @@ const SAMPLE_CONFIG = {
   godmode: [
     {
       key: "shop",
-      name: "Keep CI green · Online shop",
+      name: "Keep checks green · Online shop",
       watch: ["ci"],
       label: "Online shop lead",
       dir: "shop",

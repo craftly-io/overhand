@@ -18,6 +18,8 @@ import { APP, COMPANY, EMAIL, INSTALLER, REPO_URL, SITE as SITE_URL } from "@ove
 export const SITE = {
   name: "Overhand",
   tagline: "Stop babysitting your coding agents.",
+  // what it does, in two short sentences: the home hero, the meta descriptions and every llms file open with it
+  lede: "Your agents work through tickets, failed checks and review comments in every project. Each change arrives as a pull request with proof; you make the calls.",
   url: SITE_URL,
   get: INSTALLER,
   repo: REPO_URL,
@@ -69,7 +71,7 @@ export const DOCS = [
   { slug: "modes", title: "Modes", line: "How far agents may go on each project, from watching to shipping." },
   { slug: "leads", title: "Leads", line: "Long-running agents that look after a whole project." },
   { slug: "guard", title: "The guard", line: "What it stops before it runs, and how it reaches each agent." },
-  { slug: "runs", title: "How agents run", line: "Each agent CLI's flags, what every run is told, and the scorecard." },
+  { slug: "runs", title: "How agents run", line: "Each agent's flags, what every run is told, and the scorecard." },
   {
     slug: "anywhere",
     title: "Phone and Access from anywhere",
@@ -77,9 +79,9 @@ export const DOCS = [
   },
   { slug: "teams", title: "Teams", line: "Each person's agents side by side, and questions that find the right person." },
   { slug: "cleanup", title: "Cleanup and quiet mode", line: "Disk space back, and your laptop back when you need it." },
-  { slug: "everyday", title: "Day to day", line: "Focus, the brief, share cards, updates, feedback and what's new." },
+  { slug: "everyday", title: "Day to day", line: "Focus, the night report, share cards, updates, feedback and what's new." },
   { slug: "privacy", title: "Privacy and what leaves your machine", line: "What stays on your computer, and the little that doesn't." },
   { slug: "troubleshooting", title: "Troubleshooting", line: "What to run, and what the messages mean." },
-  { slug: "cli", title: "CLI reference", line: "Every command, from the CLI's own help." },
+  { slug: "cli", title: "Command reference", line: "Every overhand command, from its own help." },
   { slug: "next", title: "What's next", line: "What isn't built yet." },
 ] as const;

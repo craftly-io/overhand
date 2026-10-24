@@ -30,14 +30,14 @@ are public.
   then carries a random session cookie (HttpOnly, SameSite=Strict, Secure over https); only its hash is stored, and Settings lists and removes devices. Without one, every page and API answers
   401. Answer buttons in a phone notification carry their own token, which allows only the replies it offered, once,
   within 24 hours.
-- New installs start every project on Draft PRs only, with a $10 daily budget cap on billed spend
+- New installs start every project on Draft pull requests, with a $10 daily budget cap on billed spend
   (and on accounts whose billing isn't known yet) unless the first account is a local model.
 - Agents work on branches and open pull requests, and are told never to merge, force-push, deploy or touch production
   data. A guard hook (`overhand guard`) is set up to enforce this on every tool call in every agent CLI that has hooks (Claude
   Code, Codex, Gemini CLI, Cursor Agent, OpenCode), and also blocks reading secrets and credential files and changing
   Overhand itself; Aider has no hooks, so it runs with no shell commands and the secret files ignored. The guard fails
   closed when it can't start. Its limit: it judges the command an agent asks for, not what a script that command runs
-  does next, so give agent accounts credentials without admin or deploy rights all the same. Confirmed blocking in a real run: Claude Code, Codex and OpenCode. Aider has no pre-tool hook: it runs no shell commands (confirmed), and the OS sandbox, when on, holds its writes to the run's folder as it does every agent's. Set up to each CLI's documented pre-tool hook, not yet confirmed in a real run: Cursor Agent and Gemini CLI. See the
+  does next, so give agent accounts credentials without admin or deploy rights all the same. Confirmed blocking in a real run: Claude Code, Codex and OpenCode. Aider has no pre-tool hook: it runs no shell commands (confirmed), and the OS sandbox, when on, holds its writes to the run's folder as it does every agent's. Set up to each agent's documented pre-tool hook, not yet confirmed in a real run: Cursor Agent and Gemini CLI. See the
   guard page in the docs (overhand.dev/docs/guard.html).
 - The OS sandbox (Settings, Agent accounts; off by default, or log only first): With the OS sandbox on, each agent run
   Overhand starts, and each check Overhand itself runs in a project's own files (its package manager, lint script or

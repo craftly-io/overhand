@@ -21,7 +21,7 @@
       <h2 id="h-machine">Your computer does the work.</h2>
       <ul class="facts">
         <li><b>A program on your computer</b> {{name}} starts your agents there, and your computer serves {{name}} to your browser.</li>
-        <li><b>Your repos, its own branch</b> Agents work in your own repos, each ticket in its own worktree on its own branch.</li>
+        <li><b>Your projects, their own branches</b> Agents work in your own projects, each ticket in its own worktree on its own branch.</li>
         <li><b>Secrets in your keychain</b> Secrets you give {{name}} go in your keychain (Keychain on macOS, the keyring on Linux), or a private file if you set one.</li>
         <li><b>Nobody in between</b> Your agents talk to their model providers the way they do without {{name}}.</li>
       </ul>
@@ -31,7 +31,7 @@
       <h2 id="h-anywhere">Pro and Team: your computer, from anywhere. Not a cloud.</h2>
       <ul class="facts">
         <li><b>Any device, no network setup</b> Pro and Team open {{name}} on any device. Your agents still run on your computer, and when it's off, they stop.</li>
-        <li><b>Peer to peer, encrypted</b> Your browser and your computer connect peer to peer over WebRTC, which encrypts the connection. When a network blocks a direct path, Cloudflare's TURN servers pass the encrypted traffic along without being able to read it.</li>
+        <li><b>Peer to peer, encrypted</b> Your browser and your computer connect peer to peer over WebRTC, which encrypts the connection. When a network blocks a direct path, Cloudflare's relay servers (TURN) pass the encrypted traffic along without being able to read it.</li>
         <li><b>Pinned to your computer</b> Your computer signs its side of each connection, and your browser checks that signature against the key it pinned on its first connection, or from a pairing link, so the relay can't pose as your computer.</li>
         <li><b>Encrypted push</b> Push notifications are encrypted by your computer and sent through your browser's own push service.</li>
       </ul>
@@ -42,7 +42,7 @@
       <ul class="facts">
         <li><b>What it does</b> It signs you in (WorkOS handles the sign-in), links your computer to your account, introduces your browser to your computer, and checks your plan.</li>
         <li><b>What it never sees</b> It never carries {{name}}'s own traffic, so it never sees your code, diffs, keys, tokens or agent transcripts.</li>
-        <li><b>What it keeps</b> Your account id, your plan and its Paddle ids, the keys of computers you've unlinked, and a monthly count of TURN credential grants. WorkOS keeps your email for sign-in.</li>
+        <li><b>What it keeps</b> Your account id, your plan and its Paddle ids, the keys of computers you've unlinked, and a monthly count of relay credentials granted. WorkOS keeps your email for sign-in.</li>
         <li><b>On Team</b> It also keeps members' emails and roles, project owners and backups, and a short log of recent questions, answers, results, hand-offs and comments. Every message is checked against a fixed list of fields first, and text that looks like code or a secret is refused.</li>
       </ul>
       <p class="fine">What the relay stores is listed in the <a href="{{root}}privacy.html">privacy policy</a>.</p>
@@ -67,7 +67,7 @@
     <section class="block hood enter" id="guard" aria-labelledby="h-guard">
       <h2 id="h-guard">The guard.</h2>
       <ul class="facts">
-        <li><b>A hook in each agent CLI</b> {{name}}'s guard is a hook in the agent's own CLI: it checks each command, file read, edit and file search before it runs, and logs each one it blocks. {{guardReach}}</li>
+        <li><b>A hook in each agent</b> {{name}}'s guard is a hook in the agent's own command-line app: it checks each command, file read, edit and file search before it runs, and logs each one it blocks. {{guardReach}}</li>
         <li><b>Pushes, merges and deploys</b> It blocks force pushes and pushes to shared branches like main; merging, closing or approving pull requests; deploys, infrastructure changes and publishing packages.</li>
         <li><b>Secrets and production</b> It blocks production env files, production databases and destructive SQL, and your keychain, SSH keys and AWS, Google Cloud and Azure credentials.</li>
         <li><b>On {{modeWatch}}</b> It also blocks edits, commits and pull requests.</li>

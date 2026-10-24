@@ -1,5 +1,5 @@
 /**
- * The morning brief: once a day, from schedule.briefAtHour, one notification (on the Mac and, with ntfy, the phone) that
+ * The night report: once a day, from schedule.briefAtHour, one notification (on the Mac and, with ntfy, the phone) that
  * tells the night in a sentence: what merged and opened, what waits on you, what yesterday was billed.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";

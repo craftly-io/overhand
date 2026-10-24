@@ -126,7 +126,7 @@ function mergedRun(project: string, key: string, at: number, fixes: number): His
   };
 }
 
-/** When Online shop's 100th merge landed: yesterday evening, so the morning brief names it. */
+/** When Online shop's 100th merge landed: yesterday evening, so the night report names it. */
 const HUNDREDTH = new Date(2026, 9, 19, 18, 40).getTime();
 
 /**

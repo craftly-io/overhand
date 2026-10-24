@@ -118,7 +118,7 @@ export function saying(lastAction: string): string {
 
 /**
  * A lead's name: yours from the dashboard (one click, kept for good), else the one in its config, else its label, which
- * a ready-made lead gets as its job and place ("Keep CI green · Online shop"). No invented character names.
+ * a ready-made lead gets as its job and place ("Keep checks green · Online shop"). No invented character names.
  */
 export function leadName(g: Pick<Lead, "key" | "name" | "label">, names: Readonly<Record<string, string>>): string {
   return names[leadId(g.key)] || g.name || g.label;

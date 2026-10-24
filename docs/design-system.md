@@ -181,7 +181,7 @@ them.
 | lead | A standing agent that owns one job on a project (errors, upgrades) and keeps watching | "godmode", "daemon" |
 | plan | Today's plan: what the planner proposes and you arm (Plan the day) | a billing tier ("Pro", "Team") or an AI subscription ("subscription") |
 | needs you | Anything waiting on a person: a question, a review, a broken thing | "alerts", "inbox" |
-| autonomy | How far a project's agents may go: Plan and warn only, Draft PRs only, Build and open PRs | "mode" |
+| autonomy | How far a project's agents may go: Plan and warn only, Draft pull requests, Open pull requests | "mode" |
 | Overhand | The app on your machine, including its background service, and the window you open ("Open Overhand", "Answer in Overhand", "Overhand › Now"). The site may describe it as "the control room for your coding agents"; docs may say "dashboard" once, as a search word | "orchestrator", "daemon", "ops"; in the interface, "dashboard", "console", "command center" |
 | deploy | A production deploy, only | starting agents ("launch", "start") |
 

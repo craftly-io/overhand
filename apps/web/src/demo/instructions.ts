@@ -98,7 +98,7 @@ A travel company's website: trips, bookings and the staff area. React 19, Vite, 
 
 - Use pnpm; the lockfile is \`pnpm-lock.yaml\`.
 - Run \`pnpm test\` and \`pnpm typecheck\` before opening a PR.
-- Draft PRs only: a person marks them ready.
+- Draft pull requests: a person marks them ready.
 
 ## UI
 

@@ -129,7 +129,7 @@ const BUDGET_USD = 25;
 const LEADS: Character[] = [
   {
     key: "shop",
-    name: "Keep CI green · Online shop",
+    name: "Keep checks green · Online shop",
     label: "Online shop lead",
     project: "Online shop",
     watch: "ci",

@@ -33,7 +33,7 @@ export const plainWords = {
   meetingIn: "In {n} min",
 
   // header buttons
-  briefMe: "Brief me",
+  briefMe: "Night report",
   briefStop: "Stop",
   briefStopHint: "Stop reading aloud (Esc)",
   planDay: "Plan the day",
@@ -197,14 +197,14 @@ export const plainWords = {
   winWaiting: "Found one. It starts when work resumes.",
   winRunning: "An agent is on it.",
   winRunningFor: "An agent is on it: {n} min so far.",
-  winPr: "Done. The PR is ready for your review.",
+  winPr: "Done. The pull request is ready for your review.",
   winReport: "This project is on Plan and warn only, so the agent reported instead of changing code:",
   winFailed: "That one didn't work out:",
   winNone: "Nothing small and safe turned up in your repos. Arm a real ticket instead: label an issue {label}, or plan the day.",
   winWhere: "{project} · {repo}",
   /** The project check-up: read-only findings about a repo, each one an agent can fix handed over in one click. */
   paneCheckup: "Check-up",
-  checkupLooking: "Reading {repo}: its checks, CI, open work and docs. Nothing changes.",
+  checkupLooking: "Reading {repo}: its checks, builds, open work and docs. Nothing changes.",
   checkupClean: "{repo} is in good shape: nothing an agent needs to fix.",
   checkupPicked: "Picked. An agent starts on it once setup is done.",
   checkupQueued: "Queued. An agent starts on it in a moment.",
@@ -254,7 +254,7 @@ export const plainWords = {
   setupAgentReady: "{tool} is signed in.",
   addAccountTitle: "Add an agent account",
   addAccountHint: "Pick the agent, then sign in. Overhand makes a quick test call.",
-  addAccountLooking: "Looking for agent CLIs on this computer…",
+  addAccountLooking: "Looking for agent apps on this computer…",
   addAccountLabel: "Label",
   addAccountSignIn: "Sign in with {tool}",
   // Settings › each account: how it's paid for, asked once where its sign-in can't tell
@@ -335,7 +335,7 @@ export const plainWords = {
   connectTitle: "Services",
   connectHint: "What Overhand and your agents already reach. None of it is needed to start.",
   connectConnected: "Connected",
-  connectViaAgent: "Connected (via your agent's MCP)",
+  connectViaAgent: "Connected through your agent",
   connectNone: "Not connected",
   connectButton: "Connect",
   connectAlso: "Connect Overhand too",
@@ -345,8 +345,8 @@ export const plainWords = {
   connectDone: "{service} is connected",
   connectGone: "{service} is disconnected",
   connectGh: "gh, as {detail}",
-  connectCli: "its CLI's login",
-  connectMcp: "signed in over MCP",
+  connectCli: "its own app's login",
+  connectMcp: "signed in from Overhand",
   connectStored: "an API token",
   connectInbox: "the servers in {detail}",
   connectVercelHint: "Run vercel login in a terminal, or store a token in Settings → Integrations.",
@@ -544,13 +544,13 @@ export const plainWords = {
   /** Used by the theme-art prototype (apps/web/src/prototype). */
   emptyInbox: "Nobody is waiting on you. Slack is checked every 30 minutes.",
   emptyActivity: "Quiet so far today.",
-  emptyAgentPrs: "No agent PRs open.",
-  emptyInFlight: "No agent PRs open and nothing armed.",
+  emptyAgentPrs: "No agent pull requests open.",
+  emptyInFlight: "No agent pull requests open and nothing armed.",
   emptyLeads: "No leads are on.",
   // ready-made leads: suggested from the project's own work, previewed, then started (contract LEAD_TEMPLATES)
   leadSuggested: "Worth a lead",
   leadNameReviews: "Answer review comments",
-  leadNameCi: "Keep CI green",
+  leadNameCi: "Keep checks green",
   leadNameErrors: "Fix new errors",
   leadNameDeps: "Keep dependencies safe",
   leadNameCurrent: "Keep dependencies current",
@@ -789,12 +789,12 @@ export const plainWords = {
   suggested: "Suggested reply",
 
   // health, week, accounts, activity
-  noCiRuns: "no CI runs",
+  noCiRuns: "no check runs",
   noRepos: "no repos found",
   greenCount: "{n} green",
   errorsToday: "Errors today: {n}",
   checkedAgo: "Checked {ago}",
-  checking: "Checking CI, deploys and errors…",
+  checking: "Checking builds, deploys and errors…",
   weekPrs: "agent PRs",
   weekSuccess: "first-try success",
   weekBilled: "Billed this week",
@@ -853,8 +853,8 @@ export const plainWords = {
   alDeployFailedSay: "{client} has a failed production deploy",
   alBuildsRed: "{n} {client} builds are red",
   alBuildsRedSay: "{client} has {n} red builds",
-  alBuildRed: "{repo} CI is red",
-  alBuildRedOn: "{repo} CI is red on {branch}",
+  alBuildRed: "{repo} build is red",
+  alBuildRedOn: "{repo} build is red on {branch}",
   alBuildRedSay: "{client}'s {repo} build is red",
   alNewError: "New error in {client}",
   alNewErrorSay: "{client} has a fresh production error",
@@ -873,7 +873,7 @@ export const plainWords = {
   alOpsUpdateSay: "an update for Overhand is ready",
   alRelease: "Overhand {version} is out",
   alReleaseSub: "Run {command} in a terminal. You have {current}.",
-  /** A lead's question, as Needs you and the phone title it: the lead's name reads as a name ("Question from Keep CI green · Online shop"). */
+  /** A lead's question, as Needs you and the phone title it: the lead's name reads as a name ("Question from Keep checks green · Online shop"). */
   alLeadNeeds: "Question from {lead}",
   alLeadNeedsSay: "{lead} has a question for you",
   alLeadCrashed: "{lead} stopped",
@@ -944,7 +944,7 @@ export const plainWords = {
   alOffline: "Overhand is offline",
   alOfflineSay: "Overhand is offline",
 
-  // spoken briefing
+  // the night report, read aloud
   brHelloNight: "Still up, {name}? Bold.",
   brHelloMorning: "Morning, {name}.",
   brHelloAfternoon: "Afternoon, {name}.",
@@ -960,7 +960,7 @@ export const plainWords = {
   brReviews: "Pull requests that want your eyes: {n}.",
   brMeeting: "{title} at {at}.",
   brFirst: "First up: {task}.",
-  // a milestone a project reached since the last brief, and the one detail it left at the project's place
+  // a milestone a project reached since the last night report, and the one detail it left at the project's place
   brMsMerge1: "{project} merged its first PR: a lamp is lit on its quay.",
   brMsMerge10: "{project} reached its 10th merge: a weathervane now stands over its quarter.",
   brMsMerge50: "{project} reached its 50th merge: a spire rises over its quarter.",
@@ -969,7 +969,7 @@ export const plainWords = {
   brMsFirstTry: "{project} merged a PR on the first try for the first time: a gold window is lit in its quarter.",
   brBye: "That's the lot. | That's the lot. Coffee is optional. | Shall we?",
   brNoCommand: "I didn't catch a command.",
-  briefKicker: "Briefing",
+  briefKicker: "Night report",
   briefTitle: "Where things stand",
   briefSomeTicket: "a ticket",
 
@@ -1115,8 +1115,8 @@ export const plainWords = {
   proofChecks: "Checks the agent ran",
   proofNoChecks: "None",
   proofNoLog: "No readable run log: which checks ran is unknown",
-  proofCi: "CI",
-  proofCiNone: "No CI checks yet",
+  proofCi: "Checks",
+  proofCiNone: "No checks yet",
   proofCiSummary: "{ok} passing, {bad} failing, {wait} running",
   proofChanged: "Changed",
   proofChangedText: "{n} files, +{add} −{del}",
@@ -1137,7 +1137,7 @@ export const plainWords = {
   cornerTestFocused: "Test focused, so the others stop running",
   cornerCheckLoosened: "Check switched off",
   cornerThresholdLowered: "Threshold lowered",
-  cornerCiWeakened: "CI weakened",
+  cornerCiWeakened: "Checks weakened",
   cornerSnapshotsRewritten: "Snapshots rewritten",
   cornerSecret: "Possible secret",
   alCorners: "Check before merging: {key}",
@@ -1145,18 +1145,18 @@ export const plainWords = {
   cmdReview: "Review the PR for {key}",
 
   // autonomy per project (Settings; plain in every theme)
-  autonomyWatch: "Agents investigate and report. They never change code or open PRs.",
-  autonomyPropose: "Agents open draft PRs and stop. You review and mark them ready.",
-  autonomyAct: "Agents open PRs ready for review. You still merge.",
-  autonomyShip: "GitHub merges agents' PRs on its own once every required check passes. Protected files still wait for you.",
+  autonomyWatch: "Agents investigate and report. They never change code or open pull requests.",
+  autonomyPropose: "Agents open draft pull requests and stop. You review and mark them ready.",
+  autonomyAct: "Agents open pull requests ready for review. You still merge.",
+  autonomyShip: "GitHub merges agents' pull requests on its own once every required check passes. Protected files still wait for you.",
   autonomyLabel: "What agents do here",
   autonomyWatchName: "Plan and warn only",
-  autonomyProposeName: "Draft PRs only",
-  autonomyActName: "Build and open PRs",
+  autonomyProposeName: "Draft pull requests",
+  autonomyActName: "Open pull requests",
   autonomyShipName: "Ship",
   // why a Ship project's PR waits for you after all (the daemon says the same, from these words)
   shipNoGate: "Green means nothing here yet: no required checks on {branch}.",
-  shipPrivatePlan: "GitHub only enforces required checks on private repos with a paid plan; this repo stays on {level}.",
+  shipPrivatePlan: "GitHub only enforces required checks on private repositories with a paid plan; this one stays on {level}.",
   shipNotGithub: "Ship needs GitHub's auto-merge, and this project isn't on GitHub.",
   shipUnread: "Couldn't read the branch rules for {repo}: {error}",
   shipStays: "It builds and opens PRs until then.",
@@ -1168,11 +1168,11 @@ export const plainWords = {
   shipClean: "Its checks finished before Ship could hand it to auto-merge, so the merge is yours.",
   shipAsked: "You asked for changes, so the merge is yours.",
   shipCapped: "Today's Ship limit of {n} is reached, so the merge is yours.",
-  shipOn: "Merges by itself once CI is green",
+  shipOn: "Merges by itself once checks pass",
   shipWaits: "Waits for your merge",
   shipProtect: "Files Ship never merges (comma separated; dir/ or a glob)",
   shipPerDay: "Ship merges per day",
-  shipMerged: "{key} merged on Ship once CI was green.",
+  shipMerged: "{key} merged on Ship once its checks passed.",
   shipUndo: "Undo",
   shipUndoHint: "Opens a pull request that reverts it, for you to review",
   shipUndone: "Revert PR opened: {url}",
@@ -1333,8 +1333,8 @@ export const plainWords = {
     "Transcripts, chats and checkpoints untouched for 90 days. They're your record and can't come back: never ticked, each removed when you confirm it.",
   sweepCatModels: "Local AI models",
   sweepCatModelsHint: "Ollama, LM Studio and Hugging Face models unused for 90 days. Each can be downloaded again.",
-  sweepCatTools: "Unused agent CLIs",
-  sweepCatToolsHint: "Agent CLIs no Overhand account runs, unused for 90 days. Removed by the package manager that installed them.",
+  sweepCatTools: "Unused agent apps",
+  sweepCatToolsHint: "Agent apps no Overhand account runs, unused for 90 days. Removed by the package manager that installed them.",
   sweepCatTemp: "Temp-folder leftovers",
   sweepCatTempHint: "Overhand's scratch folders and known tools' caches in the temp folder, a day old. Nothing else there is touched.",
   sweepSizeUnknown: "size unknown",
@@ -1386,7 +1386,7 @@ export const plainWords = {
   paletteTicket: "Ticket {key}",
   paletteNoMatch: "No command matches. Try a ticket key like KEY-123.",
   cmdQueue: "Assign an agent to {key}",
-  cmdBrief: "Read me the day",
+  cmdBrief: "What happened and what's next, read aloud",
   cmdPlan: "Rebuild today's plan",
   cmdSweep: "Free disk space",
   cmdTheme: "Switch to the {name} theme",
@@ -1786,7 +1786,7 @@ export const plainWords = {
 /**
  * The only words a world may reword: the greeting on Now, the story lines it tells when nothing is happening, a few
  * empty-state lines. Everything else (navigation, view names, actions, labels, statuses, counts,
- * kickers, toasts, settings, errors, the command bar, Brief me) is plain English in every world.
+ * kickers, toasts, settings, errors, the command bar, the night report) is plain English in every world.
  */
 export const FLAVOUR_KEYS = [
   "brHelloNight",

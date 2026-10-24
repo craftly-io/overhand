@@ -17,7 +17,7 @@
   <ul>
     <li>Your code, your agents' work, Overhand's contents, your tokens and keys. They stay on your computer. With
       Access from anywhere, your browser talks to your computer directly over an encrypted WebRTC connection; when NAT
-      forces a relay, Cloudflare's TURN service carries the encrypted traffic without being able to read it.</li>
+      forces a relay, Cloudflare's relay service (TURN) carries the encrypted traffic without being able to read it.</li>
     <li>Your push notifications' contents: your computer encrypts them for your browser and sends them through your
       browser's push service (Apple, Google or Mozilla), not through us.</li>
   </ul>
@@ -32,7 +32,7 @@
     <!-- retention to be set in legal review -->
     <li><strong>Computers you unlink</strong>: their public keys, so a link certificate for them is refused.</li>
     <li><strong>Sign out everywhere</strong>: the time you last did it, so sessions from before it are refused.</li>
-    <li><strong>TURN use</strong>: a count of TURN credential grants per account per month, for the monthly budget.</li>
+    <li><strong>Relay use</strong>: a count of relay credentials granted per account per month, for the monthly budget.</li>
     <li><strong>Teams</strong>: the team's name, each member's email and role, open invites (the invited email and role;
       only a hash of the invite link's secret), each project's owner and backup, and a log of the team's most recent
       questions, answers, results, hand-offs and comments.</li>
@@ -41,7 +41,7 @@
 
   <h2>Processors</h2>
   <ul>
-    <li>Cloudflare (hosting, signalling, TURN, database)</li>
+    <li>Cloudflare (hosting, signalling, the relay, database)</li>
     <li>WorkOS (sign-in)</li>
     <li>Paddle (payments, tax, invoices; merchant of record)</li>
   </ul>

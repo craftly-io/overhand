@@ -16,9 +16,9 @@ export const MOMENTS = {
   call: "07:24",
   /** You review BOOK-88's pull request. */
   review: "07:52",
-  /** The morning brief. */
+  /** The night report. */
   morning: "08:00",
-  /** A plan from a sentence, just after the brief. */
+  /** A plan from a sentence, just after the night report. */
   plan: "08:02",
 } as const;
 
@@ -30,5 +30,5 @@ export function minutesOf(hm: string): number {
 
 /** Where the embedded demo opens: a minute before the call, so the visitor sees the question arrive. */
 export const ARRIVE_FROM = minutesOf("07:23");
-/** The morning after, where the demo rests: the call is in Needs you and the brief is out. */
+/** The morning after, where the demo rests: the call is in Needs you and the night report is out. */
 export const MORNING = minutesOf(MOMENTS.morning);

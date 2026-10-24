@@ -243,7 +243,7 @@ const DOCS_LICENSE = `The docs, the agent skill and these llms files are CC0 1.0
 
 /** The summary line every llms file opens with. */
 const summary = (): string =>
-  `> ${SITE.tagline} ${SITE.name} runs the coding agents you already use (${agentList()}) on your own computer, across every project, by your rules.`;
+  `> ${SITE.tagline} ${SITE.name} runs the coding agents you already use (${agentList()}) on your own computer, on any model. ${SITE.lede}`;
 
 /** /llms.txt (llmstxt.org): the site in one line, then every docs page (as Markdown), the setup guide and the skill, from DOCS. */
 export function llmsTxt(): string {

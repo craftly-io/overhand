@@ -381,7 +381,7 @@ const ConfigSchema = z.object({
     .object({
       /** Hour (0–23) from which the daily plan is written. */
       planFromHour: z.number().int().min(0).max(23).default(7),
-      /** When the morning brief is pushed (local hour); -1 turns it off. */
+      /** When the night report is pushed (local hour); -1 turns it off. */
       briefAtHour: z.number().int().min(-1).max(23).default(8),
       /** Which half of the world the scenes' seasons follow; auto reads it from the time zone. */
       hemisphere: z.enum(["auto", "north", "south"]).default("auto"),
