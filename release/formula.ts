@@ -21,6 +21,7 @@ class Overhand < Formula
   desc "Mission control for your AI coding agents, on your own machine"
   homepage "${SITE}"
   license "FSL-1.1-ALv2"
+  version "${version}"
 
   on_macos do
     on_arm do
