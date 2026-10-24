@@ -134,7 +134,7 @@ export function guidePrompt(
     `If ${GUIDE_FILE} already exists, refresh it: keep what's still true and anything people added by hand, fix what's out of date, fill what's missing.`,
     "",
     write
-      ? `Write the file, commit only it with a conventional message (\`docs: add onboarding guide\`, or \`docs: refresh onboarding guide\` when it existed), and push your branch. pr_title is that message; pr_body says what the guide covers and, for a refresh, what changed.`
+      ? `Write the file, commit only it with a conventional message (\`docs: add onboarding guide\`, or \`docs: refresh onboarding guide\` when it existed); Overhand pushes it. pr_title is that message; pr_body says what the guide covers and, for a refresh, what changed.`
       : `You can't write files here: return status done with the whole guide as Markdown in \`guide\` and a one-line summary in message.`,
     "",
     `You are in a prepared worktree of ${repo}: ${wt.path}`,

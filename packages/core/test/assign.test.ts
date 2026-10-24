@@ -16,6 +16,7 @@ import { ownerAddedLabel } from "../src/trackers/github";
 import { answerTicket, assertMayFile, comment, labelledByOwner, setLabels } from "../src/trackers/index";
 import { viewerAddedLabel } from "../src/trackers/linear";
 import type { Ticket } from "../src/trackers/types";
+import { scratchWorktree } from "./fixtures/scratch-git";
 import { localRequest } from "./local";
 
 const ROOT = join(import.meta.dir, "..", "..", "..");
@@ -149,7 +150,7 @@ test("an assigned ticket runs at assignedAutonomy: env, prompt rules, PR flags a
 test("an assigned ticket's PR opens ready for review (or as a draft on propose); never merged", async () => {
   reset();
   writeFileSync(answer, "https://github.com/o/watchco/pull/9\n");
-  const wt = { mainRepo: bin, path: bin, branch: "WAT-1", base: "main" };
+  const wt = scratchWorktree("WAT-1");
   const result = { status: "done" as const, pr_title: "fix: x (WAT-1)", pr_body: "b", message: "m" };
   const yes = { "WAT-1": { key: "WAT-1" } as StoredAssignment };
   expect(await openPr({ client: runClient(client("Watchco", "WAT", "watch"), "WAT-1", yes) }, wt, result)).toMatchObject({ draft: false });

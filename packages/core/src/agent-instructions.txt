@@ -24,7 +24,9 @@ local Claude settings into it. The repo's own CLAUDE.md / AGENTS.md, `.claude/ag
    spec-conformance-reviewer when there's a spec). Fix what they find, and list in pr_body which ran and what changed.
 7. Commit with a conventional message that includes the ticket key, e.g. `fix(booking): round hours to minimum (HERO-339)`.
    Don't change the git author.
-8. `git push -u origin <your branch>`. Don't open the PR yourself; the orchestrator does that from your result.
+8. Don't push or open the PR: when you return `done`, the orchestrator pushes your branch and opens the PR from your
+   result. Count on no GitHub or SSH sign-in (`git fetch` and `gh` may fail): the orchestrator fetched before you
+   started.
 
 ## Return `question` instead of working when
 - the ticket is vague, contradicts the code, or needs a product/design decision

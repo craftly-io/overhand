@@ -13,6 +13,7 @@ import { teamCleared } from "../src/team";
 import { comment, createTicket } from "../src/trackers/index";
 import type { Ticket } from "../src/trackers/types";
 import { sendUpdate } from "../src/updates";
+import { scratchWorktree } from "./fixtures/scratch-git";
 
 afterAll(() => {
   for (const f of ["findings.json", "outward-allow.json", "updates.json"]) rmSync(join(OPS, f), { force: true });
@@ -156,7 +157,7 @@ test("tracker tickets: a leak throws HeldError (the caller waits on a key) and i
 test("Overhand's own PR: a leaking title or body is held with what reopening it needs", async () => {
   const fern = CLIENTS.find((c) => c.name === "Fernway");
   if (!fern) throw new Error("the example config has Fernway");
-  const wt = { mainRepo: "/code/fernway/web", path: "/code/fernway/web/.wt/FERN-5", branch: "FERN-5-cart", base: "main" };
+  const wt = scratchWorktree("FERN-5-cart");
   const r = { status: "done" as const, pr_title: "Fix the cart", pr_body: "Copied from the honeycrust-inc repo", message: "" };
   expect(await openPr({ client: fern }, wt, r).catch((x: unknown) => x)).toBeInstanceOf(HeldError);
   const f = held("PR: Fix the cart");
