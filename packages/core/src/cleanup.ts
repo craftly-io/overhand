@@ -766,6 +766,30 @@ export function olderVersions(names: string[]): string[] {
 const olderIn = (dir: string) => olderVersions(entries(dir).map((e) => basename(e))).map((n) => join(dir, n));
 
 /**
+ * The builds a still-installed Playwright pins: each `.links` entry names an install's playwright-core folder, whose
+ * browsers.json lists the revisions it launches (folders like `chromium_headless_shell-1243`). Playwright's own
+ * install keeps exactly these; an install whose folder is gone pins nothing.
+ */
+export function pinnedBuilds(dir: string): Set<string> {
+  const pinned = new Set<string>();
+  for (const link of entries(join(dir, ".links"))) {
+    try {
+      const browsers = JSON.parse(readFileSync(join(readFileSync(link, "utf8").trim(), "browsers.json"), "utf8")) as {
+        browsers?: { name?: unknown; revision?: unknown; revisionOverrides?: Record<string, unknown> }[];
+      };
+      for (const b of browsers.browsers ?? []) {
+        if (typeof b.name !== "string") continue;
+        for (const r of [b.revision, ...Object.values(b.revisionOverrides ?? {})])
+          if (typeof r === "string") pinned.add(`${b.name.replaceAll("-", "_")}-${r}`);
+      }
+    } catch {
+      // an install that's gone, or a file that isn't one
+    }
+  }
+  return pinned;
+}
+
+/**
  * What the sources of one category propose: a cache's contents (unattended only when its tool isn't running and it's
  * a day old), every entry of an `each` source unused long enough, and older versions of versioned downloads. History
  * is yours: never ticked, never unattended, removed only when you confirm it.
@@ -791,7 +815,11 @@ function scanSources(category: CleanupCategory, s: Scope): CleanupItem[] {
       if (src.old) {
         // Playwright keeps versions side by side; Puppeteer keeps a folder per browser, each holding its versions
         const inner = olderIn(p).length ? [p] : entries(p).filter((e) => lstat(e)?.isDirectory());
-        return inner.flatMap(olderIn).flatMap((e) => one(e, "dir"));
+        const pinned = pinnedBuilds(p);
+        return inner
+          .flatMap(olderIn)
+          .filter((e) => !pinned.has(basename(e)))
+          .flatMap((e) => one(e, "dir"));
       }
       if (pattern) return one(p, kindOf(p));
       if (src.each) return entries(p).flatMap((e) => one(e, kindOf(e)));

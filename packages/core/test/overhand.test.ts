@@ -1382,6 +1382,22 @@ test("Names from disk never become flags or escape: an Ollama model named like a
   expect(scan("versions", s).map((i) => i.path)).toEqual([join(ext, "pub.tool-1.0.0")]);
 });
 
+test("Plan keeps an older Playwright build that a still-installed Playwright pins, and offers one nothing pins", async () => {
+  const root = scratch("pins");
+  const s = scopeOf(root, cfgWith());
+  const cache = join(s.home, PLAYWRIGHT);
+  for (const b of ["chromium-1187", "chromium-1243", "chromium_headless_shell-1243", "chromium_headless_shell-1248"])
+    mkdirSync(join(cache, b), { recursive: true });
+  const install = join(root, "app", "node_modules", "playwright-core");
+  mkdirSync(install, { recursive: true });
+  writeFileSync(join(install, "browsers.json"), JSON.stringify({ browsers: [{ name: "chromium-headless-shell", revision: "1243" }] }));
+  mkdirSync(join(cache, ".links"));
+  writeFileSync(join(cache, ".links", "a"), `${install}\n`);
+  writeFileSync(join(cache, ".links", "gone"), join(root, "removed", "playwright-core")); // an install deleted since
+  const offered = (await planCleanup({ ...s, now: Date.now() + DAY })).filter((i) => i.path.startsWith(cache)).map((i) => basename(i.path));
+  expect(offered).toEqual(["chromium-1187"]);
+});
+
 test("olderVersions keeps the newest build of each name; dockerBytes reads Docker's decimal units", () => {
   expect(olderVersions(["chromium-1187", "chromium-1243", "ffmpeg-1011", "chromium_headless_shell-1243", "b"])).toEqual(["chromium-1187"]);
   expect(olderVersions(["mac_arm-131.0.6778.85", "mac_arm-140.0.1", "linux-1.0"])).toEqual(["mac_arm-131.0.6778.85"]);
