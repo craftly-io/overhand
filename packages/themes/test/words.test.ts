@@ -95,7 +95,15 @@ for (const theme of themes) {
   });
 
   test(`${theme.id}: "deploy" only ever means a production deploy`, () => {
-    const real = new Set<WordKey>(["checking", "alDeployFailed", "alDeployFailedSay", "leadWhyCi", "leadWhyCiOne", "leadWatchesCi"]);
+    const real = new Set<WordKey>([
+      "checking",
+      "alDeployFailed",
+      "alDeployFailedSay",
+      "decOpenDeploy",
+      "leadWhyCi",
+      "leadWhyCiOne",
+      "leadWatchesCi",
+    ]);
     for (const [k, v] of Object.entries(theme.words))
       if (has(k) && !real.has(k)) expect(/\bdeploy/i.test(v), `${theme.id}: ${k} says "${v}"`).toBe(false);
   });

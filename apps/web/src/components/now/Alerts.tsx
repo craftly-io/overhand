@@ -24,6 +24,7 @@ import { DecisionCard, InsightLine, useBrief } from "../DecisionCard";
 import { Explain } from "../Explain";
 import { LeakActions, SelfCheckActions } from "../Outward";
 import { Pane } from "../Pane";
+import { useQuickSave } from "../QuickSettings";
 import { AccountSignIn } from "../SignIn";
 
 /** One thing in the inbox: a Slack request about to be filed (veto it with the switch), a reply with its suggested answer, or a note. */
@@ -100,7 +101,7 @@ export const needsTone = (list: readonly Need[]) => (anyBroken(list) ? "var(--ba
 /** One alert; clicking it opens whatever it's about (a link, a ticket, a lead…). */
 function AlertCard({ a, brief, className }: { a: Alert; brief?: string; className?: string }) {
   const ui = useUi();
-  const { selfUpdate } = useActions();
+  const { run, selfUpdate } = useActions();
   // once its brief is in, the brief's what says what's asked, in place of the title and line (a plan keeps its request);
   // the decision card under it adds the one line of context and the choices
   const { data: b } = useBrief(brief);
@@ -136,7 +137,7 @@ function AlertCard({ a, brief, className }: { a: Alert; brief?: string; classNam
     );
   const onClick = () => {
     if (t.kind === "ticket") ui.openDrawer({ kind: "ticket", key: t.key });
-    else if (t.kind === "lead") ui.openDrawer({ kind: "lead", key: t.key });
+    else if (t.kind === "lead" || t.kind === "crashed") ui.openDrawer({ kind: "lead", key: t.key });
     else if (t.kind === "review") ui.openDrawer({ kind: "review", key: t.key });
     else if (t.kind === "notes" || t.kind === "sweep") ui.openDrawer({ kind: t.kind });
     else if (t.kind === "settings") ui.openDrawer({ kind: "settings", tab: t.tab, project: t.project });
@@ -144,6 +145,7 @@ function AlertCard({ a, brief, className }: { a: Alert; brief?: string; classNam
     else if (t.kind === "held" && t.key) ui.openDrawer({ kind: "ticket", key: t.key });
     else if (t.kind === "card") ui.openDrawer({ kind: "crew" });
     else if (t.kind === "update") void selfUpdate();
+    else if (t.kind === "restart") void run({ name: "restart" });
     else toast(a.sub || a.title);
   };
   return (
@@ -174,12 +176,39 @@ function QuickActions({ a }: { a: Alert }) {
 function Actions({ a }: { a: Alert }) {
   const w = useWords();
   const ui = useUi();
-  const { heldDismiss, heldPost, leadAnswer, ruleAdd, ruleDismiss } = useActions();
+  const { heldDismiss, heldPost, leadAnswer, leadStart, ruleAdd, ruleDismiss, run, selfUpdate } = useActions();
+  const save = useQuickSave();
   const [open, setOpen] = useState(false);
   const [elsewhere, setElsewhere] = useState(false);
   const [text, setText] = useState("");
   const t = a.target;
+  // every problem's card has its fix as a button: one that acts, or one that opens exactly where the fix is
+  const one = (label: string, act: () => void, variant: "primary" | "outline" = "primary") => (
+    <div className="flex justify-end">
+      <Button size="xs" variant={variant} onClick={act}>
+        {label}
+      </Button>
+    </div>
+  );
   if (t.kind === "card") return <CardButtons card={t.card} />;
+  if (t.kind === "restart") return one(w.confirmRestartGo, () => void run({ name: "restart" }));
+  if (t.kind === "raise") return one(fmt(w.alBudgetRaiseTo, { cap: `$${t.usd}` }), () => void save({ budgetUsd: t.usd }));
+  if (t.kind === "update") return one(a.go ?? w.open, () => void selfUpdate());
+  if (t.kind === "link") return one(a.go ?? w.open, () => void window.open(t.url, "_blank", "noopener,noreferrer"));
+  if (t.kind === "settings")
+    return one(a.go ?? w.decOpenSettings, () => ui.openDrawer({ kind: "settings", tab: t.tab, project: t.project }), "outline");
+  if (t.kind === "notes" || t.kind === "sweep") return one(a.go ?? w.open, () => ui.openDrawer({ kind: t.kind }), "outline");
+  if (t.kind === "crashed")
+    return (
+      <div className="flex flex-wrap justify-end gap-1">
+        <Button variant="ghost" size="xs" onClick={() => ui.openDrawer({ kind: "lead", key: t.key })}>
+          {w.log}
+        </Button>
+        <Button size="xs" onClick={() => void leadStart(t.key)}>
+          {w.startLead}
+        </Button>
+      </div>
+    );
   if (t.kind === "signin")
     return (
       <div className="flex justify-end">

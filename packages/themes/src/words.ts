@@ -851,6 +851,8 @@ export const plainWords = {
   alRouteSuggest: "{to} merges {x} more often on {project}; switch?",
   alRouteSuggestSub: "{toRate} of tickets merged against {fromRate} on {from}, over 30 days",
   alTrackerDown: "{client} tracker isn't responding",
+  /** Its fix: the project's connections, where an expired sign-in is renewed. */
+  alTrackerFix: "Reconnect",
   alTrackerDownSay: "{client}'s tracker isn't answering",
   alNeedsAnswer: "{key} needs your answer",
   alNeedsAnswerSay: "{client} needs an answer from you",
@@ -909,6 +911,8 @@ export const plainWords = {
   alDiskHeavySub: "Browsers, test suites and builds wait until there's room. Click to clean up.",
   alDiskWarnSay: "the disk is filling up",
   alBudget: "Daily budget of {cap} reached",
+  /** Its one-click fix: double the daily budget; it stays at the new amount until you change it. */
+  alBudgetRaiseTo: "Raise to {cap}",
   alBudgetTitle: "Billed agents stopped",
   runAsksYouTitle: "A sandboxed agent run, {run}, has a request for your session {session}",
   runAsksYouBody:
@@ -952,6 +956,7 @@ export const plainWords = {
   saidRuleLater: "Not offered again for 30 days.",
   saidRuleNever: "That rule won't be offered again.",
   alOffline: "Overhand is offline",
+  alOfflineSub: "Its work loop stopped answering. Restarting it keeps your agents' work.",
   alOfflineSay: "Overhand is offline",
 
   // the night report, read aloud
@@ -1739,6 +1744,7 @@ export const plainWords = {
   decReviewSplit: "Review the split",
   decOpenSweep: "See what can go",
   decOpenSettings: "Open settings",
+  decOpenDeploy: "Open the deploy",
   decOpenCrew: "Show the sessions",
   decOpenHealth: "Open Health",
   decQuiet: "Quiet mode for {h} h",

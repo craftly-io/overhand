@@ -378,3 +378,22 @@ test("an account the sandbox keeps off your own sign-in gets a Sign in card: amb
   expect(signIns([acc("claude", true)]).map((a) => [a.sev, a.broken])).toEqual([[3, true]]);
   expect(signIns([acc("work", false)])).toEqual([]);
 });
+
+test("every problem's card carries its fix: restart when offline, start a crashed lead, raise a spent budget, reconnect a tracker", () => {
+  const base = state({});
+  const targets = (s: typeof base) => computeAlerts(s, parsePlan([]), plainWords, NOW).map((a) => a.target);
+  expect(targets({ ...base, daemon: false })).toContainEqual({ kind: "restart" });
+  const billed = base.accounts.map((x) => ({ ...x, billing: "pay-per-use" as const }));
+  expect(targets({ ...base, accounts: billed, budgetUsd: 10, budgetSpent: 12 })).toContainEqual({ kind: "raise", usd: 20 });
+  const tracker = computeAlerts({ ...base, tickets: { Acme: "401 Unauthorized" } }, parsePlan([]), plainWords, NOW).find(
+    (a) => a.title === "Acme tracker isn't responding",
+  );
+  expect(tracker?.target).toEqual({ kind: "settings", tab: "integrations", project: "Acme" });
+  expect(tracker?.go).toBe("Reconnect");
+  // no problem is left with nothing to click
+  for (const s of [
+    { ...base, daemon: false },
+    { ...base, tickets: { Acme: "x" } },
+  ])
+    expect(computeAlerts(s, parsePlan([]), plainWords, NOW).filter((a) => a.target.kind === "none")).toEqual([]);
+});

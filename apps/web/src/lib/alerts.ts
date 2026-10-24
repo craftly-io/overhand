@@ -32,6 +32,12 @@ type AlertTarget =
   | { kind: "settings"; tab: string; project?: string }
   /** An account to sign in once in its own folder: its Sign in button, right on the card. */
   | { kind: "signin"; account: string; tool: string }
+  /** The daemon's work loop stopped: Restart Overhand. */
+  | { kind: "restart" }
+  /** A lead that crashed out: Start it again, or open its log. */
+  | { kind: "crashed"; key: string }
+  /** Today's budget is used up: raise it to `usd` in one click. */
+  | { kind: "raise"; usd: number }
   | { kind: "rule"; id: string; project: string }
   /** Something held for you on a watch project instead of posted: Post it (when it has a ticket and a comment) or Dismiss. */
   | { kind: "held"; id: string; key: string; post: boolean }
@@ -60,6 +66,8 @@ export interface Alert {
   stale?: true;
   /** What it means in plain words, behind its ? (a plan from a request you started). */
   explain?: Explained;
+  /** The words on its button when its target only opens a place (a link, settings, notes); else the place's own. */
+  go?: string;
   /** The item it's about, as its decision card names it (`ticket:EW-1`, `lead:core`, `ci:Proj/repo@main`); snoozable. */
   item?: string;
   target: AlertTarget;
@@ -166,7 +174,8 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
         title: fmt(w.alTrackerDown, { client }),
         sub: tickets.slice(0, 80),
         say: fmt(w.alTrackerDownSay, { client }),
-        target: { kind: "none" },
+        go: w.alTrackerFix,
+        target: { kind: "settings", tab: "integrations", project: client },
       });
       continue;
     }
@@ -190,6 +199,7 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
         title: fmt(w.alDeployFailed, { project: d.project }),
         sub: `${d.client} · ${ago(d.created, now)}`,
         say: fmt(w.alDeployFailedSay, { client: d.client }),
+        go: w.decOpenDeploy,
         target: { kind: "link", url: d.url },
       });
   // red builds and new errors are facts, not decisions: Health counts and lists them (brokenCount). An agent's own PR
@@ -281,7 +291,7 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
         title: fmt(w.alLeadCrashed, { lead: leadName(g, s.names) }),
         sub: g.reason,
         say: fmt(w.alLeadCrashedSay, { lead: leadName(g, s.names) }),
-        target: { kind: "lead", key: g.key },
+        target: { kind: "crashed", key: g.key },
       });
   }
   // people waiting on a reply are listed one by one beside these (see `needs`), so they aren't summed up here;
@@ -364,7 +374,7 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
         s.accounts.some((x) => !x.billingSure),
       ),
       say: w.alBudgetSay,
-      target: { kind: "settings", tab: "schedule" },
+      target: { kind: "raise", usd: s.budgetUsd * 2 },
     });
   // an account the OS sandbox keeps off your own sign-in: red when no other account can carry its work
   const waiting = s.accounts.filter((x) => x.waitsSignIn);
@@ -415,9 +425,9 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       sev: 3,
       broken: true,
       title: w.alOffline,
-      sub: "Run overhand start in a terminal",
+      sub: w.alOfflineSub,
       say: w.alOfflineSay,
-      target: { kind: "none" },
+      target: { kind: "restart" },
     });
   // what you snoozed from its decision card stays out until the snooze runs out
   return a.filter((x) => !x.item || !((s.snoozed[x.item] ?? 0) > now)).sort((x, y) => y.sev - x.sev);

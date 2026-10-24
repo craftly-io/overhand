@@ -63,7 +63,7 @@ export function QuietRow({ m }: { m: Model }) {
 }
 
 /** Saves one quick setting, live, and refreshes the state; a refusal (the demo's, a daemon error) shows as a toast. */
-function useQuickSave(): (q: QuickSetting) => Promise<void> {
+export function useQuickSave(): (q: QuickSetting) => Promise<void> {
   const qc = useQueryClient();
   return async (q) => {
     try {
