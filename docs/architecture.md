@@ -136,8 +136,8 @@ When the npm job needs another go after a fix, run the `npm-publish` workflow by
 
 ## Secrets, by name
 
-- **Repository secrets:** `NPM_TOKEN` (npm publish), `PUBLIC_DENYLIST` (the leak check). Releases use the built-in
-  `GITHUB_TOKEN`.
+- **Repository secrets:** `PUBLIC_DENYLIST` (the leak check). Releases use the built-in `GITHUB_TOKEN`, and npm takes
+  the release workflow's own identity (trusted publishing), so no npm token is stored.
 - **Relay Worker secrets,** set per environment with `wrangler secret put`: `SIGNING_KEY`, `WORKOS_API_KEY`,
   `TURN_KEY_API_TOKEN`, `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`. Public vars sit in `relay/wrangler.jsonc`; every
   name is described in `relay/.env.example`.

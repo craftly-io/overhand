@@ -247,10 +247,6 @@ function verifyInstall(): void {
 
 function npm(): void {
   step(6, "npm: npx overhand / bunx overhand");
-  if (!/^NPM_TOKEN\s/m.test(read(["gh", "secret", "list", "-R", REPO]).out)) {
-    console.log(`  ! skipped: no NPM_TOKEN secret (gh secret set NPM_TOKEN -R ${REPO}, an npm token that can publish)`);
-    return;
-  }
   if (read(["npm", "view", `overhand@${version}`, "version"]).out !== version) {
     // the release workflow's npm job publishes it (.github/workflows/release.yml)
     if (DRY) {
