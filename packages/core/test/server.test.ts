@@ -171,3 +171,12 @@ test("the Slack sign-in opens only while the Slack inbox waits for one", async (
   const r = await post("/api/slack-login");
   expect(r.status).toBe(404);
 });
+
+test("the pair screen learns, before any sign-in, the command that signs this computer's browser in", async () => {
+  const { openCommand } = await import("../src/platform");
+  expect(openCommand("/code/overhand", true)).toBe("overhand open");
+  expect(openCommand("/code/overhand", false)).toBe("cd /code/overhand && bun run.ts open");
+  const r = await handle(new Request(`${origin}/api/open-command`));
+  expect(r.status).toBe(200);
+  expect(((await r.json()) as { command: string }).command).toContain("open");
+});

@@ -267,6 +267,11 @@ export function startAgainCommand(src: string, bundled = import.meta.dir.startsW
   return bundled ? "overhand start" : `cd ${src} && bun run.ts daemon`;
 }
 
+/** The command that opens the dashboard signed in on this computer: the installed binary's, or a checkout's from source. */
+export function openCommand(src: string, bundled = import.meta.dir.startsWith("/$bunfs")): string {
+  return bundled ? "overhand open" : `cd ${src} && bun run.ts open`;
+}
+
 /** Stops the service so it isn't restarted; without one a plain exit is enough. */
 export function stopService(): void {
   if (LAUNCHD) run(["launchctl", "bootout", `gui/${UID}/${LAUNCHD}`]);

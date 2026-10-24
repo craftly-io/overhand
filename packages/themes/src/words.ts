@@ -1447,7 +1447,7 @@ export const plainWords = {
   // pairing: another device opening the dashboard (a browser on the Mac itself never pairs)
   pairTitle: "Pair this device",
   pairBody: "Overhand runs on your computer. Pair this device once with the code the computer shows under Settings → Phone → Add a device.",
-  pairHere: "On the computer itself? Run overhand open in a terminal: it opens this page signed in.",
+  pairHere: "On the computer itself? Run {command} in a terminal: it opens this page signed in.",
   pairCode: "Pairing code",
   pairButton: "Pair",
   pairWorking: "Pairing…",

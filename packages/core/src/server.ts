@@ -130,7 +130,7 @@ import { organiseBrief, organiseGet, organisePost } from "./organise-api";
 import { releaseLeak } from "./outward-release";
 import { serveOnTailnet, tailscale } from "./phone";
 import { armAll, editPlan, planFile, upsertPlanItem } from "./plan";
-import { openTerminal, readSecret, SECRET_STORE, writeSecret } from "./platform";
+import { openCommand, openTerminal, readSecret, SECRET_STORE, writeSecret } from "./platform";
 import { additions, addRepos, copyRoots, destOf, listGithubRepos, parseRepoInput, tilde } from "./projects";
 import {
   finishLink,
@@ -659,6 +659,8 @@ export async function handle(req: Request): Promise<Response> {
       headers: { location: `${url.pathname}${rest.size ? `?${rest}` : ""}`, "set-cookie": localCookie(), "cache-control": "no-store" },
     });
   }
+  // the pair screen, before any sign-in, on this computer only: the command that signs this browser in
+  if (here && req.method === "GET" && url.pathname === "/api/open-command") return json({ command: openCommand(SRC) });
   const local = here && hasLocalKey(req);
   // a run's own key (control.ts runKey) reaches only the routes a run calls, as that run (runRoute)
   const asRun =

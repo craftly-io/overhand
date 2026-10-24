@@ -3,7 +3,8 @@ import { z } from "zod";
 import { useWords } from "@/app/theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { post } from "@/lib/api";
+import { get, post } from "@/lib/api";
+import { fmt } from "@/lib/format";
 
 /** This machine's own addresses: a browser here without the local key is told how to open it signed in. */
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
@@ -15,6 +16,14 @@ const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 export function Pair() {
   const w = useWords();
   const [code, setCode] = useState(() => new URLSearchParams(window.location.search).get("pair") ?? "");
+  // the command that works for this install (a source checkout has no `overhand`), asked on this computer only
+  const [openCmd, setOpenCmd] = useState("overhand open");
+  useEffect(() => {
+    if (!LOOPBACK.has(window.location.hostname)) return;
+    get("/api/open-command", z.object({ command: z.string() }))
+      .then((r) => setOpenCmd(r.command))
+      .catch(() => {});
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const tried = useRef(false);
@@ -52,7 +61,9 @@ export function Pair() {
             {w.pairTitle}
           </h1>
           <p className="text-sm text-muted-foreground">{w.pairBody}</p>
-          {LOOPBACK.has(window.location.hostname) ? <p className="text-sm text-muted-foreground">{w.pairHere}</p> : null}
+          {LOOPBACK.has(window.location.hostname) ? (
+            <p className="text-sm text-muted-foreground">{fmt(w.pairHere, { command: openCmd })}</p>
+          ) : null}
         </header>
         <form className="grid gap-3" onSubmit={submit}>
           <label className="grid gap-1.5 text-sm" htmlFor="pair-code">
