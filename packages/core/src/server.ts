@@ -707,13 +707,15 @@ export async function handle(req: Request): Promise<Response> {
   }
   if (req.method === "GET" && url.pathname === "/api/state") return json(await dashboardState());
   if (req.method === "GET" && url.pathname === "/api/brief") {
-    // a decision card: the facts at once, the agent's phrasing when cached for them (`pending` while one runs)
+    // a decision card: the facts at once, the agent's phrasing when cached for them (`pending` while one runs); only
+    // `explain=1` (you pressed Explain) starts a phrasing
     const id = url.searchParams.get("id") ?? "";
     if (id.startsWith("organise:")) {
       const o = organiseBrief(id);
       return o ? json(o) : json({ error: "that item is gone" }, 404);
     }
-    const b = briefFor(await briefState(), id, await moreFacts(id));
+    const explain = url.searchParams.get("explain") === "1";
+    const b = briefFor(await briefState(), id, await moreFacts(id), { explain });
     return b ? json(b.brief) : json({ error: "that item is gone" }, 404);
   }
   if (req.method === "GET" && url.pathname.startsWith("/api/organise")) {

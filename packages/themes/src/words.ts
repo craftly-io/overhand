@@ -282,6 +282,8 @@ export const plainWords = {
   setBillingFromGateway: "from its gateway's address",
   setBillingFromCli: "from its agent",
   setBudget: "Daily budget for pay-per-use and cloud agents (USD, 0 = off)",
+  setPlanOn: "Plan the day each morning (one planner run)",
+  setPlanFrom: "Plan from hour",
   addAccountSave: "Save",
   addAccountKeyInstead: "Use an API key instead",
   addAccountSignInInstead: "Sign in in your browser instead",
@@ -1311,7 +1313,8 @@ export const plainWords = {
   saidLeakStill: "It still names something private: {terms}",
   // the dashboard's look at itself
   alSelfCheck: "Overhand's page failed to render: {error}",
-  alSelfCheckSub: "Overhand looks at its own page every 15 minutes; Report writes what it saw, with nothing private in it.",
+  alSelfCheckSub:
+    "Overhand checks its own page every 15 minutes and opens it once after each start or update; Report writes what it saw, with nothing private in it.",
   alSelfCheckSay: "Overhand's page failed its self-check",
   selfCheckReport: "Report",
   selfCheckReload: "Reload",
@@ -1850,6 +1853,9 @@ export const plainWords = {
   decConfMedium: "Likely",
   decConfLow: "A judgement call",
   decFromFacts: "From the facts alone",
+  // the facts show at once; Explain asks your agent once to put them in its own words, with a recommendation
+  decExplain: "Explain",
+  decExplainHint: "Your agent reads these facts and says what they mean and what it would do. One short model call.",
   decReading: "Your agent is reading the facts…",
   decMoreOptions: "More options",
   decAnswer: "Answer: {text}",

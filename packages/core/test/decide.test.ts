@@ -361,14 +361,31 @@ test("options carry what the real actions need", () => {
   expect(factsBrief(s, "disk", {}, NOW)?.recommend.option).toBe("sweep");
 });
 
-test("phrased once per facts: cached until the item changes, then phrased again", async () => {
+test("the facts by default: no model call until Explain, and the options are the same either way", async () => {
   let n = 0;
   const fake = async () => {
     n++;
     return { what: "Phrased.", why: "Because.", recommend: { option: "open-ticket", reason: "R", confidence: "high" as const } };
   };
-  const first = briefFor(s, "ticket:HONEY-1", {}, { phrase: fake, now: NOW });
+  const shown = briefFor(s, "lead:kite", {}, { phrase: fake, now: NOW });
+  expect(shown?.brief).toMatchObject({ source: "facts" });
+  expect(shown?.brief.pending).toBeFalsy();
+  await shown?.done;
+  expect(n).toBe(0);
+  // the one-click fixes are there before any phrasing
+  expect(shown?.brief.options.map((o) => o.id)).toEqual(factsBrief(s, "lead:kite", {}, NOW)?.options.map((o) => o.id));
+});
+
+test("phrased once per facts on Explain: cached until the item changes, then the facts until Explain again", async () => {
+  let n = 0;
+  const fake = async () => {
+    n++;
+    return { what: "Phrased.", why: "Because.", recommend: { option: "open-ticket", reason: "R", confidence: "high" as const } };
+  };
+  const first = briefFor(s, "ticket:HONEY-1", {}, { explain: true, phrase: fake, now: NOW });
   expect(first?.brief).toMatchObject({ source: "facts", pending: true });
+  // the card's poll while it reads, without Explain: still reading
+  expect(briefFor(s, "ticket:HONEY-1", {}, { phrase: fake, now: NOW })?.brief.pending).toBe(true);
   await first?.done;
   const again = briefFor(s, "ticket:HONEY-1", {}, { phrase: fake, now: NOW });
   expect(again?.brief).toMatchObject({ source: "agent", what: "Phrased.", pending: false });
@@ -378,27 +395,32 @@ test("phrased once per facts: cached until the item changes, then phrased again"
     tickets: { ...s.tickets, Honeycrust: [{ ...t("HONEY-1", ["needs-owner"]), title: "New title" }] },
   };
   const third = briefFor(changed, "ticket:HONEY-1", {}, { phrase: fake, now: NOW });
-  expect(third?.brief.source).toBe("facts");
+  expect(third?.brief).toMatchObject({ source: "facts", pending: false });
   await third?.done;
+  expect(n).toBe(1);
+  await briefFor(changed, "ticket:HONEY-1", {}, { explain: true, phrase: fake, now: NOW })?.done;
   expect(n).toBe(2);
 });
 
-test("the daily cap, a budget pause, a failure and a timeout all fall back to the facts", async () => {
+test("the daily cap, a budget pause, a failure and a timeout all fall back to the facts; Explain asks again after a failure", async () => {
   let n = 0;
   const fake = async () => {
     n++;
     return null;
   };
-  await briefFor(s, "ticket:HONEY-1", {}, { phrase: fake, cap: 1 })?.done;
-  expect(briefFor(s, "ticket:HONEY-1", {}, { phrase: fake, cap: 1 })?.brief).toMatchObject({ source: "facts", pending: false });
-  expect(n).toBe(1); // failed on these facts: not asked again
-  expect(briefFor(s, "disk", {}, { phrase: fake, cap: 1 })?.brief.pending).toBe(false); // capped
-  expect(briefFor({ ...s, paused: true }, "lead:kite", {}, { phrase: fake })?.brief.pending).toBe(false);
+  const explain = { explain: true, phrase: fake, cap: 2 };
+  await briefFor(s, "ticket:HONEY-1", {}, explain)?.done;
+  expect(briefFor(s, "ticket:HONEY-1", {}, { phrase: fake })?.brief).toMatchObject({ source: "facts", pending: false });
   expect(n).toBe(1);
+  await briefFor(s, "ticket:HONEY-1", {}, explain)?.done; // failed: pressing Explain again tries again
+  expect(n).toBe(2);
+  expect(briefFor(s, "disk", {}, explain)?.brief.pending).toBe(false); // capped
+  expect(briefFor({ ...s, paused: true }, "lead:kite", {}, { ...explain, cap: 40 })?.brief.pending).toBe(false);
+  expect(n).toBe(2);
   const hang = () => new Promise<null>(() => undefined);
-  const slow = briefFor(s, "pr:HONEY-4", {}, { phrase: hang, timeoutMs: 5 });
+  const slow = briefFor(s, "pr:HONEY-4", {}, { explain: true, phrase: hang, timeoutMs: 5, cap: 40 });
   await slow?.done;
-  expect(briefFor(s, "pr:HONEY-4", {}, { phrase: hang, timeoutMs: 5 })?.brief).toMatchObject({ source: "facts", pending: false });
+  expect(briefFor(s, "pr:HONEY-4", {}, { phrase: hang })?.brief).toMatchObject({ source: "facts", pending: false });
 });
 
 test("an agent's pick that isn't an option keeps the facts' pick; its answer choices join the lead's", () => {

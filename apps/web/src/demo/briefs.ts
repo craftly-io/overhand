@@ -72,11 +72,14 @@ const PHRASED: Record<string, Phrased> = {
   },
 };
 
-/** `GET /api/brief?id=` in the demo: the facts at the scripted minute, phrased where the night has a phrasing. */
-export function demoBrief(id: string, s: DashboardState = demoState()): Brief | undefined {
+/**
+ * `GET /api/brief?id=` in the demo: the facts at the scripted minute; with `explain` (Explain pressed), phrased where
+ * the night has a phrasing.
+ */
+export function demoBrief(id: string, s: DashboardState = demoState(), explain = false): Brief | undefined {
   const b = factsBrief(s, id, MORE[id] ?? {}, Date.now(), plainWords);
   if (!b) return undefined;
-  const p = PHRASED[id];
+  const p = explain ? PHRASED[id] : undefined;
   if (!p) return b;
   const options = withChoices(b, p.choices ?? []);
   const recommend = options.some((o) => o.id === p.recommend.option) ? p.recommend : b.recommend;

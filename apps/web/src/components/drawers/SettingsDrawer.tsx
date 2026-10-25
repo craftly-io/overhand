@@ -501,7 +501,8 @@ function ScheduleTab() {
   return (
     <>
       <FieldCard title="Schedule">
-        {num("Plan from hour", "schedule.planFromHour")}
+        <Field label={w.setPlanOn} path="schedule.plan" kind="bool" />
+        {num(w.setPlanFrom, "schedule.planFromHour")}
         {num("Night report at hour (-1 = off)", "schedule.briefAtHour")}
         <Field
           label="Seasons follow (hemisphere; auto = from the time zone)"

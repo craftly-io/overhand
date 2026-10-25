@@ -1,6 +1,6 @@
 import { type Brief, type BriefOption, BriefSchema, CHOICE_IDS, type PlanPoints } from "@overhand/contract";
 import type { WordKey } from "@overhand/themes";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ellipsis } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useActions } from "@/app/actions";
@@ -18,16 +18,27 @@ import { parseMarkdown } from "@/lib/markdown";
 import { useOrganiseActions } from "@/lib/organise";
 import { cn } from "@/lib/utils";
 
+const briefUrl = (item: string, explain = false) => `/api/brief?id=${encodeURIComponent(item)}${explain ? "&explain=1" : ""}`;
+
 /** The brief on one item: asked for when it shows (entering Needs you, or a drawer opening), again every 4 s while pending. */
 export function useBrief(item: string | undefined) {
   return useQuery({
     queryKey: ["brief", item],
-    queryFn: () => get(`/api/brief?id=${encodeURIComponent(item ?? "")}`, BriefSchema),
+    queryFn: () => get(briefUrl(item ?? ""), BriefSchema),
     enabled: Boolean(item),
     retry: false,
     staleTime: 30_000,
     refetchInterval: (q) => (q.state.data?.pending ? 4000 : false),
   });
+}
+
+/** Explain: asks the daemon to have your agent phrase this item's facts; the card shows it reading, then its words. */
+function useExplain(item: string): () => void {
+  const qc = useQueryClient();
+  return () =>
+    void get(briefUrl(item, true), BriefSchema)
+      .then((b) => qc.setQueryData(["brief", item], b))
+      .catch(() => {});
 }
 
 /** The dashboard's actions, as running a brief's option needs them. */
@@ -90,6 +101,7 @@ export function DecisionCard({
   const w = useWords();
   const run = useRunner();
   const { data: b, isError, isLoading } = useBrief(item);
+  const explain = useExplain(item);
   const [busy, setBusy] = useState(false);
   // the brief on its way: a line and an answer's pill, where they'll be
   if (!b && isLoading)
@@ -170,7 +182,14 @@ export function DecisionCard({
           {rest.map((o) => button(o, false, "sm"))}
         </div>
         {timed ? <Part title={w.decIfNothing}>{timed}</Part> : null}
-        {b.pending ? <p className="text-xs text-muted-foreground">{w.decReading}</p> : null}
+        {b.pending ? (
+          <p className="text-xs text-muted-foreground">{w.decReading}</p>
+        ) : b.source === "facts" && !item.startsWith("organise:") ? (
+          // facts by default; your agent's words only when you ask (a model call each)
+          <Button variant="ghost" size="xs" className="justify-self-start" title={w.decExplainHint} onClick={explain}>
+            {w.decExplain}
+          </Button>
+        ) : null}
       </div>
       <BriefDetails b={b} />
     </section>

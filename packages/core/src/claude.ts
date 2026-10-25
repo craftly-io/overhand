@@ -133,6 +133,8 @@ export async function claude<T>(
       : today;
   // accounts another run is using go last, so parallel runs spread across accounts (sort is stable)
   const pool = routed === today ? today.sort((a, b) => Number(busy.has(a)) - Number(busy.has(b))) : routed;
+  // a new ticket's run reads its accounts' usage first when the last reading is old, so a used-up week is skipped
+  if (kind === "ticket") await refreshUsage(BEFORE_RUN_MIN, pool);
   for (const account of pool) {
     if (
       benchedUntil(account) > Date.now() ||
@@ -363,13 +365,21 @@ async function probeUsage(account: string): Promise<AccountUsage | null> {
   return usage;
 }
 
+/** How old a reading may be when a new ticket's run starts before its accounts are read again. */
+export const BEFORE_RUN_MIN = 30;
+
 /**
- * Probes accounts with no reading in the last `olderThanMin` minutes (30 on the schedule, FRESH_MIN when you come back
- * to the app), one after another. Only Claude accounts on Claude Code: Bedrock, Vertex, gateways and other CLIs have
- * no 5-hour or weekly windows to read.
+ * Probes `accounts` with no reading in the last `olderThanMin` minutes (BEFORE_RUN_MIN right before a new ticket's
+ * run, FRESH_MIN when you come back to the app), one after another; never on a timer, as each probe is a model call.
+ * Only Claude accounts on Claude Code: Bedrock, Vertex, gateways and other CLIs have no 5-hour or weekly windows to
+ * read. `probe` is for tests.
  */
-export async function refreshUsage(olderThanMin = 30): Promise<void> {
+export async function refreshUsage(
+  olderThanMin: number,
+  accounts: readonly string[] = ACCOUNTS,
+  probe: (account: string) => Promise<unknown> = probeUsage,
+): Promise<void> {
   const known = loadUsage(OPS);
   const windows = (a: string) => providerOf(a).kind === "claude" && runtimeOf(a).kind === "claude-code";
-  for (const a of ACCOUNTS) if (windows(a) && Date.now() - (known[a]?.at ?? 0) > olderThanMin * MIN) await probeUsage(a).catch(() => null);
+  for (const a of accounts) if (windows(a) && Date.now() - (known[a]?.at ?? 0) > olderThanMin * MIN) await probe(a).catch(() => null);
 }

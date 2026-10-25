@@ -15,6 +15,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { CLEANUP_CATEGORIES, type CleanupItem, LEAD_TEMPLATES, LEAD_WORK, WAY_OF_WORKING } from "@overhand/contract";
+import { BEFORE_RUN_MIN, refreshUsage } from "../src/claude";
 import {
   autoDue,
   committedState,
@@ -39,7 +40,7 @@ import {
 } from "../src/cleanup";
 import { RUN_CACHES, runCacheKey, SOURCES, sourcesTable } from "../src/cleanup-sources";
 import { blankConfig, type Client, type Config, loadConfig, saveConfig } from "../src/config";
-import { OPS, SRC } from "../src/env";
+import { OPS, SRC, today } from "../src/env";
 import {
   accountsFor,
   adfToText,
@@ -69,7 +70,8 @@ import {
 } from "../src/index";
 import { subscriptionTokensAllowed } from "../src/legacy-token";
 import { gitEnv } from "../src/runtimes/runtime";
-import { spendOn } from "../src/usage";
+import { tellPrs } from "../src/status/index";
+import { recordUsage, spendOn } from "../src/usage";
 
 test("eventsToday expands recurring meetings and honours exceptions", () => {
   const ics = [
@@ -356,6 +358,19 @@ test("loadLocalCode never imports or moves anything under plugins/: an agent's f
   expect(Reflect.get(globalThis, "ranSandboxedPlugin")).toBeUndefined();
   expect(accountsFor(["a", "b"], [], true, 0)).toEqual(["a"]);
   rmSync(ops, { recursive: true });
+});
+
+test("refreshUsage reads only the accounts it's given whose reading is old: a model call each, never more than needed", async () => {
+  const reading = (at: number) => ({ fiveHour: 0.1, fiveHourResetsAt: 0, sevenDay: 0.2, sevenDayResetsAt: 0, status: "allowed", at });
+  recordUsage(OPS, "usage-fresh", reading(Date.now()));
+  recordUsage(OPS, "usage-old", reading(Date.now() - 31 * 60_000));
+  const probed: string[] = [];
+  const probe = async (a: string) => void probed.push(a);
+  await refreshUsage(BEFORE_RUN_MIN, ["usage-fresh", "usage-old", "usage-never"], probe);
+  expect(probed).toEqual(["usage-old", "usage-never"]);
+  probed.length = 0;
+  await refreshUsage(60, ["usage-old"], probe); // FRESH_MIN-style: 31 min isn't old for an hour
+  expect(probed).toEqual([]);
 });
 
 test("parseStream reads usage and the result; exhaustedUntil blocks only full windows that haven't reset", () => {
@@ -708,6 +723,24 @@ test("prChanges tells what happened to your open pull requests between two refre
   ]);
   expect(gone.map((p) => p.number)).toEqual([3]);
   expect(prChanges([pr(1, { checks: "FAILURE" })], [pr(1, { checks: "FAILURE" })]).lines).toEqual([]); // still red: said once
+  // one seen open before (a restart, or a refresh GitHub's search left it out of) isn't "opened" again
+  const told = new Set([pr(4).url]);
+  expect(prChanges([pr(1)], [pr(1), pr(4), pr(5)], told).lines).toEqual(["🆕 Honeycrust: app#5 opened: t5"]);
+});
+
+test("a pull request is reported opened once, ever: a restart's first refresh doesn't open it again", async () => {
+  const n = 9000 + Math.floor(Math.random() * 999);
+  const pr = { client: "Honeycrust", repo: "honeycrust/app", number: n, title: "x", url: `https://github.com/honeycrust/app/pull/${n}` };
+  const p = { ...pr, draft: false, review: "", checks: "", updated: "" };
+  const opened = `🆕 Honeycrust: app#${n} opened: x`;
+  const count = () => readFileSync(join(OPS, "reports", `${today()}.md`), "utf8").split(opened).length - 1;
+  await tellPrs([], [], true);
+  await tellPrs([], [p], true);
+  expect(count()).toBe(1);
+  // after a restart the list starts empty; a later refresh that sees it as new again stays quiet
+  await tellPrs([], [p], false);
+  await tellPrs([], [p], true);
+  expect(count()).toBe(1);
 });
 
 test("the old top-level Jenkins moves into its project's status sources, and a wrong project is still refused", () => {

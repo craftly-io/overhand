@@ -1,5 +1,5 @@
 /** Desktop notifications, the daily report and the daily budget's notice. */
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { format } from "node:util";
 import { budgetNotice } from "@overhand/contract";
@@ -54,20 +54,39 @@ export let problems = 0;
 /** What went wrong, as a report line says it: an error's own message, never "Error: …". */
 export const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
+/** Whether today's report already holds `line` (each is `- HH:MM <line>`): it survives a restart, the map doesn't. */
+function reportedToday(file: string, line: string): boolean {
+  if (!existsSync(file)) return false;
+  return readFileSync(file, "utf8")
+    .split("\n")
+    .some((l) => l.slice(8) === line);
+}
+
 /**
  * Appends a line to today's report (reports/YYYY-MM-DD.md) and logs it. The same line again within 30 minutes is
- * dropped: a failing loop would otherwise write it every pass.
+ * dropped: a failing loop would otherwise write it every pass. A warning (⚠) is written once a day, even across
+ * restarts.
  */
 export function report(line: string, now = Date.now()): void {
+  write(line, now, false);
+}
+
+/** `report`, but once a day whatever the line, even across restarts (a notice said at every start); true when written. */
+export const reportDaily = (line: string, now = Date.now()): boolean => write(line, now, true);
+
+function write(line: string, now: number, daily: boolean): boolean {
   if (/^(⚠|✗)/u.test(line)) problems++;
   const last = lastReported.get(line);
-  if (last !== undefined && now - last < REPEAT_MS) return;
+  if (last !== undefined && now - last < REPEAT_MS) return false;
   lastReported.set(line, now);
   // ponytail: the map grows with distinct lines; a day holds a few hundred, so it's pruned only when it gets big
   if (lastReported.size > 2000) for (const [l, at] of lastReported) if (now - at >= REPEAT_MS) lastReported.delete(l);
   mkdirSync(join(OPS, "reports"), { recursive: true });
-  appendFileSync(join(OPS, "reports", `${today()}.md`), `- ${new Date(now).toTimeString().slice(0, 5)} ${line}\n`, { mode: 0o600 });
+  const file = join(OPS, "reports", `${today()}.md`);
+  if ((daily || line.startsWith("⚠")) && reportedToday(file, line)) return false;
+  appendFileSync(file, `- ${new Date(now).toTimeString().slice(0, 5)} ${line}\n`, { mode: 0o600 });
   console.log(line);
+  return true;
 }
 
 let stampedDay = "";
