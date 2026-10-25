@@ -28,7 +28,17 @@ import { z } from "zod";
 import { billingRoute, publicHome } from "./billing";
 import { hasLink, homeRoute, recordLink } from "./home";
 import { hostedRoute } from "./hosted";
-import { applyEvent, type D1, entitlementOf, eventWorkspace, inCidr, paddleBase, paddleIps, verifyPaddleSignature } from "./paddle";
+import {
+  applyEvent,
+  type D1,
+  entitlementOf,
+  eventWorkspace,
+  inCidr,
+  paddleBase,
+  paddleIps,
+  signedWorkspace,
+  verifyPaddleSignature,
+} from "./paddle";
 import { signedIn, signInRoute } from "./signin";
 import { access, teamRoute, tellRoom } from "./team";
 
@@ -303,7 +313,7 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
     } catch {
       return json({ error: "bad json" }, 400);
     }
-    const result = await applyEvent(env.DB, event, now);
+    const result = await applyEvent(env.DB, event, now, await signedWorkspace(env.SIGNING_KEY, event));
     // a bad event is acknowledged anyway: Paddle would retry it forever, and the log says why
     if (result === "bad") console.error("paddle webhook: unusable event", raw.slice(0, 200));
     // a plan or seat change: the paying workspace's team room checks who may stay connected now

@@ -29,6 +29,26 @@ export async function paddleHmac(secret: string, ts: string, rawBody: string): P
 }
 
 /**
+ * The relay's mark on a checkout it made for `workspace`, carried in the transaction's custom_data (`sig`) and copied by
+ * Paddle onto its subscription. Paddle.js with the public client token can open a checkout with any custom_data, so a
+ * workspace without this mark is a buyer's claim, not the relay's. `key` is the relay's own SIGNING_KEY: it doesn't
+ * rotate the way the webhook secret does, and a mark that no longer checks out only stops new claims (applyEvent).
+ */
+export async function workspaceSig(key: string, workspace: string): Promise<string> {
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return hex(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(`workspace:${workspace}`)));
+}
+
+/** The event's workspace carries the relay's own mark (workspaceSig): the relay made its checkout. */
+export async function signedWorkspace(key: string, event: unknown): Promise<boolean> {
+  const data = z.object({ data: z.object({ custom_data: z.record(z.string(), z.unknown()).nullable().optional() }) }).safeParse(event).data
+    ?.data.custom_data;
+  const ws = data?.workspace;
+  const sig = data?.sig;
+  return typeof ws === "string" && typeof sig === "string" && !!key && sameHex(sig, await workspaceSig(key, ws));
+}
+
+/**
  * Verifies a `Paddle-Signature: ts=…;h1=…` header against the raw body. Any h1 may match (Paddle sends two while a
  * secret rotates). A timestamp outside the tolerance fails, so a captured delivery can't be replayed later; within it,
  * the event id dedupes (applyEvent).
@@ -275,13 +295,16 @@ export type Applied = "applied" | "duplicate" | "ignored" | "stale" | "bad";
  * custom_data, set server-side on the checkout's transaction and copied by Paddle to the subscription). The event id is
  * recorded in the same transaction, so a replay or retry is a no-op, an event older than the stored one never
  * overwrites it (Paddle doesn't promise order), and an event for another subscription never turns a paid one off.
+ * `signed`: its workspace carries the relay's mark (signedWorkspace). Unsigned, an event only updates the subscription
+ * already on record for that workspace (a renewal from before the mark, or after a key change): it never creates one,
+ * never replaces another, and never credits run minutes, so a checkout opened in a browser can't claim someone else's.
  */
-export async function applyEvent(db: D1, event: unknown, now: number): Promise<Applied> {
+export async function applyEvent(db: D1, event: unknown, now: number, signed = true): Promise<Applied> {
   const head = z.object({ event_id: z.string(), event_type: z.string() }).safeParse(event);
   if (!head.success) return "bad";
   const seen = await db.prepare("SELECT 1 AS hit FROM paddle_events WHERE event_id = ?").bind(head.data.event_id).first();
   if (seen) return "duplicate";
-  if (head.data.event_type === "transaction.completed") return creditPacks(db, event, head.data.event_id, now);
+  if (head.data.event_type === "transaction.completed") return creditPacks(db, event, head.data.event_id, now, signed);
   if (!head.data.event_type.startsWith("subscription.")) {
     await db.prepare("INSERT OR IGNORE INTO paddle_events (event_id, received_at) VALUES (?, ?)").bind(head.data.event_id, now).run();
     return "ignored";
@@ -302,14 +325,15 @@ export async function applyEvent(db: D1, event: unknown, now: number): Promise<A
       .prepare(
         `INSERT INTO entitlements (workspace, plan, cycle, seats, status, subscription_id, customer_id, price_id, period_end, occurred_at,
            scheduled_change, scheduled_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE ? OR EXISTS (SELECT 1 FROM entitlements WHERE workspace = ?)
          ON CONFLICT(workspace) DO UPDATE SET plan = excluded.plan, cycle = excluded.cycle, seats = excluded.seats,
            status = excluded.status, subscription_id = excluded.subscription_id, customer_id = excluded.customer_id,
            price_id = excluded.price_id, period_end = excluded.period_end, occurred_at = excluded.occurred_at,
            scheduled_change = excluded.scheduled_change, scheduled_at = excluded.scheduled_at
          WHERE excluded.occurred_at > entitlements.occurred_at
-           AND (excluded.subscription_id = entitlements.subscription_id OR excluded.status IN (${PAID_SQL})
-             OR entitlements.status NOT IN (${PAID_SQL}))`,
+           AND (excluded.subscription_id = entitlements.subscription_id
+             OR (? AND (excluded.status IN (${PAID_SQL}) OR entitlements.status NOT IN (${PAID_SQL}))))`,
       )
       .bind(
         workspace,
@@ -324,6 +348,10 @@ export async function applyEvent(db: D1, event: unknown, now: number): Promise<A
         e.data.occurred_at,
         change,
         change && (s.scheduled_change?.effective_at ?? null),
+        // unsigned: no new row, and the update only for the subscription already on record
+        signed ? 1 : 0,
+        workspace,
+        signed ? 1 : 0,
       ),
   ]);
   if (!mark?.meta.changes) return "duplicate"; // a concurrent delivery of the same event got there first
@@ -344,14 +372,14 @@ const PackTransaction = z.object({
  * transactions carry no pack and change nothing. The event id is recorded in the same transaction and the credit only
  * applies when that insert did (`changes()`), so a replay or a concurrent retry never credits twice.
  */
-async function creditPacks(db: D1, event: unknown, eventId: string, now: number): Promise<Applied> {
+async function creditPacks(db: D1, event: unknown, eventId: string, now: number, signed: boolean): Promise<Applied> {
   const t = PackTransaction.safeParse(event);
   const ws = t.data?.data.custom_data?.workspace;
   const minutes = (t.data?.data.items ?? [])
     .filter((i) => i.price.custom_data?.pack === "minutes")
     .reduce((n, i) => n + Math.max(0, Math.floor(Number(i.price.custom_data?.minutes) || 0)) * i.quantity, 0);
   const mark = db.prepare("INSERT OR IGNORE INTO paddle_events (event_id, received_at) VALUES (?, ?)").bind(eventId, now);
-  if (!minutes || typeof ws !== "string" || !ws) {
+  if (!minutes || typeof ws !== "string" || !ws || !signed) {
     await mark.run();
     return "ignored";
   }
