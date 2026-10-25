@@ -14,6 +14,9 @@ export const STEP_WORDS = {
   pr: "winStepPr",
 } as const satisfies Record<WinStep, WordKey>;
 
+/** Done: a pull request is up, or a watch project's report is in. */
+export const winDone = (win: FirstWin): boolean => win.state === "pr" || win.state === "report";
+
 /** The card's checklist: each step done, the one it's on, or still to come. A run that has just started is reading. */
 export function stepStates(step: WinStep | undefined): { step: WinStep; at: "done" | "now" | "next" }[] {
   const i = WIN_STEPS.indexOf(step ?? "read");
