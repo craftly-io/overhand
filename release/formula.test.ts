@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { SITE } from "../site/site";
 import { formula } from "./formula";
 
 const SUMS = ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"]
@@ -9,4 +10,11 @@ test("the formula names its version, so Homebrew doesn't guess one from a file n
   const rb = formula("1.2.3", SUMS);
   expect(rb).toContain('  version "1.2.3"');
   expect(rb).toContain("/v1.2.3/overhand-darwin-arm64.tar.gz");
+});
+
+test("the formula describes Overhand in the site's tagline, within Homebrew's rules for a desc", () => {
+  const desc = formula("1.2.3", SUMS).match(/^ {2}desc "(.+)"$/m)?.[1] ?? "";
+  expect(desc).toBe(SITE.tagline.replace(/\.$/, ""));
+  expect(desc.length).toBeLessThanOrEqual(80);
+  expect(desc).not.toMatch(/^(the|an?)\s/i);
 });
