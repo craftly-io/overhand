@@ -172,7 +172,7 @@ import { leadLog, liveSessions } from "./sessions";
 import { checks, secretsOf } from "./setup";
 import { shipCheck, shipRefusal, shipSweep, undoShip } from "./ship";
 import { shotsDir } from "./shots";
-import { opencodeKey, SIGNIN_GONE, sendSignInCode, signInState, startSignIn } from "./signin";
+import { opencodeKey, SIGNIN_GONE, signInState, startSignIn, watchSignIn } from "./signin";
 import {
   loadInterrupted,
   loadPrReview,
@@ -426,7 +426,8 @@ function readyLoginHome(account: string, home: string): void {
 }
 
 /**
- * The CLIs whose sign-in the daemon runs itself (signin.ts), each with its own check that it's signed in there. OpenCode's
+ * The CLIs whose sign-in the daemon runs itself (signin.ts), or watches while you run it (Claude Code's: Anthropic's own
+ * flow, in your terminal), each with its own check that it's signed in there. OpenCode's
  * is driven once the app has picked which (OPENCODE_ACCOUNTS: `-p` and `-m` skip its menus); its key goes by
  * /api/accounts/opencode-key.
  */
@@ -1333,6 +1334,20 @@ async function route(req: Request): Promise<Response> {
         markSignedOut(account, false);
         return json({ ok: true, command });
       }
+      const signedIn = async () => {
+        const ok = await verify(login.home);
+        if (!ok) return false;
+        forgetLogins();
+        forgetBilling();
+        markSignedOut(account, false); // signed in again: its runs go on
+        return true;
+      };
+      if (kind === "claude-code") {
+        // a Claude plan signs in through Anthropic's own flow, which you run in your own terminal on this computer;
+        // Overhand only shows the command and watches Claude Code's own status until it says signed in
+        const id = watchSignIn({ key: account, by: device?.id ?? "local", verify: signedIn });
+        return json({ ok: true, id, command: claudeLoginCommand(login.home), local });
+      }
       // from another device (a phone, over the relay) Codex's local-port sign-in can't call back: its device code can
       const argv =
         kind === "opencode"
@@ -1346,13 +1361,7 @@ async function route(req: Request): Promise<Response> {
         by: device?.id ?? "local",
         argv,
         env: login.env,
-        verify: async () => {
-          const ok = await verify(login.home);
-          forgetLogins();
-          forgetBilling();
-          if (ok) markSignedOut(account, false); // signed in again: its runs go on
-          return ok;
-        },
+        verify: signedIn,
       });
       if ("error" in started) return json({ error: started.error }, 502);
       report(`🔑 signing in ${account}`);
@@ -1376,12 +1385,6 @@ async function route(req: Request): Promise<Response> {
       forgetBilling();
       report(`🔑 OpenCode signed in to ${p.label} with an API key`);
       return json({ ok: true });
-    }
-    case "/api/accounts/login/code": {
-      // the code the browser showed, to the waiting sign-in this device started, and nowhere else
-      const id = typeof body.id === "string" ? body.id : "";
-      const r = sendSignInCode(id, device?.id ?? "local", typeof body.code === "string" ? body.code : "");
-      return "error" in r ? json(r, 409) : json(r);
     }
     case "/api/accounts/test": {
       const account = typeof body.account === "string" ? body.account : "";

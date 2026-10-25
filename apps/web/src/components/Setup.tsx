@@ -1,3 +1,4 @@
+import { GEMINI_TERMS } from "@overhand/contract";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -6,6 +7,7 @@ import { STATE_KEY } from "@/app/data";
 import { cue } from "@/app/sound";
 import { useWords } from "@/app/theme";
 import { useUi } from "@/app/ui";
+import { PlanUse } from "@/components/AddAccount";
 import { AddProjects } from "@/components/AddProjects";
 import { Checkup } from "@/components/Checkup";
 import { Connections, GithubFix, Mark, type Tone } from "@/components/Connections";
@@ -475,6 +477,7 @@ export function Setup({ onSaved }: { onSaved?: (projects: number) => void } = {}
         onChange={setKind}
       />
       <p className="text-sm text-muted-foreground">{kind === "login" ? w.setupLoginHint : w.setupKeyHint}</p>
+      {kind === "login" ? <PlanUse /> : null}
       {kind === "login" ? (
         <div className="flex flex-wrap items-center gap-3">
           <Button
@@ -568,6 +571,7 @@ export function Setup({ onSaved }: { onSaved?: (projects: number) => void } = {}
           if (p) choosePlan(p);
         }}
       />
+      {plan === "claude" ? <PlanUse /> : null}
       {plan === "" ? null : plan === "gemini" ? (
         // Gemini CLI on a free Gemini API key: installed if missing (the install alone), then the key; no Google sign-in
         <>
@@ -594,6 +598,12 @@ export function Setup({ onSaved }: { onSaved?: (projects: number) => void } = {}
                 {w.setupGeminiKeyFree}{" "}
                 <a className="text-primary underline" href={GEMINI_KEY_URL} target="_blank" rel="noopener noreferrer">
                   {w.setupGeminiKeyGet}
+                </a>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {w.setupGeminiKeyData}{" "}
+                <a className="text-primary underline" href={GEMINI_TERMS} target="_blank" rel="noopener noreferrer">
+                  {w.setupGeminiTerms}
                 </a>
               </p>
               <Input

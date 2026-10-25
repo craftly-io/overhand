@@ -327,6 +327,11 @@ export const plainWords = {
   setupAgentReady: "{tool} is signed in.",
   addAccountTitle: "Add an agent account",
   addAccountHint: "Pick the agent, then sign in. Overhand makes a quick test call.",
+  addAccountYours: "Add only accounts that are yours, or that their owner has given you to use.",
+  // a Claude plan, in setup and Add an agent account: Anthropic's own words on what its limits are for, with the link
+  planUseNote:
+    "Anthropic says a Pro or Max plan's usage limits “assume ordinary, individual usage”. For overnight or many-project work, use an Anthropic API key.",
+  planUseTerms: "Anthropic's terms",
   addAccountLooking: "Looking for agent apps on this computer…",
   addAccountLabel: "Label",
   addAccountSignIn: "Sign in with {tool}",
@@ -357,16 +362,18 @@ export const plainWords = {
   addAccountKeyOnly: "{tool} runs on an API key here.",
   addAccountNoKey: "{tool} runs on a gateway or a local model: add its label above, then set its provider in its card.",
   addAccountWaiting: "Sign in in the terminal that opened, then test it.",
-  // the CLI's own sign-in, run by Overhand: a link to open on this device, then the code the browser gives back
+  // the CLI's own sign-in, run by Overhand: a link to open on this device, and a code to enter there when it has one
   signInStarting: "Getting {tool}'s sign-in ready…",
+  // Claude Code's sign-in is Anthropic's own flow, run by you in a terminal; Overhand only watches its status
+  signInYourTerminal:
+    "Run this in a terminal on this computer. Claude Code opens Anthropic's own sign-in in your browser, and this updates by itself once you're signed in.",
+  signInOnComputer:
+    "Finish on the computer Overhand runs on: run this in a terminal there. Claude Code signs in through Anthropic's own page, not through Overhand, and this updates by itself.",
   signInWaiting: "Waiting for you to sign in…",
   signInOpenAgain: "Open the sign-in page again",
   signInOpenTool: "Open {tool}",
   signInBrowser: "Sign in in your browser",
   signInEnterCode: "Enter this code on the sign-in page:",
-  signInPasteCode: "Paste the code from the browser",
-  signInSend: "Send",
-  signInChecking: "Checking…",
   signInDone: "Signed in.",
   signInRetry: "Try again",
   addAccountTest: "Test again",
@@ -385,6 +392,9 @@ export const plainWords = {
   setupAgentInstall: "Install {tool}",
   setupGeminiKey: "Gemini API key",
   setupGeminiKeyFree: "The key is free from Google AI Studio.",
+  setupGeminiKeyData:
+    "On a free key, Google uses your prompts and code to improve its products, and “human reviewers may read, annotate, and process” them. Use a paid key for client or private code.",
+  setupGeminiTerms: "Google's terms",
   setupGeminiNeedsNode:
     "Gemini needs Node.js on this computer first. Download the installer, open it like any other app, and this step updates by itself.",
   setupGeminiNodeGet: "Get Node.js",
