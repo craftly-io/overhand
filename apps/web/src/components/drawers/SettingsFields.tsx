@@ -1,5 +1,6 @@
-import type { Check } from "@overhand/contract";
+import { type Check, localOnly } from "@overhand/contract";
 import { createContext, type ReactNode, use, useId, useState } from "react";
+import { useWords } from "@/app/theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,8 @@ export interface SettingsForm {
   store: string;
   /** The Slack inbox's MCP server file, by full path. */
   slackMcp: string;
+  /** This browser is on the computer itself; on a device the LOCAL_ONLY fields are read-only. */
+  local: boolean;
   set: (path: string, v: Json | undefined) => void;
   /** Rows an organise change touched while they had unsaved edits (`lead:<key>`, `project:<name>`); the edit is kept. */
   conflicts: ReadonlySet<string>;
@@ -33,18 +36,37 @@ export function useForm(): SettingsForm {
 type Kind = "text" | "num" | "csv" | "list" | "bool" | { options: string[]; fallback?: string; labels?: Readonly<Record<string, string>> };
 const NONE = "__none";
 
-/** One config field, bound to a dotted path in the draft. Text fields commit on blur, like a form's change event. */
+/** On a device, under a field only the computer changes: where to change it instead. */
+function OnComputer({ id }: { id: string }) {
+  const w = useWords();
+  return (
+    <p id={id} className="text-xs text-muted-foreground">
+      {w.changeOnComputer}
+    </p>
+  );
+}
+
+/**
+ * One config field, bound to a dotted path in the draft. Text fields commit on blur, like a form's change event. On a
+ * device, a field only the computer changes (contract localOnly) is read-only, with where to change it.
+ */
 export function Field({ label, path, kind = "text" }: { label: string; path: string; kind?: Kind }) {
   const f = useForm();
   const id = useId();
   const v = getAt(f.draft, path);
+  const locked = !f.local && localOnly(path);
+  const why = locked ? `${id}-why` : undefined;
+  const note = why ? <OnComputer id={why} /> : null;
   if (kind === "bool")
     return (
-      <div className="flex items-center justify-between gap-3 py-1">
-        <Label htmlFor={id} className="text-xs text-muted-foreground">
-          {label}
-        </Label>
-        <Switch id={id} checked={v === true} onCheckedChange={(on) => f.set(path, on)} />
+      <div className="grid gap-1">
+        <div className="flex items-center justify-between gap-3 py-1">
+          <Label htmlFor={id} className="text-xs text-muted-foreground">
+            {label}
+          </Label>
+          <Switch id={id} checked={v === true} disabled={locked} aria-describedby={why} onCheckedChange={(on) => f.set(path, on)} />
+        </div>
+        {note}
       </div>
     );
   if (typeof kind === "object")
@@ -53,8 +75,12 @@ export function Field({ label, path, kind = "text" }: { label: string; path: str
         <Label htmlFor={id} className="text-xs text-muted-foreground">
           {label}
         </Label>
-        <Select value={stringAt(f.draft, path, kind.fallback) || NONE} onValueChange={(x) => f.set(path, x === NONE ? "" : x)}>
-          <SelectTrigger id={id} size="sm" className="w-full min-w-0">
+        <Select
+          value={stringAt(f.draft, path, kind.fallback) || NONE}
+          disabled={locked}
+          onValueChange={(x) => f.set(path, x === NONE ? "" : x)}
+        >
+          <SelectTrigger id={id} size="sm" className="w-full min-w-0" aria-describedby={why}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -65,6 +91,7 @@ export function Field({ label, path, kind = "text" }: { label: string; path: str
             ))}
           </SelectContent>
         </Select>
+        {note}
       </div>
     );
   const shown = kind === "csv" && Array.isArray(v) ? v.join(", ") : typeof v === "string" || typeof v === "number" ? String(v) : "";
@@ -92,9 +119,14 @@ export function Field({ label, path, kind = "text" }: { label: string; path: str
         defaultValue={shown}
         list={kind === "list" ? "set-folders" : undefined}
         spellCheck={false}
-        onBlur={(e) => commit(e.target.value)}
+        readOnly={locked}
+        aria-describedby={why}
+        onBlur={(e) => {
+          if (!locked) commit(e.target.value);
+        }}
         className="h-8"
       />
+      {note}
     </div>
   );
 }

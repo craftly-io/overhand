@@ -860,6 +860,7 @@ export function SettingsDrawer({ tab: opening = "projects", project }: { tab?: s
     folders: data.folders,
     store: data.secretStore,
     slackMcp: data.slackMcp,
+    local: data.local,
     set: (path, v) => {
       let next = setAt(draft, path, v);
       // the tracker kind decides which fields exist: Jira needs a site, GitHub a repo and no token

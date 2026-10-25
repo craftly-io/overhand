@@ -65,6 +65,19 @@ test("a request for another host is refused, so DNS rebinding can't read the das
   expect(r.status).toBe(403);
 });
 
+test("no page may frame the dashboard: every answer, pages, API and refusals, says so", async () => {
+  const answers = [
+    await handle(localRequest(`${origin}/api/state`)),
+    await handle(localRequest(`${origin}/`)),
+    await handle(new Request(`${origin}/api/state`)),
+    await post("/api/request/plan", {}, { origin: "https://evil.example" }),
+  ];
+  for (const r of answers) {
+    expect(r.headers.get("x-frame-options")).toBe("DENY");
+    expect(r.headers.get("content-security-policy")).toBe("frame-ancestors 'none'");
+  }
+});
+
 test("a ready-made lead is added to a project, switched on and asleep until its own kind of work; twice is refused", async () => {
   const before = structuredClone(CFG);
   const pause = join(OPS, "PAUSE");

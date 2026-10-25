@@ -1492,6 +1492,8 @@ export const plainWords = {
   pairNotNeeded: "This browser is on the computer itself; it needs no pairing.",
   pairFromComputer: "Add a device from the computer itself.",
   setUpFromComputer: "Set this up from the computer itself.",
+  // Settings fields only the computer changes (contract LOCAL_ONLY): commands Overhand runs, the sandbox, allowed addresses
+  changeOnComputer: "Open Settings on the computer itself to change commands Overhand runs, the OS sandbox or the allowed addresses.",
 
   // Settings → Phone: Tailscale, paired devices, notifications
   phoneTitle: "Phone",

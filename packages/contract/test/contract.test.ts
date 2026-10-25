@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { DashboardStateSchema, isNewerVersion } from "../src/index";
+import { DashboardStateSchema, isNewerVersion, localOnly, localOnlyChange } from "../src/index";
 
 /** A small but complete state, the shape the daemon sends; made-up names only. */
 const state = {
@@ -91,4 +91,33 @@ test("release versions compare by number, with or without the v", () => {
   expect(isNewerVersion("", "0.2.0")).toBe(false);
   expect(isNewerVersion("nightly", "0.2.0")).toBe(false);
   expect(isNewerVersion("1.0.0-rc.1", "0.2.0")).toBe(false); // prereleases aren't offered
+});
+
+test("the fields only the computer changes: commands the daemon runs, the sandbox, the allowed addresses", () => {
+  for (const p of ["sandbox.mode", "sandbox.required", "dashboardOrigins", "clients.3.preview.command", "clients.0.sandbox"])
+    expect(localOnly(p)).toBe(true);
+  for (const p of ["clients.3.preview.url", "clients.0.name", "dashboard", "cleanup.schedule"]) expect(localOnly(p)).toBe(false);
+});
+
+test("a local-only change is found by project name; removing a project or saving the same again is none", () => {
+  const before = {
+    sandbox: { mode: "enforce", required: false },
+    dashboardOrigins: ["https://a.example"],
+    clients: [
+      { name: "a", preview: { command: "bun run dev", url: "" } },
+      { name: "b", sandbox: "off" },
+    ],
+  };
+  expect(localOnlyChange(before, structuredClone(before))).toBe("");
+  // one removed, an empty preview command and "inherit" are the same as left out
+  expect(localOnlyChange(before, { ...before, clients: [{ name: "b", sandbox: "off" }] })).toBe("");
+  const added = { name: "c", sandbox: "inherit", preview: { command: "" } };
+  expect(localOnlyChange(before, { ...before, clients: [...before.clients, added] })).toBe("");
+  expect(localOnlyChange(before, { ...before, sandbox: { mode: "off", required: false } })).toBe("sandbox");
+  expect(localOnlyChange(before, { ...before, dashboardOrigins: [] })).toBe("dashboardOrigins");
+  const evil = { preview: { command: "sh evil", url: "" } };
+  expect(localOnlyChange(before, { ...before, clients: [{ name: "a", ...evil }] })).toBe("clients.a.preview.command");
+  expect(localOnlyChange(before, { ...before, clients: [{ name: "new", ...evil }] })).toBe("clients.new.preview.command");
+  const cleanup = { categories: { caches: { commands: ["rm"] } } };
+  expect(localOnlyChange(before, { ...before, cleanup })).toBe("cleanup.categories.caches.commands");
 });
