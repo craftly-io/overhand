@@ -143,7 +143,7 @@ function AlertCard({ a, brief, className }: { a: Alert; brief?: string; classNam
     else if (t.kind === "review") ui.openDrawer({ kind: "review", key: t.key });
     else if (t.kind === "notes" || t.kind === "sweep") ui.openDrawer({ kind: t.kind });
     else if (t.kind === "settings") ui.openDrawer({ kind: "settings", tab: t.tab, project: t.project });
-    else if (t.kind === "sandbox") ui.openDrawer({ kind: "settings", tab: "projects", project: t.project });
+    else if (t.kind === "sandbox") ui.openDrawer({ kind: "settings", tab: "safety", project: t.project });
     else if (t.kind === "rule") ui.openDrawer({ kind: "instructions", project: t.project });
     else if ((t.kind === "held" && t.key) || t.kind === "interrupted") ui.openDrawer({ kind: "ticket", key: t.key });
     else if (t.kind === "card") ui.openDrawer({ kind: "crew" });
@@ -233,7 +233,7 @@ function Actions({ a }: { a: Alert }) {
   if (t.kind === "cantstart")
     return (
       <div className="flex flex-wrap justify-end gap-1">
-        <Button variant="outline" size="xs" onClick={() => ui.openDrawer({ kind: "settings", tab: "accounts" })}>
+        <Button variant="outline" size="xs" onClick={() => ui.openDrawer({ kind: "settings", tab: "agents" })}>
           {fmt(w.alFixAccount, { account: t.account })}
         </Button>
         <Button size="xs" onClick={() => void leadStart(t.key)}>

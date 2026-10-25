@@ -16,7 +16,7 @@
         <li><b>Asleep until there's work</b> Each project agent wakes when its own kind of work shows up on its project, and works only on that.</li>
         <li><b>Within the project's mode</b> It goes only as far as the project's <a href="modes.html">mode</a> allows.</li>
         <li><b>Kept running</b> While a project agent is On, {{name}} restarts it after it exits, gives up after repeated crashes, and waits while its account is at its usage limit.</li>
-        <li><b>How often</b> An always-on one starts again a few minutes after it exits, and rests longer each time it finds nothing to do, up to 4 hours. In Settings → Project agents, <em>{{w.leadRestartLabel}}</em> set to 1440 makes it run daily and 10080 weekly, and it rests that long.</li>
+        <li><b>How often</b> An always-on one starts again a few minutes after it exits, and rests longer each time it finds nothing to do, up to 4 hours. In Settings → Advanced → Project agent details, <em>{{w.leadRestartLabel}}</em> set to 1440 makes it run daily and 10080 weekly, and it rests that long.</li>
         <li><b>Its accounts</b> <em>{{w.leadAccountsLabel}}</em> lists them. At one's usage limit the next run takes the next; with <em>{{w.leadFallbackLabel}}</em> off, it never runs on another, and waits once all of them are used up.</li>
         <li><b>When it can't start</b> If a start fails before it runs, say an account missing its key, Needs you says why, with a button for that account and <em>{{w.signInRetry}}</em>.</li>
       </ul>
@@ -40,7 +40,7 @@
       <ul class="facts">
         <li><b>Under Needs you</b> Answer in place, from your phone's notification, or from a terminal with <code>overhand answer &lt;lead&gt; "your answer"</code>, naming the project agent by its key or label. <code>--default</code> goes with the default it gave.</li>
         <li><b>From any terminal</b> <code>overhand answer</code> goes through the running daemon, the same as answering on the dashboard. So your terminal session, or an agent's, can unblock a project agent it settled a question for. {{name}} never reads your other sessions.</li>
-        <li><b>Its default</b> A question ends with what the agent will do if nobody answers. After the wait set for that agent (4 hours unless you change it in Settings → Project agents), {{name}} goes with it and tells you. A question with no default, or a wait of 0, waits for you.</li>
+        <li><b>Its default</b> A question ends with what the agent will do if nobody answers. After the wait set for that agent (4 hours unless you change it in Settings → Advanced → Project agent details), {{name}} goes with it and tells you. A question with no default, or a wait of 0, waits for you.</li>
         <li><b>Answered somewhere else</b> <em>{{w.answeredElsewhere}}</em> resumes the agent when you settled it outside {{name}}.</li>
       </ul>
     </section>
@@ -59,7 +59,7 @@
     <section class="block hood" id="own" aria-labelledby="h-own">
       <h2 id="h-own">Your own project agent.</h2>
       <ul class="facts">
-        <li><b>The generic one</b> Add one in Settings → Project agents with no instruction of its own: it works the project's open issues and pull requests in priority order, with its notes kept in <code>~/.overhand</code>, never in your project.</li>
+        <li><b>The generic one</b> Add one in Settings → Advanced → Project agent details with no instruction of its own: it works the project's open issues and pull requests in priority order, with its notes kept in <code>~/.overhand</code>, never in your project.</li>
         <li><b>A project's own skill</b> Point it at the skill, and have the skill keep a lock file and a questions file so {{name}} can supervise it. <a href="{{repo}}/blob/main/docs/leads.md"><code>docs/leads.md</code></a> has both formats and a snippet to paste.</li>
       </ul>
     </section>

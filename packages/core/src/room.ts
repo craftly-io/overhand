@@ -486,7 +486,7 @@ export async function act(card: Card, button: CardButton, rows: Row[], e: ActEnv
     case "always-allow": {
       const approvals = [...e.cfg.control.approvals, { action: "allow-heavy-in-quiet" as const, project: card.project, at: e.now }];
       e.save({ ...e.cfg, control: { ...e.cfg.control, approvals } });
-      return done(`${card.project} may always run heavy jobs in quiet mode (revoke it in Settings › House rules)`);
+      return done(`${card.project} may always run heavy jobs in quiet mode (revoke it in Settings › Safety)`);
     }
     case "one-at-a-time": {
       const slots = Object.fromEntries(HEAVY.map((k) => [k, 1])) as Record<Heavy, number>;

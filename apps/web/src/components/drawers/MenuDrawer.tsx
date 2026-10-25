@@ -92,16 +92,13 @@ export function MenuDrawer({ m }: { m: Model }) {
         {/* pausing is a switch under the header's Pause; the views open from Now's sentence */}
         <Section label={w.menuRun}>
           <Row tone="secondary" title={`${w.overdrive}…`} sub={w.menuOverdriveHint} onClick={() => run({ name: "overdrive" })} />
-          <Row tone="quiet" title={`${w.sweep}…`} sub={says("sweep", w.cmdSweep)} onClick={() => run({ name: "sweep" })} />
-          <FeatureTip at="menu-sweep" />
         </Section>
         <hr className="border-border" />
+        {/* disk cleanup, restart and turn off have their one home in Settings (Advanced, and You) */}
         <Section label={w.menuSystem}>
           <Row tone="quiet" title={w.whatsNew} sub={w.whatsNewHint} go onClick={() => ui.openDrawer({ kind: "news" })} />
           <Row tone="quiet" title={`${w.feedback}…`} sub={w.feedbackHint} onClick={() => run({ name: "feedback" })} />
           <FeatureTip at="menu-feedback" />
-          <Row tone="quiet" title={`${w.restartOps}…`} onClick={() => run({ name: "restart" })} />
-          <Row tone="danger" title={w.shutdown} sub={w.shutdownHint} onClick={() => run({ name: "shutdown" })} />
         </Section>
       </div>
     </>

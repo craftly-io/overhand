@@ -69,8 +69,8 @@ export const plainWords = {
   soundChimes: "Sounds for new activity",
   soundChimesHint: "One short sound per event, in this look's own voice. Off by default.",
 
-  // Quick settings: the day-to-day switches, one tap from the header
-  quickSettings: "Pause and quick settings",
+  // the header's Pause: pausing and quiet mode, one tap away; every other setting lives in Settings
+  quickSettings: "Pause and quiet",
   pauseShort: "Pause",
   pausedShort: "Paused",
   quickBudget: "Daily budget",
@@ -83,14 +83,14 @@ export const plainWords = {
   quickBudgetAmount: "Daily budget in dollars",
   quickPace: "Pace to usage limits",
   quickPaceHint: "Holds a Claude account that has used more of its week than has passed, so it lasts the week",
-  /** The menu bar item on a Mac (core menubar.ts): a switch in Quick settings, and its popover's own words. */
+  /** The menu bar item on a Mac (core menubar.ts): a switch in Settings → You, and its popover's own words. */
   menubar: "Menu bar item",
   menubarHint: "The Overhand mark in your Mac's menu bar: what needs you and what's running, one click away.",
   glanceOpen: "Open Overhand",
   glanceHide: "Hide from the menu bar",
   glanceMore: "And {n} more in Needs you",
   quickProjects: "What agents do",
-  // a project's hosted runs switch (packages/core/src/hosted.ts): in Quick settings under its mode
+  // a project's hosted runs switch (packages/core/src/hosted.ts): in Settings → Connections
   hostedHere: "Run here when my computer is off",
   hostedHereHint: "Its queued tasks run on Overhand's machines, on your own API key, from your run minutes.",
   // the card for a hosted run that stopped or never started; the ticket is back in this computer's queue
@@ -118,7 +118,7 @@ export const plainWords = {
   alHostedStoppedSub: "{why} It's back in this computer's queue.",
   alHostedBuy: "Buy run minutes",
   quickAll: "All settings",
-  /** Focus: outcomes only, the steps folded; a switch in Quick settings and the F key. */
+  /** Focus: outcomes only, the steps folded; a switch in Settings → You, the command bar and the F key. */
   focus: "Focus",
   focusHint: "Only what needs you, what finished and what broke. The steps fold away (F).",
   showSteps: "Show steps",
@@ -425,7 +425,7 @@ export const plainWords = {
   setupPickPublic: "public",
   setupPickLocal: "Use projects already on this computer",
 
-  // services, in Setup and Settings → Integrations: what already reaches each one, else one Connect
+  // services, in Setup and Settings → Connections: what already reaches each one, else one Connect
   connectTitle: "Services",
   connectHint: "What Overhand and your agents already reach. None of it is needed to start.",
   connectConnected: "Connected",
@@ -443,11 +443,11 @@ export const plainWords = {
   connectMcp: "signed in from Overhand",
   connectStored: "an API token",
   connectInbox: "the servers in {detail}",
-  connectVercelHint: "Run vercel login in a terminal, or store a token in Settings → Integrations.",
+  connectVercelHint: "Run vercel login in a terminal, or store a token in Settings → Connections.",
   connectNoSignIn:
     "{service} doesn't let apps sign in without registering one first. The inbox reads it through the servers in slack-mcp.json; your agents use their own.",
   connectTokenHint:
-    "Store an API token in the secret store and name it in Settings (on the project for a tracker, under Integrations for errors). Connect wins when both are there.",
+    "Store an API token in the secret store and name it in Settings (on the project for a tracker, under Connections for errors). Connect wins when both are there.",
   storyDay: "Your day",
 
   // pane titles
@@ -887,7 +887,7 @@ export const plainWords = {
   saidDismissed: "Question dismissed; it picks up from here",
   liveOutput: "Live output",
   logEmpty: "No output yet. An agent working in the background prints its updates here as it works.",
-  leadOffHint: "This agent is off. Switch it on in Settings → Project agents and Overhand starts it within a minute.",
+  leadOffHint: "This agent is off. Switch it on in Settings → Projects and Overhand starts it within a minute.",
   updatedAgo: "updated {ago}",
   stopLead: "Stop",
   startLead: "Start",
@@ -1013,7 +1013,7 @@ export const plainWords = {
   alLeadCantStartSay: "{lead} can't start",
   alFixAccount: "Fix {account}",
   leadCantStart: "Can't start on {account}: {why}",
-  /** Settings → Leads: how long a lead rests after it exits, and which accounts it may run on. */
+  /** Settings → Advanced → Project agent details: how long a lead rests after it exits, and which accounts it may run on. */
   leadRestartLabel: "Runs again after (minutes; 1440 = a day, 10080 = a week)",
   leadAccountsLabel: "Accounts it may use, in order (overrides Account)",
   leadFallbackLabel: "Carry on with any other account at their limits",
@@ -1070,10 +1070,10 @@ export const plainWords = {
   runAsksYouHeld: "That session is the owner's own: the request went to the owner, who decides whether to pass it on.",
   movedOffOwnTitle: "Sign in once for {accounts}",
   movedOffOwnBody:
-    "Agent runs are moving off your own agent config, so a run can't change what your own sessions start with. Sign in once in the account's own folder: Settings, Agent accounts, Sign in. Its runs carry on as now and move there by themselves once you have.",
+    "Agent runs are moving off your own agent config, so a run can't change what your own sessions start with. Sign in once in the account's own folder: Settings, Agents, Sign in. Its runs carry on as now and move there by themselves once you have.",
   slackMovedLabel: "Slack is signed in in this account's own folder too (the Slack inbox moves there)",
   movedWaitsSandbox:
-    "This account still runs on your own agent config, which the OS sandbox keeps runs out of: its runs wait until you sign it in once in its own folder (Settings, Agent accounts, Sign in).",
+    "This account still runs on your own agent config, which the OS sandbox keeps runs out of: its runs wait until you sign it in once in its own folder (Settings, Agents, Sign in).",
   // the machine's OS sandbox switch (config sandbox.mode, on: enforce) and its Advanced setting (sandbox.required)
   safetyTitle: "Safety",
   sandboxSwitch: "OS sandbox",
@@ -1610,16 +1610,61 @@ export const plainWords = {
   settingsTitle: "How Overhand runs",
   save: "Save",
   discard: "Discard changes",
+  // Settings in five sections plus Advanced (apps/web/src/lib/settings-places.ts): each control has one home
+  setProjects: "Projects",
+  setAgents: "Agents",
+  setConnections: "Connections",
+  setYou: "You",
+  setMore: "More",
+  setAdvanced: "Advanced",
+  setOpenAt: "Open Settings → {name}",
+  setAdvancedOpen: "Advanced settings",
+  setAdvancedHint: "Everything else, grouped: schedules, labels, groups, routing, plugins, addresses, machine checks and the config file.",
+  setAdvSchedule: "Schedules and limits",
+  setAdvLabels: "Labels",
+  setAdvGroups: "Groups and group rules",
+  setAdvAgents: "Project agent details",
+  setAdvRouting: "Routing and account order",
+  setAdvApprovals: "Standing approvals",
+  setAdvProtect: "Protected processes",
+  setAdvUpdates: "Status updates and work reports",
+  setAdvPlugins: "Plugins",
+  setAdvSandbox: "Refuse runs without the sandbox",
+  setAdvOutward: "Branch prefix, attribution and corner comments",
+  setAdvAddresses: "Extra origins, tailnet and notifications",
+  setAdvMcp: "MCP and Slack mapping",
+  setAdvChecks: "Machine checks",
+  setAdvCleanup: "Disk cleanup",
+  setAdvConfig: "The config file",
+  setProjectsHint: "What agents may do on each project, where its work comes from, and whether an agent stays on it.",
+  setKeepAgent: "Keep an agent on this project",
+  setAddProjects: "Add projects from GitHub",
+  setAddProject: "Add a project by hand",
+  setAgentsHint: "The agents your work runs on, each signed in once in a folder of its own. More holds the model and effort.",
+  setAddAgent: "Add an agent",
+  setSignInChecks: "Sign-ins that need you",
+  setHouseRules: "In your words, one per line (every agent is handed them)",
+  setSlackDrafts: "Slack: drafts only (agents may search and read; you send)",
+  setPrivate: "Private words: never sent anywhere (people, emails, hosts)",
+  setQuietHours: "Quiet hours, one per line: 22:00-07:00 holds every heavy job; add kinds to hold only those ({kinds})",
+  setName: "Your name",
+  setBriefHour: "Night report at hour (-1 = off)",
+  setRunOffNone: "With Access from anywhere on a paid plan, each GitHub project gets this switch here.",
+  setTeam: "Team",
+  safetyRules: "House rules",
+  setLookHere: "Look and sound are kept in this browser; other devices pick their own.",
+  setConnectionsMore: "Bitbucket, and status tokens that see several projects",
 
   // pairing: another device opening the dashboard (a browser on the computer itself never pairs)
   pairTitle: "Pair this device",
-  pairBody: "Overhand runs on your computer. Pair this device once with the code the computer shows under Settings → Phone → Add a device.",
+  pairBody:
+    "Overhand runs on your computer. Pair this device once with the code the computer shows under Settings → Connections → Add a device.",
   pairHere: "On the computer itself? Run {command} in a terminal: it opens this page signed in.",
   pairCode: "Pairing code",
   pairButton: "Pair",
   pairWorking: "Pairing…",
   // the daemon's refusals, read on the device being paired (the computer may be a Mac, a Linux server or a container)
-  pairExpired: "That code has expired. Make a new one on the computer: Settings, Phone, Add a device.",
+  pairExpired: "That code has expired. Make a new one on the computer: Settings, Connections, Add a device.",
   pairMismatch: "That code doesn't match. Check it on the computer and try again.",
   pairNotNeeded: "This browser is on the computer itself; it needs no pairing.",
   pairFromComputer: "Add a device from the computer itself.",
@@ -1627,9 +1672,11 @@ export const plainWords = {
   // Settings fields only the computer changes (contract LOCAL_ONLY): commands Overhand runs, the sandbox, allowed addresses
   changeOnComputer: "Open Settings on the computer itself to change commands Overhand runs, the OS sandbox or the allowed addresses.",
 
-  // Settings → Phone: Tailscale, paired devices, notifications
+  // Settings → Connections: Tailscale, paired devices, notifications
   phoneTitle: "Phone",
   phoneHint: "Open Overhand and answer your agents from your phone, over your own tailnet.",
+  phoneTailnetTitle: "Your tailnet",
+  phoneAnywhere: "Open Overhand and answer your agents from your phone, wherever you are.",
   phoneNoTailscale:
     "Tailscale isn't on this computer. Get it from tailscale.com/download, sign in on the computer and your phone, then come back here.",
   phoneTailscaleOff: "Tailscale is installed but not running. Open it and sign in.",
@@ -1640,7 +1687,7 @@ export const plainWords = {
   phoneServeButton: "Set it up",
   phoneUseButton: "Use this address",
   phonePortsTaken:
-    "Every port Overhand would use already serves something else. Serve it yourself with tailscale serve, then add the address under Integrations.",
+    "Every port Overhand would use already serves something else. Serve it yourself with tailscale serve, then add the address under Settings → Advanced.",
   phoneFunnel:
     "Funnel is on for this address, so anyone on the internet reaches the pairing screen. Pairing keeps them out; turn Funnel off unless you need it.",
   phoneFromMac: "Set up access and add devices from the computer itself.",
@@ -1649,7 +1696,8 @@ export const plainWords = {
   devicesNone: "No devices paired yet. A browser on this computer never needs pairing.",
   devicesAdd: "Add a device",
   devicesScan: "Scan with your phone's camera, or open {origin} on it and type the code. It works once, for 10 minutes.",
-  devicesNoOrigin: "Put Overhand on your tailnet first, so your phone has an address to open.",
+  devicesNoOrigin:
+    "Set up Access from anywhere above, or put Overhand on your tailnet under Settings → Advanced, so your phone has an address to open.",
   devicesRemove: "Remove",
   devicesThis: "this device",
   devicesSeen: "Paired {at} · last seen {seen}",
@@ -1658,11 +1706,10 @@ export const plainWords = {
   devicesWaiting: "Waiting for your phone",
   ntfyTitle: "Notifications",
   ntfyOn: "ntfy is set up: questions and alerts reach your phone.",
-  ntfyOff:
-    "Name your ntfy topic under Settings → Integrations, with its URL in the secret store, to get questions and alerts on your phone.",
+  ntfyOff: "Name your ntfy topic under Settings → Advanced, with its URL in the secret store, to get questions and alerts on your phone.",
   ntfyTest: "Send a test notification",
   ntfySent: "Sent. It should be on your phone now.",
-  // Settings → Phone: Access from anywhere (the hosted relay, Pro or Team)
+  // Settings → Connections: Access from anywhere (the hosted relay, Pro or Team)
   anywhereTitle: "Access from anywhere",
   anywhereHint:
     "Open Overhand at {app} from any device, without Tailscale. It connects straight to this computer; your data never passes through Overhand's servers.",
@@ -1741,7 +1788,7 @@ export const plainWords = {
   homeInstallAgent: "Or paste this into your coding agent:",
   homeCopyPrompt: "Copy for your agent",
   homeLinkTitle: "Link it",
-  homeLinkLine: "Open Overhand on that computer, go to Settings → Phone, and choose {setUp} under Access from anywhere.",
+  homeLinkLine: "Open Overhand on that computer, go to Settings → Connections, and choose {setUp} under Access from anywhere.",
   homeWaiting: "Waiting for your computer…",
   homeLinked: "Linked",
   homeSeePro: "Want it from your phone too?",
@@ -1888,7 +1935,7 @@ export const plainWords = {
 
   // plugins (core/src/plugins.ts): add-ons in a sandbox of their own, approved by their files, talking back in findings
   panePlugins: "Plugins",
-  plNone: "No plugins installed. Settings, Plugins installs one from a pinned version.",
+  plNone: "No plugins installed. Settings → Advanced → Plugins installs one from a pinned version.",
   plKindCheck: "check",
   plKindTracker: "tracker",
   plKindNotifier: "notifier",
@@ -1966,7 +2013,7 @@ export const plainWords = {
   teamAsks: "{name} asks on {project}",
   teamHanded: "{name} handed you {title}",
   teamMentioned: "{name} mentioned you",
-  teamNone: "No team yet. Create one or join from an invite in Settings → Team.",
+  teamNone: "No team yet. Create one or join from an invite in Settings → You → Team.",
   teamFeedDown: "The team feed is offline: {reason}",
 
   // the attention map: you at the centre, what needs you close, what's working round it, the rest further out
@@ -2028,7 +2075,7 @@ export const plainWords = {
   // organising: groups of projects with shared rules, lead scope per group, and suggestions (cards built from facts)
   orgTitle: "Here's how we'd organise your work",
   orgGroups: "Groups",
-  orgGroupsHint: "Projects in a group share its rules and project agents. Changes here save at once.",
+  orgGroupsHint: "Projects in a group share its rules and project agents. Moves and rules save with the rest of Settings.",
   orgConflictLead: "Organise changed this project agent; your unsaved edit is kept, review before saving",
   orgConflictProject: "Organise changed this project; your unsaved edit is kept, review before saving",
   orgIntro: "Projects that belong together share rules and project agents. Nothing on disk moves.",

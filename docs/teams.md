@@ -72,7 +72,7 @@ Modelled on Figma and Miro: present, never overbearing.
 (needs, working, idle). The projects they own sit between hubs, linked to their owner and backup. The team brief sits
 on top, with what waits on you.
 
-**Settings → Team.** Here you manage members and roles, invites, project owners and backups, seats, and sharing PR
+**Settings → You → Team.** Here you manage members and roles, invites, project owners and backups, seats, and sharing PR
 links.
 
 ## Sync design
@@ -212,4 +212,4 @@ Presence has no write cost at any volume.
   - the Me / Team switch;
   - the Team view (`apps/web/src/components/team/`), kept apart so the visual pass can restyle it;
   - the header facepile with Follow;
-  - Settings → Team.
+  - Settings → You → Team.

@@ -16,6 +16,7 @@ import { type Command, parseCommand } from "@/lib/commands";
 import { fmt } from "@/lib/format";
 import { fuzzyScore } from "@/lib/fuzzy";
 import { leadName } from "@/lib/sessions";
+import { SECTIONS } from "@/lib/settings-places";
 import { guessProject, looksLikeTask } from "@/lib/task";
 
 /**
@@ -138,6 +139,12 @@ export function Palette({ m }: { m: Model | undefined }) {
       "settings",
       [
         place("settings"),
+        // each section and Advanced, one line each: "settings safety" opens Settings there
+        ...[...SECTIONS, ["advanced", "setAdvanced"] as const].map(([id, name]) => ({
+          kw: `settings ${id}`,
+          desc: fmt(w.setOpenAt, { name: w[name] }),
+          act: close(() => openDrawer({ kind: "settings", tab: id })),
+        })),
         theming ? null : { kw: "theme", desc: `${w.theme}…`, act: () => setText("theme ") },
         ...(theming
           ? themes

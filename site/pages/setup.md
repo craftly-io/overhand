@@ -55,7 +55,7 @@ Open http://127.0.0.1:4317 (`overhand start` opens it). Overhand looks at this m
 the code is, the projects (one per repo, or one per GitHub owner for several of its repos), the agents installed and
 signed in, and the model. Go through it with the person: they keep at least one project, untick any they don't want and
 press Start Overhand. Every sign-in it asks for is their click.
-More agent accounts are added in Settings → Agent accounts: the agent's own sign-in opens in their browser. A Claude
+More agent accounts are added in Settings → Agents: the agent's own sign-in opens in their browser. A Claude
 Code account shows a command instead (`CLAUDE_CONFIG_DIR=… claude auth login`): the person runs it in their own terminal
 on this computer, since Anthropic's terms want its sign-in to go through Anthropic's own flow, and the card turns green
 by itself. Don't run it for them. OpenCode's sign-in still opens in a terminal.
@@ -68,7 +68,7 @@ Suggest these to the person, and set them only with their yes, in Overhand:
 - Merging stays with the person on the first day: leave every project off **{{modeShip}}**.
 - The **daily cap**: it counts only money an account is billed for (an API key, a paid gateway, a cloud account), and
   any account whose billing isn't known yet. Overhand sets one when it's installed, unless the first account is a local
-  model. Show the person what it is (Settings) and ask whether it suits them; don't add another. Once today's count
+  model. Show the person what it is (Settings → Safety) and ask whether it suits them; don't add another. Once today's count
   reaches it, pay-per-use and cloud agents (and any not known yet) wait until tomorrow; accounts known to be on a plan
   carry on, since they aren't charged per run and follow their plan's usage limits. If Overhand asks whether an account
   is billed per use or part of a plan, ask the person; don't answer for them.

@@ -3,7 +3,7 @@
  * for the one install that predates the two supported setups. Off unless local code in `<config folder>/local-code`
  * exports `subscriptionTokens = true` (`loadLocalCode`); Overhand never offers, stores or documents it. With it off, no
  * code path reads a token: runs (`subscriptionToken`) and doctor (`secretsOf`, `checks`) only look while it's on.
- * Removal plan: once that install's accounts have signed in (Settings → AI accounts → Sign in to Claude Code) and the
+ * Removal plan: once that install's accounts have signed in (Settings → Agents → Sign in to Claude Code) and the
  * plugin is deleted, remove this file and every `subscriptionToken*` import (claude-code.ts, agent-home.ts, setup.ts,
  * claude.ts).
  */

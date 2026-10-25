@@ -104,7 +104,7 @@ export function Spend({ m }: { m: Model }) {
         </section>
       ) : null}
       {/* the cap itself is a switch under the header's Pause; this opens where it and the other limits live */}
-      <Button variant="link" size="xs" className="mt-1 px-0" onClick={() => ui.openDrawer({ kind: "settings", tab: "schedule" })}>
+      <Button variant="link" size="xs" className="mt-1 px-0" onClick={() => ui.openDrawer({ kind: "settings", tab: "safety" })}>
         {w.budgetChange}
       </Button>
     </Pane>

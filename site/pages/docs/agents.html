@@ -13,7 +13,7 @@
       <h2 id="h-accounts">One account, one agent.</h2>
       <ul class="facts">
         <li><b>The agents</b> {{name}} runs {{agents}}, each headless, the way its own command-line app runs.</li>
-        <li><b>An account</b> Settings → Agent accounts: which agent it runs, and the model behind it. Add as many as you have.</li>
+        <li><b>An account</b> Settings → Agents: which agent it runs, and the model behind it. Add as many as you have.</li>
         <li><b>Kept apart</b> Each account is used on its own; one person's work is never spread across several of their subscriptions.</li>
         <li><b>Models</b> Claude, Amazon Bedrock, Google Vertex AI, or a gateway such as Ollama, LiteLLM or OpenRouter, including a model running on your own computer.</li>
       </ul>
@@ -22,7 +22,7 @@
     <section class="block hood" id="signin" aria-labelledby="h-signin">
       <h2 id="h-signin">Sign-ins and API keys.</h2>
       <ul class="facts">
-        <li><b>The agent's own sign-in</b> In Settings → Agent accounts, adding an account (or an account's sign-in button) runs that agent's own login for you: Codex in a folder kept for the account, Cursor Agent in the one login this computer has. <em>{{w.signInBrowser}}</em> opens its sign-in page on the device you're on, your phone too. {{name}} shows <em>{{w.signInDone}}</em> once the agent's own status check says so, then makes a test call.</li>
+        <li><b>The agent's own sign-in</b> In Settings → Agents, adding an account (or an account's sign-in button) runs that agent's own login for you: Codex in a folder kept for the account, Cursor Agent in the one login this computer has. <em>{{w.signInBrowser}}</em> opens its sign-in page on the device you're on, your phone too. {{name}} shows <em>{{w.signInDone}}</em> once the agent's own status check says so, then makes a test call.</li>
         <li><b>Claude Code, in your own terminal</b> A Claude account signs in through Anthropic's own flow, which <a href="https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use">Anthropic's terms</a> require, so {{name}} never runs it or takes its code. The card shows the exact command for that account's folder, <code>CLAUDE_CONFIG_DIR=… claude auth login</code>, with <em>{{w.hostedCopy}}</em>: {{w.signInYourTerminal}} On a phone it says: {{w.signInOnComputer}}</li>
         <li><b>From another device</b> Codex's usual sign-in calls back to the computer it runs on, so from a phone or over Access from anywhere it uses Codex's device code instead: the app shows the code to enter on the sign-in page.</li>
         <li><b>What {{name}} reads</b> Only the sign-in link (and a code to show) from what the agent prints, and for Claude Code only whether <code>claude auth status</code> says it's signed in. Nothing it prints is logged or kept. A sign-in still waiting after 10 minutes is stopped.</li>
@@ -71,7 +71,7 @@
       <h2 id="h-cap">The daily cap.</h2>
       <ul class="facts">
         <li><b>Only billed money</b> It counts what pay-per-use and cloud accounts are billed today. {{budgetUnknown}} {{plansLimit}}</li>
-        <li><b>Set at install</b> {{name}} starts with {{firstDayCap}} a day, unless your first account is a local model. Change it in Settings → Schedule &amp; limits.</li>
+        <li><b>Set at install</b> {{name}} starts with {{firstDayCap}} a day, unless your first account is a local model. Change it in Settings → Safety.</li>
         <li><b>When it's reached</b> New runs and project agents on the accounts it counts wait for tomorrow. <a href="{{root}}under-the-hood.html#cap">How the cap works</a>.</li>
       </ul>
     </section>

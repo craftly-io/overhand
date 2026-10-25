@@ -1,5 +1,5 @@
 /**
- * Access from anywhere (Settings → Phone): the daemon's side of the hosted relay. Off unless you turn it on, and it
+ * Access from anywhere (Settings → Connections): the daemon's side of the hosted relay. Off unless you turn it on, and it
  * connects only while a valid entitlement exists. The daemon holds an Ed25519 device key (.relay.json, 0600) that you
  * link to your account once from a signed-in browser; it then keeps one hibernating WebSocket to its workspace's
  * Durable Object, answers browsers' WebRTC offers, and serves the same API over the data channel as over HTTP, through
@@ -202,7 +202,7 @@ export async function linkUrl(port: number, now = Date.now()): Promise<string> {
 export async function finishLink(nonce: string, cert: string, now = Date.now()): Promise<{ ok: true } | { error: string }> {
   const at = nonces.get(nonce);
   nonces.delete(nonce);
-  if (at === undefined || now - at > 10 * 60_000) return { error: "That link expired. Start it again from Settings → Phone." };
+  if (at === undefined || now - at > 10 * 60_000) return { error: "That link expired. Start it again from Settings → Connections." };
   if (!relayKey()) return { error: "This build has no relay key." };
   const link = await readToken(await verifyingKey(relayKey()), cert, "link");
   const s = load();
@@ -257,7 +257,7 @@ export function relayPairUrl(code: string): string {
   return s.enabled && s.cert ? `${relayUrl()}/?pair=${code}#k=${s.pub}` : "";
 }
 
-/** What Settings → Phone shows. */
+/** What Settings → Connections shows. */
 export async function relayStatus() {
   const s = load();
   const c = await entitlement(s);

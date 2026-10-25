@@ -381,7 +381,7 @@ export async function teamAction(action: string, body: Record<string, unknown>):
   touchTeam();
   const relay = async (path: string, payload: unknown) => {
     const r = await relayRequest(path, { body: payload });
-    if (!r) throw new Error("Link this computer to your account first: Settings → Phone → Access from anywhere.");
+    if (!r) throw new Error("Link this computer to your account first: Settings → Connections → Access from anywhere.");
     const j: unknown = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(typeof j === "object" && j !== null && "error" in j ? String(j.error) : `The relay answered ${r.status}.`);
     await refreshTeam();

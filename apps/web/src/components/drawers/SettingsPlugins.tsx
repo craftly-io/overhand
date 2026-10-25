@@ -66,7 +66,7 @@ function PluginCard({ p }: { p: PluginState }) {
 }
 
 /**
- * Settings → Plugins: install one from a pinned version, see what it reaches and asks for, approve it, pause, remove.
+ * Settings → Advanced → Plugins: install one from a pinned version, see what it reaches and asks for, approve it, pause, remove.
  * Every action here is done at once (none waits for Save), and approval is only ever this button.
  */
 export function PluginsTab() {

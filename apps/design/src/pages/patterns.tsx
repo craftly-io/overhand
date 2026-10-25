@@ -95,21 +95,7 @@ function Plan({ m }: { m: Model }) {
 /** The morning brief, as "Brief me" writes it from the state. */
 const brief = (m: Model) => ({ kind: "brief" as const, text: briefing(m.s, m.plan, m.alerts, plainWords, new Date(Date.now())) });
 
-const SETTINGS_TABS = [
-  "projects",
-  "accounts",
-  "leads",
-  "schedule",
-  "rules",
-  "integrations",
-  "plugins",
-  "phone",
-  "team",
-  "look",
-  "system",
-  "health",
-  "json",
-];
+const SETTINGS_TABS = ["projects", "agents", "connections", "safety", "you", "advanced"];
 
 /** The map on its own, pure: what it can ask for goes nowhere here (TeamView wires it to the daemon). */
 const NONE: TeamActs = { claim: () => {}, answer: () => {}, handoff: () => {}, comment: () => {}, follow: () => {}, open: () => {} };
@@ -493,13 +479,20 @@ export const PATTERNS: Entry[] = [
   }),
   drawer(
     "settings-tabs",
-    "Settings, tab by tab",
-    "Every Settings tab on the demo's sample config.",
+    "Settings, section by section",
+    "Every Settings section, and Advanced, on the demo's sample config.",
     [
       "SettingsDrawer",
-      "LookTab",
-      "SystemTab",
-      "HouseRulesTab",
+      "YouSection",
+      "CleanupCard",
+      "SafetySection",
+      "ApprovalsCard",
+      "ProtectCard",
+      "AgentsSection",
+      "AccountRow",
+      "AdvancedSection",
+      "More",
+      "FoldMark",
       "SettingsReports",
       "StatusUpdates",
       "PluginsTab",

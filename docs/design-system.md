@@ -1,6 +1,6 @@
 # Instrument: Overhand's design system
 
-The house world (`packages/themes/src/overhand`, id `overhand`, shown as Instrument) and every look built on it (Observatory, Transit, Koi Pond, Catnap) share one chrome: palette A, drawn by the `:root[data-chrome="house"]` blocks in `apps/web/src/index.css`, which apply to any theme with an ink scale. A look brings its own ink, its one colour, its map and its greeting face; its panes, glass and controls are the house's, drawn from its ink. Every look has a light and a dark set and follows the computer (or Settings → Look & sound → Appearance). The approved spec is `docs/design/world.html` (licences `docs/design/CREDITS.md`).
+The house world (`packages/themes/src/overhand`, id `overhand`, shown as Instrument) and every look built on it (Observatory, Transit, Koi Pond, Catnap) share one chrome: palette A, drawn by the `:root[data-chrome="house"]` blocks in `apps/web/src/index.css`, which apply to any theme with an ink scale. A look brings its own ink, its one colour, its map and its greeting face; its panes, glass and controls are the house's, drawn from its ink. Every look has a light and a dark set and follows the computer (or Settings → You → Appearance). The approved spec is `docs/design/world.html` (licences `docs/design/CREDITS.md`).
 
 ## Principles
 
@@ -100,7 +100,7 @@ Now has one picture: the attention map (`apps/web/src/map`), in the clear centre
 - **Motion**: an agent that starts waiting drifts inward over 2.8s, a tether draws to you and an orange arc appears on your rim pointing at it; a merge closes a green ring on the agent, which drifts out. Waiting objects breathe; links to working agents carry a slow pulse. Transform and opacity only.
 - **Labels**: what waits on you is always named (in `you`, away from you); everything else, and every note, shows on hover or focus. Labels are sized in CSS px whatever the map's size.
 - **Keyboard and screen readers**: every agent and crew is a button (Enter or Space opens it: a lead, a ticket, a review, or the project in Crew); the map is a labelled group whose label is its summary.
-- **Budget**: it redraws only when what it shows changes (the model's signature), about 300 SVG nodes for a busy day; a hidden tab pauses it; under reduced motion, or Settings › Look & sound › Still or Off, it is a still frame that shows every state. On a phone (under 480px) it drops the dial ticks, subagent dots and merge captions.
+- **Budget**: it redraws only when what it shows changes (the model's signature), about 300 SVG nodes for a busy day; a hidden tab pauses it; under reduced motion, or Settings › You › Still or Off, it is a still frame that shows every state. On a phone (under 480px) it drops the dial ticks, subagent dots and merge captions.
 - **Worlds** (`map/world.ts`): a world draws only its ground, your centre, a character per agent and a companion per subagent, and says how its rings look. Palette A holds in every world.
 
 ### Worlds
@@ -143,7 +143,7 @@ Five levels, as `Button` variants (`apps/web/src/components/ui/button.tsx`), dra
 The confirm dialog's button follows the same rule: danger for stopping or removing, primary for an interruption that loses nothing (Restart, Update).
 
 - The header's one smart action (Plan, Brief, Pause, Resume) is a ghost button; only Pause and Resume take the state colour.
-- Selects, inputs, textareas: ink 2 surface, ink 7 border. World, appearance, the map's motion and sound sit together in Settings › Look & sound.
+- Selects, inputs, textareas: ink 2 surface, ink 7 border. World, appearance, the map's motion and sound sit together in Settings › You.
 - Focus: the viewfinder (see Controls).
 - Counts beside pane titles are square, in the colour of the state they count.
 
@@ -157,9 +157,9 @@ Five places, one job each. On a computer they're the switcher in the header (the
 | Work | Where is every ticket? | One pipeline, Planned → Queued → Running → In review → Merged, one card per ticket key, plus Yours. A card opens its ticket, or Review when it has a PR. Start N now is the primary; Overdrive… is secondary |
 | Crew | Who is working, on what, under which instructions? | The agent run, leads, ready-made leads, your sessions, places, agent instructions, onboarding guides |
 | Health | Is anything broken, and is it worth it? | Systems per client, This week, Spend (every dollar and the daily budget in one block), Agent accounts (usage windows and cooldowns, Manage agent accounts), Guardrails, Status updates, Scorecard |
-| Settings | How it's set up and how it looks (everyday switches are in Quick settings) | Projects, Agent accounts, Leads (the one place lead config lives), Schedule & limits, Integrations, Phone, Look & sound, Machine checks, System (update, clean up, restart, turn off), Advanced |
+| Settings | How it's set up and how it looks: each control has one home | Five sections. Projects (per project: name, what agents may do, tracker, keep an agent on it; More for the rest), Agents (each account's usage, sign-in and billing; More for model, effort, gateway; Add an agent), Connections (Connect per service, the phone with Access from anywhere first, run while the computer is off), Safety (the sandbox switch, house rules, Slack drafts only, private words, quiet hours, the daily budget), You (name, look and sound, the Night report hour, update, restart, turn off, team, feedback). Then one Advanced link: schedules, labels, groups, project agent details, routing, approvals, protected processes, status updates, plugins, addresses, MCP, machine checks, disk cleanup, the config file (apps/web/src/lib/settings-places.ts) |
 
-Quick settings (the sliders button beside ⋯) holds the everyday switches, live with no Save, each the same setting Settings shows: Pause new work, I need my laptop (once the daemon has quiet mode), the daily budget, Pace to usage limits (Claude accounts), the scene, sound, and what agents do on each project. Everything else is one link away in Settings.
+Pause (beside ⋯) holds only pausing new work and quiet mode, live with no Save; every other setting lives once, in Settings, one link away.
 
 The actions menu (⋯) holds actions only, never places or switches, in sections: Next (the one primary, or Resume while paused), Today, Run (Overdrive, Clean up disk), then System behind a divider. Its length doesn't grow with leads or themes. The command bar groups the same actions by place.
 
@@ -172,7 +172,7 @@ them.
 | Word | Means | Not |
 | --- | --- | --- |
 | agent | A coding agent (Claude Code, Codex, Gemini CLI, Cursor Agent, OpenCode, Aider), and each copy of it working a ticket | "Claude", "the AI", "agent CLI" (README and Settings field labels only) |
-| agent account (account) | One sign-in or API key an agent runs on, with its own limits and spend. Settings → Agent accounts | "AI account", "Claude account" |
+| agent account (account) | One sign-in or API key an agent runs on, with its own limits and spend. Settings → Agents | "AI account", "Claude account" |
 | model | What the agent thinks with: Claude, GPT, Gemini, a local model | "backend", "LLM" |
 | provider | Where the model comes from: a subscription, an API key, Bedrock, Vertex, a gateway, Ollama | "backend" |
 | project | One client or product: its repos, tracker and autonomy | "client" in copy (fine in config) |
@@ -245,9 +245,9 @@ Rules:
 - A live indicator that loops steps (`steps()`, about five changes a second) rather than easing: a smooth infinite animation redraws the screen every frame, scene and glass included, and a step that hasn't changed draws nothing. The house theme, with no glass or glow behind its dots, keeps them eased: there stepping measured dearer.
 - Enter uses `backwards` fill so nothing keeps a transform (and a stacking context) after it lands.
 - Under `prefers-reduced-motion` every pattern becomes an instant state change carrying the same information; JS checks `reduced()`.
-- Copy stays plain; the game feel comes from motion, optional sound (off by default, Settings › Look & sound) and feedback.
+- Copy stays plain; the game feel comes from motion, optional sound (off by default, Settings › You) and feedback.
 
-The attention map is the one thing that moves without being asked, so it lives on its own, slower clock: drifts take 2.8s, breathing 3.4s, a link's pulse 4.8s, and nothing flashes. Settings › Look & sound sets it to Moving or Still (one frame per change, as under reduced motion).
+The attention map is the one thing that moves without being asked, so it lives on its own, slower clock: drifts take 2.8s, breathing 3.4s, a link's pulse 4.8s, and nothing flashes. Settings › You sets it to Moving or Still (one frame per change, as under reduced motion).
 
 The onboarding launch sequence uses all of it: a boot line with the loader beside it, a scan that reveals one line every 340ms (≤2.5s, any key or click skips) with a lock-on per confirmed line and a climbing repo count, a loadout of four slots that fill (scaleX) as they lock on or turn amber with one action, and on launch a charge fills the Start button; the page holds until the dashboard's state arrives (never an empty frame), then its panes enter in their `--i` order.
 

@@ -455,7 +455,7 @@ export function Setup({ onSaved }: { onSaved?: (projects: number) => void } = {}
       // two projects or more: the dashboard opens on "Here's how we'd organise your work" first (SetupOrganise)
       onSaved?.(kept.length);
       // more agent accounts (work and personal, one per client) are one step away in Settings
-      toast(w.setupStarted, { action: { label: w.addAccountLater, onClick: () => ui.openDrawer({ kind: "settings", tab: "accounts" }) } });
+      toast(w.setupStarted, { action: { label: w.addAccountLater, onClick: () => ui.openDrawer({ kind: "settings", tab: "agents" }) } });
       await qc.invalidateQueries({ queryKey: STATE_KEY });
     } catch (e) {
       setLaunched(false);

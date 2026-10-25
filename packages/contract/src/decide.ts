@@ -627,7 +627,7 @@ function failedBrief(f: DashboardState["findings"][number], failed: Failure, w: 
   const fix: Record<FailureReason, [BriefOption, string]> = {
     "no-changes": [{ id: "detail", do: "replan", finding: f.id, project: f.project, text: f.title }, "failedDetailWhy"],
     "pr-open": [{ id: "reopen", do: "reopen", finding: f.id }, "failedReopenWhy"],
-    "signed-out": [{ id: "signin", do: "drawer", drawer: "settings", key: "", tab: "accounts" }, "failedSignInWhy"],
+    "signed-out": [{ id: "signin", do: "drawer", drawer: "settings", key: "", tab: "agents" }, "failedSignInWhy"],
     crashed: [retry, "failedRetryWhy"],
     timeout: [retry, "failedRetryWhy"],
     unreadable: [retry, "failedRetryWhy"],
@@ -754,7 +754,7 @@ function accountBrief(s: DashboardState, name: string, now: number): Body | null
     },
     evidence: [{ text: `${a.provider} · ${a.model || "default model"} · ${a.runtime}`, url: "" }],
     ...(a.usage ? { detail: `\`\`\`json\n${JSON.stringify(a.usage, null, 2)}\n\`\`\`` } : {}),
-    options: [{ id: "accounts", do: "drawer", drawer: "settings", key: "", tab: "accounts" }, snooze],
+    options: [{ id: "accounts", do: "drawer", drawer: "settings", key: "", tab: "agents" }, snooze],
     ifNothing: cooling ? { text: "Its runs resume when the window resets.", at: a.coolUntil } : null,
   };
 }

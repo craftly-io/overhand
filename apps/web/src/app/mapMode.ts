@@ -8,7 +8,7 @@ const KEY = "overhand-map";
 const toMode = (v: string | null): MapMode => (v === "on" || v === "still" ? v : "off");
 const listeners = new Set<() => void>();
 
-/** The map setting (Settings › Look & sound), shared by Now and the setting. */
+/** The map setting (Settings › You), shared by Now and the setting. */
 export function useMapMode(): [MapMode, (mode: MapMode) => void] {
   const mode = useSyncExternalStore(
     (l) => {

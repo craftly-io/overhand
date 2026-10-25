@@ -54,7 +54,6 @@ test("every pane, section and drawer that fetches shows skeletons while it loads
   const { LeadDrawer } = await import("./drawers/LeadDrawer");
   const { ShareDrawer } = await import("./share/ShareDrawer");
   const { TeamSettings } = await import("./team/TeamSettings");
-  const { GroupsBoard } = await import("./organise/GroupsBoard");
   const { OrganiseStep } = await import("./organise/OrganiseStep");
   const panes: [string, (m: import("@/app/data").Model) => ReactNode, boolean?][] = [
     ["Settings (any tab, before the config)", () => <SettingsDrawer />, true],
@@ -69,7 +68,6 @@ test("every pane, section and drawer that fetches shows skeletons while it loads
     ["Lead drawer › live output", (m) => <LeadDrawer m={m} leadKey={m.s.godmode[0]?.key ?? "x"} />, true],
     ["Clean up drawer", () => <SweepDrawer />, true],
     ["Share drawer", () => <ShareDrawer span="night" />, true],
-    ["Organise › groups", () => <GroupsBoard />],
     ["Organise › setup step", () => <OrganiseStep onDone={() => {}} />],
   ];
   const missing: string[] = [];

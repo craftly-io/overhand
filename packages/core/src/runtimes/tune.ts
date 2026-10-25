@@ -1,5 +1,5 @@
 /**
- * An account's own tuning (Settings → Agent accounts) as flags for its CLI: only what that CLI takes, each flag checked
+ * An account's own tuning (Settings → Agents) as flags for its CLI: only what that CLI takes, each flag checked
  * against its `--help` and docs (see each runtime's header). Nothing here can loosen the guard: the fields only pick a
  * model's effort, narrow tools, add a sandbox, or cap a run; extra flags that would loosen it are dropped.
  */

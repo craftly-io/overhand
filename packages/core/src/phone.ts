@@ -7,7 +7,7 @@ const MAC_APP = "/Applications/Tailscale.app/Contents/MacOS/Tailscale";
 /** HTTPS ports tried for the dashboard, in order; one already serving something else is never taken over. */
 const PORTS = [8443, 443, 10443];
 
-/** What the Settings → Phone section shows about Tailscale. */
+/** What the Settings → Advanced section shows about Tailscale. */
 export type Tailscale = {
   installed: boolean;
   running: boolean;

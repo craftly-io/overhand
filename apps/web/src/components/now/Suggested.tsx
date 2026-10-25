@@ -62,7 +62,7 @@ export function Suggested({ m, project }: { m: Model; project?: string }) {
             return (
               <li key={id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
                 <span>{w.leadNeedsSentry}</span>
-                <Button variant="outline" size="xs" onClick={() => ui.openDrawer({ kind: "settings", tab: "integrations" })}>
+                <Button variant="outline" size="xs" onClick={() => ui.openDrawer({ kind: "settings", tab: "connections" })}>
                   {w.connectButton}
                 </Button>
               </li>

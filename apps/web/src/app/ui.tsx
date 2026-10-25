@@ -163,11 +163,12 @@ export function UiProvider({ children }: { children: ReactNode }) {
     resolver.current(ok);
     setAsk(null);
   };
-  // the hosted page's "Open Overhand on this computer" lands on ?settings=phone, where Set it up links this computer;
-  // the menu bar item opens what was clicked on its popover as ?drawer=… (glance.tsx)
+  // ?settings=<place> opens Settings there (the hosted page's "Open Overhand on this computer" lands on Connections, where
+  // Set it up links this computer); the menu bar item opens what was clicked on its popover as ?drawer=… (glance.tsx)
   useEffect(() => {
     const q = new URLSearchParams(location.search);
-    const asked: Drawer | null = q.get("settings") === "phone" ? { kind: "settings", tab: "phone" } : drawerParam(q.get("drawer"));
+    const place = q.get("settings");
+    const asked: Drawer | null = place !== null ? { kind: "settings", ...(place ? { tab: place } : {}) } : drawerParam(q.get("drawer"));
     if (!asked) return;
     openDrawer(asked);
     q.delete("settings");

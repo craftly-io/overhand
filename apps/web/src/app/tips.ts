@@ -87,7 +87,7 @@ export function settleTips(dayOne: boolean): void {
   if (read(store.get(KEY)) === null) store.set(KEY, JSON.stringify(firstSight(localDay(), dayOne)));
 }
 
-/** Turns tips about new features on or off (Settings → Look & sound). */
+/** Turns tips about new features on or off (Settings → You). */
 export const setTipsOn = (on: boolean): void => write(OFF, on ? "0" : "1");
 
 /** Whether tips about new features are on: on unless Settings turned them off. */

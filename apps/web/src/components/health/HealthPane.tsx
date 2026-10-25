@@ -100,7 +100,7 @@ export function HealthPane({ m }: { m: Model }) {
           {/^GitHub/.test(h) ? (
             <GithubFix />
           ) : (
-            <Button size="xs" variant="outline" onClick={() => ui.openDrawer({ kind: "settings", tab: "integrations" })}>
+            <Button size="xs" variant="outline" onClick={() => ui.openDrawer({ kind: "settings", tab: "connections" })}>
               {w.connectButton}
             </Button>
           )}

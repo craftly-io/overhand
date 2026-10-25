@@ -47,7 +47,7 @@ export interface JiraIssue {
 const text = (x: AdfNode | string | null | undefined): string => (typeof x === "string" ? x : adfToText(x)).trim();
 
 async function jira<T>(t: Jira, method: string, path: string, body?: unknown): Promise<T> {
-  if (!t.secret) throw new Error("Jira isn't connected: connect it in Settings → Integrations, or add a token");
+  if (!t.secret) throw new Error("Jira isn't connected: connect it in Settings → Connections, or add a token");
   return http<T>(`https://${t.site}${path}`, {
     method,
     headers: { Authorization: basic(t.email, secret(t.secret)), "Content-Type": "application/json", Accept: "application/json" },

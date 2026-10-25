@@ -123,7 +123,7 @@ export async function postBody(ch: UpdateChannel, body: string, now: number, dep
 export async function post(ch: UpdateChannel, body: string, deps: SendDeps = live): Promise<string> {
   const url = deps.secret(updateSecret(ch.id)) ?? "";
   let error = "";
-  if (!url) error = `No webhook URL stored for ${ch.name}: paste it under Settings → Integrations → Status updates.`;
+  if (!url) error = `No webhook URL stored for ${ch.name}: paste it under Settings → Advanced → Status updates and work reports.`;
   else if (!webhookOk(url)) error = `The stored webhook for ${ch.name} isn't an https URL.`;
   else {
     try {

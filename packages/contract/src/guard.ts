@@ -56,7 +56,7 @@ export const GUARD_COVERAGE: Record<string, GuardCoverage> = {
  * agent set on getting past the guard can write what you can, Overhand's own files included. Said once, here.
  */
 export const GUARD_LIMIT =
-  "A hook sees the command an agent asks for, not what a script or program it runs does next; a determined agent can hide a step there. An agent that deliberately builds paths to slip past the guard's checks can write Overhand's own files (its config and records) as it can any file you can: the guard stops accidents and plain prompt injection, and it isn't a sandbox. Holding a run's writes to its own folder is the OS sandbox's job, on by default where the computer can run it (Settings, Agent accounts).";
+  "A hook sees the command an agent asks for, not what a script or program it runs does next; a determined agent can hide a step there. An agent that deliberately builds paths to slip past the guard's checks can write Overhand's own files (its config and records) as it can any file you can: the guard stops accidents and plain prompt injection, and it isn't a sandbox. Holding a run's writes to its own folder is the OS sandbox's job, on by default where the computer can run it (Settings, Safety).";
 
 /** CLI names joined as people read a list: "A", "A and B", "A, B and C". */
 const listOf = (ids: string[]): string => {

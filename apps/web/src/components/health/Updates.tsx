@@ -38,7 +38,7 @@ export function Updates({ m }: { m: Model }) {
                 <Button size="xs" onClick={() => void updateTest(u.id, u.name)}>
                   {w.updatesTest}
                 </Button>
-                <Button size="xs" variant="ghost" onClick={() => ui.openDrawer({ kind: "settings", tab: "integrations" })}>
+                <Button size="xs" variant="ghost" onClick={() => ui.openDrawer({ kind: "settings", tab: "updates" })}>
                   {w.decOpenSettings}
                 </Button>
               </div>

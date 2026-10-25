@@ -127,7 +127,7 @@ export const FEATURES: readonly Feature[] = [
     since: "2026-10-23",
     source: "packages/core/src/cleanup-sources.ts",
     docs: "docs/cleanup.html#cleanup",
-    tip: { text: "Now also finds old local models, agent history and forgotten worktrees.", where: "menu-sweep" },
+    tip: { text: "Now also finds old local models, agent history and forgotten worktrees.", where: "settings-cleanup" },
   },
   {
     id: "sentence",
@@ -221,7 +221,7 @@ export const FEATURES: readonly Feature[] = [
     since: "2026-10-23",
     source: "apps/web/src/app/focus.ts",
     docs: "docs/everyday.html#focus",
-    tip: { text: "New: Focus keeps outcomes only. Press F any time.", where: "quick-focus" },
+    tip: { text: "New: Focus keeps outcomes only. Press F any time.", where: "settings-focus" },
   },
   {
     id: "brief-stop",

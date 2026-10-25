@@ -11,7 +11,11 @@ import { Pane } from "../Pane";
 /** Colour by how close a window is to its limit. */
 const tone = (f: number) => (f >= 0.85 ? "var(--bad)" : f >= 0.6 ? "var(--warn)" : "var(--ok)");
 
-function AccountRow({ a, m }: { a: Account; m: Model }) {
+/**
+ * One account's line: its name (left out under a card that already names it), agent and how it's paid for, ready or
+ * cooling down, and its usage as a bar.
+ */
+export function AccountRow({ a, m, named = true }: { a: Account; m: Model; named?: boolean }) {
   const w = useWords();
   const now = m.s.now;
   const u = a.usage;
@@ -44,9 +48,9 @@ function AccountRow({ a, m }: { a: Account; m: Model }) {
       <div className="flex items-baseline justify-between gap-2">
         {/* the name and its agent wrap; how it's paid for is never cut */}
         <b className="min-w-0 text-sm font-medium [overflow-wrap:anywhere]">
-          {a.name}
+          {named ? a.name : null}
           {/* every account names its agent and model the same way, the default one included */}
-          <span className="ml-1.5 font-normal text-xs text-muted-foreground">
+          <span className={`${named ? "ml-1.5 " : ""}font-normal text-xs text-muted-foreground`}>
             {comboLabel(comboOf(a.runtime, a.provider, a.model))} · <span className="whitespace-nowrap">{billingLabel(a, w)}</span>
           </span>
         </b>
@@ -89,7 +93,7 @@ export function Accounts({ m }: { m: Model }) {
         ))}
       </ul>
       <div className="mt-1 flex flex-wrap gap-x-4">
-        <Button variant="link" size="xs" className="px-0" onClick={() => ui.openDrawer({ kind: "settings", tab: "accounts" })}>
+        <Button variant="link" size="xs" className="px-0" onClick={() => ui.openDrawer({ kind: "settings", tab: "agents" })}>
           {w.manageAccounts}
         </Button>
       </div>
