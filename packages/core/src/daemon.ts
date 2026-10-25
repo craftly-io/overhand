@@ -353,7 +353,7 @@ let lastMoveCheck = 0;
 
 /**
  * The governor's minute tick: expires slots whose holder died (killing what its job left running), kills headless
- * browsers orphaned by an agent run (only ones with OVERHAND_RUN in their environment, never yours), and acts on the
+ * browsers orphaned by an agent run (only ones with its profile or folder, never yours: governor.ts), and acts on the
  * action cards a standing approval covers.
  */
 function governorTick(): void {
@@ -369,7 +369,10 @@ function governorTick(): void {
   } catch (e) {
     report(`⚠ couldn't take in the runs' outboxes: ${String(e)}`);
   }
-  for (const p of orphanBrowsers(processTable())) {
+  for (const p of orphanBrowsers(
+    processTable(),
+    currentRuns().map((r) => r.cwd),
+  )) {
     void killTree(p.pid);
     logEvent(GUARD_LOG, "", "", p.cmd, "reaped: a headless browser left running after its agent's command ended");
     report(`🧹 stopped an orphaned headless browser from an agent run (pid ${p.pid})`);

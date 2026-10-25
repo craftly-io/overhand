@@ -21,7 +21,7 @@ import {
   writeFileSync,
   writeSync,
 } from "node:fs";
-import { cpus, loadavg } from "node:os";
+import { cpus, loadavg, tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import type { Config } from "./config";
@@ -431,12 +431,40 @@ function envOf(pid: number): string {
   return sh(["ps", "-E", "-ww", "-o", "command=", "-p", String(pid)]);
 }
 
+/** How a sandboxed run's own temp folder is named, in the system's (sandbox.ts sandboxSpawn). */
+export const RUN_TMP = "overhand-run-";
+
+/** Where every sandboxed run's temp folder starts, resolved as its browsers report it (/private/var, not /var). */
+function runTmpRoot(): string {
+  let tmp = tmpdir();
+  try {
+    tmp = realpathSync(tmp);
+  } catch {}
+  return join(tmp, RUN_TMP);
+}
+
 /**
- * Headless browsers whose parent died (re-parented to pid 1) and that were started under one of Overhand's agent runs
- * (OVERHAND_RUN in their environment): never the owner's own browsers or apps. `envOf` is passed in for tests.
+ * Headless browsers whose parent died (re-parented to pid 1) that one of Overhand's agent runs started: never the
+ * owner's own browsers or apps. A run's browser is told by its profile, its folder, or (Linux) its environment:
+ * - its `--user-data-dir` is in a sandboxed run's own temp folder: Playwright, Puppeteer and agent-browser put a
+ *   throwaway profile in TMPDIR, which a sandboxed run's is (sandbox.ts runCacheEnv), even after the run ended;
+ * - it still works in the worktree of a run in progress (`runs`, as `leftBehind` tells): a browser inherits its
+ *   launcher's folder, so this holds for a run without the sandbox or a profile of its own choosing;
+ * - OVERHAND_RUN is in its environment, which Linux always shows and macOS not reliably (`ps -E`
+ *   reads none for some binaries, as `expire` notes).
+ * `env` and `cwd` are passed in for tests.
  */
-export function orphanBrowsers(table: Proc[], env: (pid: number) => string = envOf): Proc[] {
-  return table.filter((p) => p.ppid === 1 && HEADLESS.test(p.cmd) && /\bOVERHAND_RUN=\S/.test(env(p.pid)));
+export function orphanBrowsers(
+  table: Proc[],
+  runs: string[],
+  env: (pid: number) => string = envOf,
+  cwd: (pid: number) => string = cwdOf,
+  tmpRoot = runTmpRoot(),
+): Proc[] {
+  const orphans = table.filter((p) => p.ppid === 1 && HEADLESS.test(p.cmd));
+  const inRuns = new Set(runs.flatMap((dir) => leftBehind(dir, orphans, cwd)));
+  const runProfile = (cmd: string) => cmd.match(/--user-data-dir=(\S+)/)?.[1]?.startsWith(tmpRoot) === true;
+  return orphans.filter((p) => runProfile(p.cmd) || inRuns.has(p.pid) || /\bOVERHAND_RUN=\S/.test(env(p.pid)));
 }
 
 // ---------- the log ----------

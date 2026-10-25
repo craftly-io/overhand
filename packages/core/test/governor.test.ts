@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { blankConfig } from "../src/config";
 import { forgetRun, recordRun } from "../src/control";
@@ -13,6 +13,7 @@ import {
   govern,
   holders,
   KILLED_EXIT,
+  killTree,
   leftBehind,
   type Machine,
   orphanBrowsers,
@@ -20,8 +21,10 @@ import {
   parseBattery,
   parseHours,
   parseThermal,
+  processTable,
   protectedHit,
   quietUntil,
+  RUN_TMP,
   release,
   riskyScript,
   runHeavy,
@@ -275,8 +278,69 @@ test("orphaned headless browsers: only ones whose parent died and that an agent 
     { pid: 33, ppid: 1, pgid: 33, cmd: "/Applications/Slack.app/Contents/MacOS/Slack" }, // not a browser
   ];
   const env = (pid: number) => (pid === 30 || pid === 32 || pid === 33 ? "PATH=/bin OVERHAND_RUN=HC-1" : "PATH=/bin");
-  expect(orphanBrowsers(table, env).map((p) => p.pid)).toEqual([30]);
+  expect(orphanBrowsers(table, [], env, () => "").map((p) => p.pid)).toEqual([30]);
 });
+
+test("orphaned headless browsers without an environment to read (macOS): told by the run's profile or worktree", () => {
+  const wt = "/code/shop/.claude/worktrees/ac-1";
+  const tmp = "/private/var/T/overhand-run-";
+  const table: Proc[] = [
+    { pid: 50, ppid: 1, pgid: 50, cmd: `chrome-headless-shell --headless --user-data-dir=${tmp}x1/playwright_chromiumdev_profile-a` },
+    { pid: 51, ppid: 1, pgid: 51, cmd: "chrome-headless-shell --headless --user-data-dir=/private/var/T/mine" }, // in the run's worktree
+    { pid: 52, ppid: 1, pgid: 52, cmd: "chrome-headless-shell --headless --user-data-dir=/private/var/T/yours" }, // yours
+    { pid: 53, ppid: 1, pgid: 53, cmd: `Chrome for Testing --headless --user-data-dir=/x${tmp}y` }, // a lookalike, elsewhere
+  ];
+  const cwds: Record<number, string> = { 50: "/", 51: `${wt}/e2e`, 52: "/code/shop", 53: "/" };
+  const cwd = (pid: number) => cwds[pid] ?? "";
+  const swept = (runs: string[]) => orphanBrowsers(table, runs, () => "", cwd, tmp).map((p) => p.pid);
+  expect(swept([])).toEqual([50]); // the run ended: its profile still says whose it was
+  expect(swept([wt])).toEqual([50, 51]);
+  expect(swept(["/code/shop"])).toEqual([50]); // a run in your own checkout claims nothing there
+});
+
+/** A headless browser for the sweep to find: Playwright's own when it's installed, else a stand-in shaped like one. */
+function headlessBrowser(): string[] {
+  const shell = [
+    ...new Bun.Glob("chromium_headless_shell-*/*/chrome-headless-shell").scanSync(join(homedir(), "Library", "Caches", "ms-playwright")),
+  ][0];
+  if (shell) return [join(homedir(), "Library", "Caches", "ms-playwright", shell), "--headless", "--remote-debugging-port=0"];
+  return ["bun", "-e", "setTimeout(() => {}, 60_000)", "chrome-headless-shell", "--headless"];
+}
+
+test.skipIf(process.platform !== "darwin")(
+  "on macOS the sweep stops a browser a run left behind, never yours",
+  async () => {
+    const root = realpathSync(scratch());
+    const wt = join(root, "shop", ".claude", "worktrees", "ac-1");
+    mkdirSync(wt, { recursive: true });
+    const runTmp = realpathSync(mkdtempSync(join(tmpdir(), RUN_TMP)));
+    // a fake run starts each browser in the background and exits, leaving it to pid 1; prints its pid
+    const start = (cwd: string, profile: string): number => {
+      const argv = [...headlessBrowser(), `--user-data-dir=${profile}`, "about:blank"].map((a) => `'${a}'`).join(" ");
+      const r = Bun.spawnSync(["sh", "-c", `${argv} >/dev/null 2>&1 & echo $!`], { cwd, stdout: "pipe" });
+      return Number(r.stdout.toString().trim());
+    };
+    const theRuns = start(root, join(runTmp, "playwright_chromiumdev_profile-1"));
+    const inWorktree = start(wt, join(root, "profile-wt"));
+    const yours = start(join(root, "shop"), join(root, "profile-yours"));
+    try {
+      await Bun.sleep(300);
+      const swept = (runs: string[]) =>
+        orphanBrowsers(processTable(), runs)
+          .map((p) => p.pid)
+          .filter((pid) => [theRuns, inWorktree, yours].includes(pid))
+          .sort();
+      expect(swept([])).toEqual([theRuns]);
+      expect(swept([wt])).toEqual([theRuns, inWorktree].sort());
+      for (const pid of swept([wt])) await killTree(pid, 1000);
+      expect([alive(theRuns), alive(inWorktree), alive(yours)]).toEqual([false, false, true]);
+    } finally {
+      for (const pid of [theRuns, inWorktree, yours]) if (alive(pid)) await killTree(pid, 1000);
+      rmSync(runTmp, { recursive: true, force: true });
+    }
+  },
+  20_000,
+);
 
 test("what a run left behind: orphans still in its own worktree, never yours, never outside a worktree Overhand made", () => {
   const wt = "/code/shop/.claude/worktrees/ac-1";
