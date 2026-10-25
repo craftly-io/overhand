@@ -57,14 +57,16 @@ export function optionLabel(o: BriefOption, w: Words, s?: Pick<DashboardState, "
       if (answerDetail(o)) return o.id === "answer-default" ? w.decGoDefault : w.decSendThis;
       return fmt(w.decAnswer, { text: o.text });
     case "assign":
-      // a plan goes ahead; a ticket or a held finding is assigned as it is; a task made from a red build or an error is a fix
-      return o.id === "go" ? w.planGo : o.key || o.finding ? w.assignAgent : w.decAssignFix;
+      // a plan goes ahead; a stopped run tries again; a ticket or a held finding is assigned as it is; a task made from a
+      // red build or an error is a fix
+      return o.id === "go" ? w.planGo : o.id === "retry" ? w.signInRetry : o.key || o.finding ? w.assignAgent : w.decAssignFix;
     case "ready":
       return w.reviewMarkReady;
     case "link":
       return w[LINK[o.what]];
     case "drawer":
-      // a held finding's or a guard block's ticket opens like any other ticket
+      // a held finding's or a guard block's ticket opens like any other ticket; a signed-out run's account signs in there
+      if (o.id === "signin") return w.setupSignIn;
       return o.drawer === "ticket" && o.id !== "split" ? w.openTicket : w[DRAWER[o.drawer]];
     case "card":
       return fmt(w[BUTTON_WORDS[o.button]], s?.control.cards.find((c) => c.id === o.card)?.facts ?? {});
@@ -73,11 +75,13 @@ export function optionLabel(o: BriefOption, w: Words, s?: Pick<DashboardState, "
     case "post":
       return w.heldPost;
     case "dismiss":
-      return o.what === "lead" ? w.dismissQuestion : o.id === "drop" ? w.planDrop : w.heldDismiss;
+      return o.what === "lead" ? w.dismissQuestion : o.id === "drop" ? w.planDrop : o.id === "close" ? w.close : w.heldDismiss;
     case "snooze":
       return fmt(w.decSnooze, { h: o.hours });
     case "replan":
-      return w.planChange;
+      return o.id === "detail" ? w.failedMoreDetail : w.planChange;
+    case "reopen":
+      return w.failedReopen;
     case "organise":
       return o.label;
   }
@@ -96,6 +100,8 @@ export interface OptionRunner {
   snooze: (item: string, hours: number) => Promise<void>;
   /** Drops a plan and opens the command bar with its request, to say it differently. */
   replan: (finding: string, project: string, text: string) => Promise<void>;
+  /** Opens a stopped run's pull request from its pushed branch. */
+  reopenPr: (finding: string) => Promise<void>;
   /** Acts on an organising suggestion (its id without `organise:`). */
   organise: (suggestion: string, action: "apply" | "dismiss" | "preview") => Promise<void>;
   openDrawer: (
@@ -139,6 +145,8 @@ export function runOption(o: BriefOption, item: string, r: OptionRunner): Promis
       return r.snooze(item, o.hours);
     case "replan":
       return r.replan(o.finding, o.project, o.text);
+    case "reopen":
+      return r.reopenPr(o.finding);
     case "organise":
       return r.organise(o.suggestion, o.action);
   }

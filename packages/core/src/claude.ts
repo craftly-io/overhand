@@ -2,7 +2,7 @@
 import { appendFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Autonomy, RunKind } from "@overhand/contract";
+import type { Autonomy, FailureReason, RunKind } from "@overhand/contract";
 import { z } from "zod";
 import { AGENT_HOME, AGENT_HOMES, guardHooks, INSTRUCTIONS_FILE, inboxHome, runHome, runMcpServers, writeAgentHome } from "./agent-home";
 import { budgetUntil, recordedBilling } from "./billing";
@@ -105,7 +105,8 @@ export async function loadLocalCode(ops = OPS): Promise<string | null> {
 /**
  * Runs one headless session on the first account with capacity (the client's own accounts when it lists any); null when all
  * are cooling down or signed out. The account's runtime decides the CLI; one that can't enforce `schema` is asked for JSON
- * in the prompt, validated, and retried once. `onLimit` hears that a run started and its account hit its limit.
+ * in the prompt, validated, and retried once. `onLimit` hears that a run started and its account hit its limit. A run
+ * that failed says why in `failure` (its `out.message` keeps the CLI's own words).
  */
 export async function claude<T>(
   state: State,
@@ -114,7 +115,7 @@ export async function claude<T>(
   schema: string,
   logName: string,
   opts: { model?: string; args?: string[]; client?: Client; autonomy?: Autonomy; inbox?: boolean; onLimit?: () => void } = {},
-): Promise<{ out: T; account: string; cost: number; transcript: string } | null> {
+): Promise<{ out: T; account: string; cost: number; transcript: string; failure?: FailureReason } | null> {
   const busy = new Set(currentRuns().map((r) => r.account));
   const { kind, key } = nameParts(logName);
   const c = opts.client;
@@ -200,6 +201,7 @@ export async function claude<T>(
         account,
         cost,
         transcript,
+        failure: failureOf(run),
       };
     return { out: answer.value as T, account, cost, transcript };
   }
@@ -211,6 +213,16 @@ export async function claude<T>(
  * a project's own output (a test printing "429") would read as the CLI's.
  */
 const runOutput = (run: { out: RunOutput; stderr: string }): string => [run.out.text, run.stderr].join("\n");
+
+/**
+ * Why a run gave no answer: it ran past its time limit, its account is signed out, its CLI exited with an error
+ * (crashed), or it exited cleanly with output Overhand can't read (the CLI changed how it reports).
+ */
+export function failureOf(run: { out: RunOutput; stderr: string; code: number; timedOut: boolean }): FailureReason {
+  if (run.timedOut) return "timeout";
+  if (signedOut(runOutput(run))) return "signed-out";
+  return run.code !== 0 ? "crashed" : "unreadable";
+}
 
 /**
  * Readies a run's config folder before it starts, every time, so an update's instructions and guard reach the next
@@ -273,7 +285,7 @@ async function runOnce(
   cwd: string,
   logName: string,
   meta: { kind: RunKind; key: string; project: string },
-): Promise<{ out: RunOutput; stderr: string; stdout: string }> {
+): Promise<{ out: RunOutput; stderr: string; stdout: string; code: number; timedOut: boolean }> {
   readyHome(rt.id, input.configDir);
   // the OS sandbox (sandbox.ts): one sandbox, ours, so the CLI's own is off under it
   const sb = projectSandbox(meta.project);
@@ -319,7 +331,7 @@ async function runOnce(
     join(OPS, "runs", `${today()}.jsonl`),
     `${JSON.stringify({ name: logName, account, start: startedAt, end: Date.now(), cost: out.cost, ok: out.ok, ...meta, ...identityOf(account), billing: recordedBilling(account), ...(timedOut ? { timedOut } : {}), ...(boxed.guardOnly ? { guardOnly: true } : {}) })}\n`,
   );
-  return { out, stderr, stdout };
+  return { out, stderr, stdout, code, timedOut };
 }
 
 /**

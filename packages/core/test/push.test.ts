@@ -6,7 +6,7 @@ import { expect, test } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pushBranch } from "../src/agent";
+import { failureLine, hasCommits, PushError, pushBranch } from "../src/agent";
 import { AGENT_HOMES } from "../src/agent-home";
 import { check } from "../src/guard";
 import { real, SIGN_IN_ENV, sandboxSpawn, sandboxState } from "../src/sandbox";
@@ -18,6 +18,7 @@ test("Overhand pushes the run's own branch to origin with your sign-in, and only
   expect(git(wt.remote, "rev-parse", "T-1")).toBe(git(wt.path, "rev-parse", "HEAD"));
   // a protected branch or the base: never, whatever the worktree says
   await expect(pushBranch({ ...wt, branch: "main" })).rejects.toThrow("protected branch");
+  await expect(pushBranch({ ...wt, branch: "main" })).rejects.toBeInstanceOf(PushError);
   await expect(pushBranch({ ...wt, base: "T-1" })).rejects.toThrow("protected branch");
   // the run moved its worktree to another branch: nothing goes
   git(wt.path, "checkout", "-q", "-b", "elsewhere");
@@ -67,4 +68,15 @@ test("no run, a lead's neither, gets a GitHub or SSH sign-in in its environment,
       r.done(Date.now());
     }
   }
+});
+
+test("a run that committed nothing has no PR to open: it says so in plain words, not that pushing failed", async () => {
+  const wt = scratchWorktree("T-3");
+  await pushBranch(wt); // origin/main is fetched as the base
+  git(wt.path, "fetch", "-q", "origin");
+  expect(await hasCommits(wt)).toBe(true);
+  git(wt.path, "reset", "-q", "--hard", "origin/main");
+  expect(await hasCommits(wt)).toBe(false);
+  expect(failureLine("no-changes")).toBe("The agent finished without changing anything, so there's no pull request to open.");
+  expect(failureLine("pr-open", "agent/T-3")).toContain("pushed to agent/T-3");
 });

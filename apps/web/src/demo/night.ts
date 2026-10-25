@@ -58,6 +58,23 @@ const CLIENTS = [
 const proposes = (client: string): boolean => CLIENTS.some((c) => c.name === client && c.autonomy === "propose");
 
 /** What the activity log says and when; the dashboard's story is told from these lines. */
+/**
+ * A task Sam started on the website whose run stopped for good: its branch is pushed, but GitHub didn't answer when its
+ * pull request was opened, so its card offers Open the pull request again.
+ */
+const STOPPED = { key: "WEB-912000041", hm: "04:50", branch: "agent/WEB-912000041" };
+/** That stopped run as Needs you holds it. */
+export const STOPPED_FINDING = {
+  id: "stopped-web",
+  project: "Company website",
+  key: "",
+  title: "Add alt text to the gallery photos",
+  text: "gh pr create: error connecting to the code host\ncheck your internet connection",
+  post: "",
+  from: "agent" as const,
+  failed: { reason: "pr-open" as const, task: STOPPED.key, account: "Local", branch: STOPPED.branch },
+};
+
 const LOG: [string, string][] = [
   ["23:41", "📋 plan written: 5 agent tasks ready to deploy (planner on Sam)"],
   ["23:58", "⚡ Online shop lead started headless (pid 4101, sam)"],
@@ -83,6 +100,7 @@ const LOG: [string, string][] = [
   ["03:10", "⚡ WEB-31 started (Local)"],
   ["04:02", `✅ WEB-31 (local, $0.00) → ${samplePr("example/website", 52)}`],
   ["04:05", "🆕 Company website: website#52 opened: Let staff download bookings as a spreadsheet"],
+  [STOPPED.hm, `✗ ${STOPPED.key} (local, $0.00) attempt 1: ${plainWords.failedPrOpen.replace("{branch}", STOPPED.branch)}`],
   ["04:40", "⚡ APP-12 started (Codex)"],
   ["05:31", `✅ APP-12 (codex, $2.30) → ${samplePr("sam/mobile-app", 19)}`],
   ["05:33", "🆕 Mobile app: mobile-app#19 opened: Don't lose my guest list when I get signed out"],
@@ -789,6 +807,7 @@ export function nightAt(minutes: number): DashboardState {
           }
         : {},
     plan: planAt(now),
+    findings: now >= at(STOPPED.hm) ? [{ ...STOPPED_FINDING, at: at(STOPPED.hm) }] : [],
     reports,
     cost: spent,
     billed: spentBy("Bedrock"),
