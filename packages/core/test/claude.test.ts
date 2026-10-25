@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { INSTRUCTIONS_FILE } from "../src/agent-home";
 import { claude, testAccount } from "../src/claude";
 import { parseConfig } from "../src/config";
 import { applyConfig, CFG } from "../src/env";
@@ -36,6 +37,9 @@ const before = CFG;
 const path = process.env.PATH;
 
 beforeAll(() => {
+  // a sandbox test earlier in the run (Linux) can leave the read-only stand-in bubblewrap mounts for a missing file:
+  // these runs write the real instructions there first, as a daemon does before any run
+  rmSync(INSTRUCTIONS_FILE, { force: true });
   writeFileSync(join(bin, "claude"), FAKE);
   chmodSync(join(bin, "claude"), 0o755);
   process.env.PATH = [bin, path].join(":");
