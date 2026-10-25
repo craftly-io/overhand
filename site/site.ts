@@ -22,7 +22,7 @@ export const SITE = {
   name: "Overhand",
   tagline: "Stop babysitting your coding agents.",
   // what it does, in two short sentences: the home hero, the meta descriptions and every llms file open with it
-  lede: "Your agents work through tickets, failed checks and review comments in every project. Each change arrives as a pull request with proof; you make the calls.",
+  lede: "Your agents work through tasks, failed checks and review comments in every project. Each change arrives as a pull request with proof; you make the calls.",
   url: SITE_URL,
   get: INSTALLER,
   repo: REPO_URL,
@@ -73,12 +73,13 @@ export const MADE_FOR = [
  * its row of the others, and /llms.txt read these (site/build.ts). `next` is the one page that names what isn't built.
  */
 export const DOCS = [
+  { slug: "what", title: "What Overhand is", line: "The eight words it uses, and how work reaches your agents." },
   { slug: "install", title: "Install", line: "One command on macOS or Linux." },
   { slug: "server", title: "Run Overhand on a server", line: "Linux or Docker, reached through an SSH tunnel or your tailnet." },
   { slug: "first-project", title: "First project and first win", line: "From setup to your first draft pull request." },
   { slug: "agents", title: "Agents and accounts", line: "Sign-ins, API keys, how each account is paid for, and the daily cap." },
   { slug: "modes", title: "Modes", line: "How far agents may go on each project, from watching to shipping." },
-  { slug: "leads", title: "Leads", line: "Long-running agents that look after a whole project." },
+  { slug: "leads", title: "Project agents", line: "Agents that keep working on a whole project." },
   { slug: "guard", title: "The guard", line: "What it stops before it runs, and how it reaches each agent." },
   { slug: "runs", title: "How agents run", line: "Each agent's flags, what every run is told, and the scorecard." },
   { slug: "plugins", title: "Plugins", line: "Small add-ons in a sandbox of their own, installed from a pin you approve." },

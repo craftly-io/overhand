@@ -238,7 +238,7 @@ test("a group Needs you makes per repo (reviews asked of you, your PRs with chan
   });
   const changes = factsBrief(g, "changes:dashboard", {}, NOW);
   valid(changes);
-  expect(changes?.what).toBe("2 of your PRs in dashboard have changes requested");
+  expect(changes?.what).toBe("2 of your pull requests in dashboard have changes requested");
   expect(factsBrief(g, "reviews:elsewhere", {}, NOW)).toBeNull();
 });
 
@@ -347,7 +347,7 @@ test("PRs: gaps in the proof reach the card, as evidence and as the reason to re
   });
   const withGaps = { ...s, prs: s.prs.map((x) => (x.key === "HONEY-4" ? { ...x, proof: p } : x)) };
   const b = factsBrief(withGaps, "pr:HONEY-4", {}, NOW);
-  expect(b?.what).toBe("HONEY-4's PR has gaps in its proof.");
+  expect(b?.what).toBe("HONEY-4's pull request has gaps in its proof.");
   expect(b?.evidence.map((e) => e.text)).toContain("Proof gap: no tests ran");
   expect(b?.recommend.option).toBe("review");
 });

@@ -57,5 +57,5 @@ test("something held for a task with no ticket isn't said to be on Plan and warn
   const plain = { ...s, findings: s.findings.map(({ failed: _, ...f }) => f) };
   expect(factsBrief(plain, "held:f1", {}, NOW, words)?.why).toBe("no ticket");
   const watch = { ...plain, clients: plain.clients.map((c) => ({ ...c, autonomy: "watch" as const })) };
-  expect(factsBrief(watch, "held:f1", {}, NOW, words)?.why).toContain("Plan and warn only");
+  expect(factsBrief(watch, "held:f1", {}, NOW, words)?.why).toContain("Look only");
 });

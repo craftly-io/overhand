@@ -63,7 +63,7 @@ const RULES: Rule[] = [
   ],
   [/^answered (.+)$/, (x) => said("other", x[1], `You answered ${x[1]}`, "ok")],
   [/^(.+?) stopped from the dashboard$/, (x) => said("other", x[1], `You stopped ${x[1]}`, "quiet")],
-  [/^([A-Z][A-Z0-9]+-\d+) created from Slack: (.+)$/, (x) => said("other", undefined, `New ticket ${x[1]} from Slack: ${x[2]}`, "info")],
+  [/^([A-Z][A-Z0-9]+-\d+) created from Slack: (.+)$/, (x) => said("other", undefined, `New task ${x[1]} from Slack: ${x[2]}`, "info")],
   [/^inbox: (\d+) items? \(/, (x) => said("other", undefined, `Slack checked: ${x[1]} new item${x[1] === "1" ? "" : "s"}`, "quiet")],
   [/^plan written: (\d+) agent tasks? ready/, (x) => said("other", undefined, `Today's plan is ready: ${x[1]} tasks for the agents`, "ok")],
   [/^([A-Z][A-Z0-9]+-\d+) \([^)]*\) → (\S+)/, (x) => said("other", undefined, `${x[1]} shipped a pull request`, "ok")],
@@ -79,12 +79,12 @@ const RULES: Rule[] = [
   [/^([A-Z][A-Z0-9]+-\d+) PR merged$/, (x) => said("other", undefined, `${x[1]}'s pull request merged`, "ok")],
   [
     /^([A-Z][A-Z0-9]+-\d+) PR merged on Ship \S+$/,
-    (x) => said("other", undefined, `${x[1]}'s pull request merged on Ship, CI green`, "ok"),
+    (x) => said("other", undefined, `${x[1]}'s pull request merged by itself once its checks were green`, "ok"),
   ],
   [/^([A-Z][A-Z0-9]+-\d+) PR closed$/, (x) => said("other", undefined, `${x[1]}'s pull request was closed unmerged`, "quiet")],
   [
     /^([A-Z][A-Z0-9]+-\d+) fix round (\d+) \([^)]*\): (.+)$/,
-    (x, raw) => said("other", undefined, `${x[1]} fix round ${x[2]}: ${x[3]}`, raw.startsWith("✗") ? "bad" : "info"),
+    (x, raw) => said("other", undefined, `${x[1]} round ${x[2]} of fixes: ${x[3]}`, raw.startsWith("✗") ? "bad" : "info"),
   ],
 ];
 

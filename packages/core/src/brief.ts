@@ -33,12 +33,12 @@ export interface BriefFacts {
 }
 
 const MILESTONE_LINES: Record<MilestoneId, string> = {
-  "merge-1": "{project} merged its first PR.",
+  "merge-1": "{project} merged its first pull request.",
   "merge-10": "{project} reached its 10th merge.",
   "merge-50": "{project} reached its 50th merge.",
   "merge-100": "{project} reached its 100th merge.",
   "clean-week": "{project} had its first clean week: no failed runs.",
-  "first-try": "{project} merged a PR on the first try for the first time.",
+  "first-try": "{project} merged a pull request on the first try for the first time.",
 };
 
 /** A milestone as the plain brief says it. */
@@ -51,23 +51,27 @@ export const milestoneLine = (project: string, id: MilestoneId): string => MILES
 export function composeBrief(f: BriefFacts): { title: string; body: string } | null {
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   const night = [
-    f.merged ? plural(f.merged, "PR merged", "PRs merged") : "",
-    f.opened ? plural(f.opened, "new PR", "new PRs") : "",
+    f.merged ? plural(f.merged, "pull request merged", "pull requests merged") : "",
+    f.opened ? plural(f.opened, "new pull request", "new pull requests") : "",
     f.failed ? plural(f.failed, "run failed", "runs failed") : "",
   ].filter(Boolean);
   const toCheck = f.toCheck ?? 0;
   const blocked = f.blocked ?? 0;
   if (!night.length && !f.waiting && !f.billedYesterday && !toCheck && !blocked && !f.milestone) return null;
   const prs = f.merged + f.opened;
-  const head = prs ? `${plural(prs, "PR", "PRs")} overnight` : f.failed ? `${plural(f.failed, "run", "runs")} failed overnight` : "";
+  const head = prs
+    ? `${plural(prs, "pull request", "pull requests")} overnight`
+    : f.failed
+      ? `${plural(f.failed, "run", "runs")} failed overnight`
+      : "";
   const needs = f.waiting ? `${f.waiting} ${f.waiting === 1 ? "needs" : "need"} you` : "nothing needs you";
   const title = head ? `${head}, ${needs}` : f.waiting ? `${plural(f.waiting, "thing needs", "things need")} you` : "A quiet night";
   const body = [
     night.length ? `Overnight: ${night.join(", ")}.` : "No agent activity overnight.",
     f.shipped
-      ? `${f.shipped === f.merged ? (f.merged === 1 ? "It" : "All") : f.shipped} merged on Ship once CI was green; Undo is in Overhand.`
+      ? `${f.shipped === f.merged ? (f.merged === 1 ? "It" : "All") : f.shipped} merged by itself once its checks were green; Undo is in Overhand.`
       : "",
-    toCheck ? `${plural(toCheck, "PR has", "PRs have")} something to check before merging.` : "",
+    toCheck ? `${plural(toCheck, "pull request has", "pull requests have")} something to check before merging.` : "",
     blocked ? `The guardrails blocked ${plural(blocked, "action", "actions")}.` : "",
     f.billedYesterday ? `Yesterday was billed about $${f.billedYesterday.toFixed(2)}, an estimate.` : "",
     f.milestone ?? "",

@@ -93,7 +93,7 @@ test("review requests and changes asked of you collapse to one item per repo", (
   });
   const a = computeAlerts(s, parsePlan([]), plainWords, NOW);
   expect(a.map((x) => x.title)).toEqual([
-    "Changes requested on 2 of your PRs in dashboard",
+    "Changes requested on 2 of your pull requests in dashboard",
     "3 reviews requested in dashboard",
     "Review requested: api #9",
   ]);
@@ -157,10 +157,10 @@ test("a lead question says when it goes with its default, or that it waits, and 
     "Goes with its default at 10:30: I start #12",
   ]);
   expect(askNotes({ default: "", deadline: 0, stale: null, recheck: at + 60_000 }, plainWords, at)).toEqual([
-    "No default yet: at 10:31 Overhand asks the lead to re-check and give one",
+    "No default yet: at 10:31 Overhand asks the agent to re-check and give one",
   ]);
   expect(askNotes({ default: "", deadline: 0, stale: null, recheck: at - 1 }, plainWords, at)).toEqual([
-    "No default yet: Overhand has asked the lead for one",
+    "No default yet: Overhand has asked the agent for one",
   ]);
   expect(askNotes({ default: "I start #12", deadline: 0, stale: { closed: ["#12"], hours: 26 }, recheck: 0 }, plainWords, at)).toEqual([
     "May be out of date: #12 closed since; asked 26 h ago",

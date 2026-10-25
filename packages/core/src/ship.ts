@@ -416,7 +416,7 @@ export function shipMerged(key: string, pr: TrackedPr, now = Date.now()): void {
     if (s) s.merged = now;
   });
   report(`🎉 ${key} PR merged on Ship ${pr.url}`);
-  notify(`Merged on Ship: ${key}`, `${say(plainWords.shipMerged, { key })} ${plainWords.shipUndoHint}: ${plainWords.shipUndo}.`);
+  notify(`Merged by itself: ${key}`, `${say(plainWords.shipMerged, { key })} ${plainWords.shipUndoHint}: ${plainWords.shipUndo}.`);
 }
 
 /** Ship merges of the last two days, newest first, for the dashboard's Undo. */

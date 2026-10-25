@@ -326,7 +326,8 @@ test("a feature's line is on the docs' Everything page, on the home page where i
 
 test("Under the hood says where things run and what the relay sees, from the same facts as the rest of the site", () => {
   const page = built.find(([rel]) => rel === "under-the-hood.html")?.[1] ?? "";
-  for (const want of [SITE.app.replace(/^https?:\/\//, ""), "WorkOS", PLAN_TAX, "peer to peer", "Ship"]) expect(page, want).toContain(want);
+  for (const want of [SITE.app.replace(/^https?:\/\//, ""), "WorkOS", PLAN_TAX, "peer to peer", W.autonomyShipName])
+    expect(page, want).toContain(want);
 });
 
 test("the company is named once on the face of the site, in the footer; the legal pages name it where the law needs it", () => {
@@ -362,7 +363,7 @@ test("the OS sandbox's claims, what it stops and what it can't, come from one so
   // on by default only where the machine can run it, and off per project: no claim may say every run is sandboxed
   expect(SANDBOX_STOPS).toStartWith("With the OS sandbox on,");
   expect(SANDBOX_PROJECT_OFF).not.toContain("never switches it for you");
-  for (const word of ["network", "~/.ssh", "Keychain", "guard only"]) expect(SANDBOX_LIMIT).toContain(word);
+  for (const word of ["network", "~/.ssh", "secret store", "guard only"]) expect(SANDBOX_LIMIT).toContain(word);
   for (const rel of ["under-the-hood.html", "docs/guard.html"])
     for (const claim of [SANDBOX_STOPS, SANDBOX_LIMIT]) expect(built.find(([r]) => r === rel)?.[1], rel).toContain(claim);
   expect(built.find(([r]) => r === "docs/guard.html")?.[1]).toContain(SANDBOX_PROJECT_OFF);

@@ -100,8 +100,8 @@ function saveFileSecrets(items: Record<string, string>): { ok: boolean; err: str
 const NO_KEYRING =
   "no keyring reachable (a server without a desktop has none). Install and unlock gnome-keyring, or opt in to a file only you can read: set OVERHAND_SECRETS_FILE=~/.overhand/secrets.json and restart Overhand";
 
-/** The name of the secret store, for messages. */
-export const SECRET_STORE = secretsFile() || (MAC ? "Keychain" : "the keyring");
+/** The name of the secret store, for messages: one name on every platform (the macOS Keychain or the Linux keyring). */
+export const SECRET_STORE = secretsFile() || "the secret store";
 
 /** A secret's value, or null when it's missing. Without an account it matches the item under any account. */
 export function readSecret(service: string, account?: string): string | null {

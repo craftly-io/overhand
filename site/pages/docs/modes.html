@@ -12,7 +12,7 @@
     <section class="block hood" id="levels" aria-labelledby="h-levels">
       <h2 id="h-levels">Four modes, one per project.</h2>
       <ul class="facts">
-        <li><b>{{modeWatch}}</b> Agents plan, investigate and report on the ticket. They change no code and open no pull requests, and the guard blocks edits and commits.</li>
+        <li><b>{{modeWatch}}</b> Agents plan, investigate and report on the task. They change no code and open no pull requests, and the guard blocks edits and commits.</li>
         <li><b>{{modePropose}}</b> Agents open draft pull requests and stop there. You review each one and mark it ready.</li>
         <li><b>{{modeAct}}</b> Agents open pull requests ready for review. Merging stays with you.</li>
         <li><b>{{modeShip}}</b> As {{modeAct}}, then GitHub's own auto-merge merges the pull request once every required check passes. No agent merges.</li>
@@ -35,7 +35,7 @@
         <li><b>A required check first</b> The base branch needs branch protection or a ruleset with at least one required status check; without one, the project keeps working as on {{modeAct}} and says why.</li>
         <li><b>Its defaults</b> Up to {{shipPerDay}} merges a day; changes to {{shipProtect}} wait for your merge. Both are per project.</li>
         <li><b>Undo</b> Every {{modeShip}} merge shows up in the day's log and the night report, with an Undo that opens a revert pull request.</li>
-        <li><b>All of its rules</b> <a href="{{root}}under-the-hood.html#ship">Ship's safety rules</a>, under the hood.</li>
+        <li><b>All of its rules</b> <a href="{{root}}under-the-hood.html#ship">The safety rules for {{modeShip}}</a>, under the hood.</li>
       </ul>
     </section>
 
@@ -46,7 +46,7 @@
         <li><b>Checked every time</b> The required check is looked for again before every request. Without one, the project says <em>{{w.shipNoGate}}</em> and builds as on {{modeAct}}.</li>
         <li><b>Config</b> Protected paths are <code>ship.protect</code>; the daily cap is <code>ship.perDay</code>. A pull request held by either says so on the pull request.</li>
         <li><b>Turned off again</b> A request for changes, a push onto a protected path, or the project leaving {{modeShip}} turns auto-merge off.</li>
-        <li><b>Leads too</b> A lead's pull requests take the same step: its run's checks go on the pull request as its proof. Auto-merge is on only while none of the project's leads is running.</li>
+        <li><b>Project agents too</b> A project agent's pull requests take the same step: its run's checks go on the pull request as its proof. Auto-merge is on only while none of the project's agents is running.</li>
         <li><b>Told everywhere</b> Each merge is in the day's log, the night report and a push notification.</li>
         <li><b>Undo, safely</b> The revert pull request comes from a new branch: never a push to the base, never forced.</li>
       </ul>
@@ -55,10 +55,10 @@
     <section class="block hood" id="daemon" aria-labelledby="h-daemon">
       <h2 id="h-daemon">What {{name}} does itself, on every agent.</h2>
       <ul class="facts">
-        <li><b>On {{modeWatch}}</b> It never opens a pull request and runs no fix rounds. A finished ticket becomes a report on the ticket, which then waits for you.</li>
+        <li><b>On {{modeWatch}}</b> It never opens a pull request and runs no rounds of fixes. A finished task becomes a report on its issue, which then waits for you.</li>
         <li><b>On {{modePropose}}</b> It opens pull requests with <code>gh pr create --draft</code> (on Bitbucket, <code>draft: true</code>).</li>
         <li><b>The Review drawer</b> Reads the diff with <code>gh pr diff</code> and marks drafts ready with <code>gh pr ready</code>. It approves with <code>gh pr review --approve</code> only when you aren't the author.</li>
-        <li><b>{{w.reviewRequestChanges}}</b> Goes to the agent as its next fix round. You can also close the pull request there.</li>
+        <li><b>{{w.reviewRequestChanges}}</b> Goes to the agent as its next round of fixes. You can also close the pull request there.</li>
         <li><b>Old configs</b> A config written before modes existed keeps acting.</li>
       </ul>
     </section>
@@ -72,8 +72,8 @@
         <li><b>OpenCode</b> <code>permission: { edit: "deny", bash: "deny" }</code>, plus the guard.</li>
         <li><b>Aider</b> <code>--chat-mode ask --no-auto-commits</code>. It never runs shell commands.</li>
         <li><b>Gemini CLI</b> <code>--approval-mode default</code>: headless, nothing approves an edit or a command (flags checked only), plus the guard.</li>
-        <li><b>A lead on {{modeWatch}}</b> It can't write its notes or questions file, so its final message is filed as a report in its questions file, and it waits for you.</li>
-        <li><b>A lead on {{modePropose}}</b> Ticket runs never open pull requests themselves; {{name}} does, as drafts. Leads open their own. A Claude Code lead runs under the guard (through <code>--settings</code>), which refuses <code>gh pr create</code> without <code>--draft</code>, and <code>gh pr ready</code>. Leads on other agents are only instructed.</li>
+        <li><b>A project agent on {{modeWatch}}</b> It can't write its notes or questions file, so its final message is filed as a report in its questions file, and it waits for you.</li>
+        <li><b>A project agent on {{modePropose}}</b> Task runs never open pull requests themselves; {{name}} does, as drafts. Project agents open their own. A Claude Code one runs under the guard (through <code>--settings</code>), which refuses <code>gh pr create</code> without <code>--draft</code>, and <code>gh pr ready</code>. On other agents they are only instructed.</li>
       </ul>
     </section>
   </div>

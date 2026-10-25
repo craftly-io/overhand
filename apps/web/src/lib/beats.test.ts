@@ -26,11 +26,11 @@ test("log lines become sentences, and chatter is dropped", () => {
   expect(parseLine("🎉 Honeycrust: app#4 merged: Add login")?.text).toBe("Honeycrust: app#4 merged, Add login");
   expect(parseLine("🎉 HONEY-7 PR merged")?.text).toBe("HONEY-7's pull request merged");
   expect(parseLine("🎉 HONEY-8 PR merged on Ship https://github.com/o/r/pull/8")).toMatchObject({
-    text: "HONEY-8's pull request merged on Ship, CI green",
+    text: "HONEY-8's pull request merged by itself once its checks were green",
     tone: "ok",
   });
   expect(parseLine("✗ HONEY-7 fix round 2 (work): tests still red")).toMatchObject({
-    text: "HONEY-7 fix round 2: tests still red",
+    text: "HONEY-7 round 2 of fixes: tests still red",
     tone: "bad",
   });
   expect(parseLine("💤 Mono lead found nothing to do; next look in 40 min")?.text).toBe(

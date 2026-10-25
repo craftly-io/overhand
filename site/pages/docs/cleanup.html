@@ -24,8 +24,8 @@
       <h2 id="h-auto">Or let it run by itself.</h2>
       <ul class="facts">
         <li><b>Off until you choose</b> Set <code>cleanup.auto.schedule</code> to <code>daily</code> or <code>weekly</code>. It then also cleans early when free disk runs low.</li>
-        <li><b>Only when idle</b> It starts only while no agent or lead is running, and takes only the items safe to remove without you.</li>
-        <li><b>Low disk</b> When space runs short, Needs you warns first; then heavy jobs wait, and then new agents and leads don't start.</li>
+        <li><b>Only when idle</b> It starts only while no agent is running, and takes only the items safe to remove without you.</li>
+        <li><b>Low disk</b> When space runs short, Needs you warns first; then heavy jobs wait, and then new agents don't start.</li>
       </ul>
     </section>
 
@@ -47,7 +47,7 @@
         <li><b>Duplicate clones</b> Full clones of a remote you already have, clean and fully pushed. They're listed unticked and go only when you confirm each one; worktrees of one clone are far cheaper.</li>
         <li><b>Old simulators</b> Simulator runtimes older than the newest per platform, listed unticked.</li>
         <li><b>Measured, not guessed</b> Freed space is the volume's free space before and after, since <code>du</code> overcounts APFS clones.</li>
-        <li><b>Disk thresholds</b> Under {{cfg.governor.warnFreeGb}} GB free (<code>governor.warnFreeGb</code>) Needs you warns. Under {{cfg.governor.pauseHeavyBelowGb}} GB (<code>governor.pauseHeavyBelowGb</code>) heavy jobs wait. Under {{cfg.cleanup.minFreeGb}} GB (<code>cleanup.minFreeGb</code>) new agents and leads don't start.</li>
+        <li><b>Disk thresholds</b> Under {{cfg.governor.warnFreeGb}} GB free (<code>governor.warnFreeGb</code>) Needs you warns. Under {{cfg.governor.pauseHeavyBelowGb}} GB (<code>governor.pauseHeavyBelowGb</code>) heavy jobs wait. Under {{cfg.cleanup.minFreeGb}} GB (<code>cleanup.minFreeGb</code>) no new agent starts.</li>
       </ul>
     </section>
 

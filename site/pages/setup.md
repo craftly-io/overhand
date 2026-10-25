@@ -70,6 +70,7 @@ Suggest these to the person, and set them only with their yes, in Overhand:
   reaches it, pay-per-use and cloud agents (and any not known yet) wait until tomorrow; accounts known to be on a plan
   carry on, since they aren't charged per run and follow their plan's usage limits. If Overhand asks whether an account
   is billed per use or part of a plan, ask the person; don't answer for them.
+- Tell the person how work reaches agents: {{w.workStory}}
 
 ## If something goes wrong
 

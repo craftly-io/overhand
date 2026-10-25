@@ -46,12 +46,12 @@ CI runs both on every push, plus \`make generate\` with a check that nothing cha
 
 - Handlers stay thin: parse, call a service, write the response.
 - Wrap errors with \`fmt.Errorf("…: %w", err)\`; never panic in a handler.
-- Every new endpoint gets an entry in \`openapi.yaml\` in the same PR.
-- Conventional commits with the ticket key, e.g. \`fix(slots): skip holidays (BOOK-84)\`.
+- Every new endpoint gets an entry in \`openapi.yaml\` in the same pull request.
+- Conventional commits with the issue key, e.g. \`fix(slots): skip holidays (BOOK-84)\`.
 
 ## Where to start
 
-Read \`internal/booking/service.go\` first: most tickets land there. A good first change is a small validation rule
+Read \`internal/booking/service.go\` first: most issues land there. A good first change is a small validation rule
 with its table test next to it.
 
 ## Gotchas
@@ -86,7 +86,7 @@ Run \`npm test\` before you push, and \`npm run e2e\` for the checkout flow.
 ## Conventions
 
 - TypeScript strict; money is integer cents everywhere.
-- One ticket per PR, title starts with the ticket key.
+- One issue per pull request, title starts with the issue key.
 
 ## Where to start
 

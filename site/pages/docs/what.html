@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" class="paper">
+<head>
+{{> head}}
+{{> docmeta}}
+</head>
+<body>
+{{> header}}
+<main id="main" class="docs">
+{{> dochero}}
+  <div class="wrap">
+    <section class="block hood" id="is" aria-labelledby="h-is">
+      <h2 id="h-is">The coding agents you already use, kept working while you're away.</h2>
+      <ul class="facts">
+        <li><b>On your computer</b> {{name}} runs your agents across all your projects and brings back only what takes a person.</li>
+        <li><b>Nothing merges on its own</b> Every change comes back as a pull request with the checks it ran. Merging stays yours unless you choose otherwise for a project.</li>
+      </ul>
+    </section>
+
+    <section class="block hood" id="words" aria-labelledby="h-words">
+      <h2 id="h-words">Eight words.</h2>
+      <ul class="facts">
+        <li><b>Project</b> A repo you've given {{name}}, or a few repos from one owner kept together.</li>
+        <li><b>Agent</b> A coding tool you already use, such as Claude Code or Codex, doing the work. Some keep working on one project; most take one task and stop.</li>
+        <li><b>Task</b> One piece of work for an agent: usually an issue from your tracker, or something you typed.</li>
+        <li><b>Pull request</b> Where every change lands, with its checks and, for screen changes, screenshots.</li>
+        <li><b>{{w.paneAlerts}}</b> The short list of what only you can decide, each with the button that settles it.</li>
+        <li><b>{{w.briefMe}}</b> Each morning, what merged, what opened and what waits for you.</li>
+        <li><b>Quiet</b> Heavy jobs wait while you need your computer; {{w.quiet}} turns it on.</li>
+        <li><b>{{w.safetyTitle}}</b> What stops an agent before a risky step: the guard, the sandbox and a daily cap.</li>
+      </ul>
+    </section>
+
+    <section class="block hood" id="work" aria-labelledby="h-work">
+      <h2 id="h-work">How work reaches agents.</h2>
+      <ul class="facts">
+        <li><b>Two ways</b> {{w.workStory}}</li>
+        <li><b>Then</b> It shows in {{w.viewWork}}, an agent takes it, and its pull request comes back under {{w.paneAlerts}}. <a href="first-project.html#work">More ways to give it work</a>.</li>
+        <li><b>How far agents go</b> Each project has a <a href="modes.html">mode</a>: {{modeWatch}}, {{modePropose}}, {{modeAct}} or {{modeShip}}.</li>
+      </ul>
+    </section>
+  </div>
+{{docsNav}}
+</main>
+{{> footer}}
+</body>
+</html>

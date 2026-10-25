@@ -90,12 +90,12 @@ test("a week's numbers from a fixture history", () => {
       at: at("2026-10-14T09:00:00"),
       outcome: "failed",
       reason: "tests wouldn't start: missing env",
-      fixedBy: "a later run opened a PR that merged",
+      fixedBy: "a later run opened a pull request that merged",
     },
     { key: "FERN-3", at: at("2026-10-16T13:00:00"), outcome: "timeout", reason: "", fixedBy: "" },
   ]);
   expect(r.open).toEqual([
-    { key: "FERN-4", url: pr(4), what: "PR open, waiting for review" },
+    { key: "FERN-4", url: pr(4), what: "Pull request open, waiting for review" },
     { key: "FERN-3", url: "", what: "failed, not fixed yet" },
   ]);
   expect(r.byTicket.find((t) => t.key === "(other)")).toEqual({ key: "(other)", runs: 1, minutes: 30, cost: 0.3, billed: 0 });
@@ -127,8 +127,8 @@ test("exports: Markdown states the method and leaves cost out on request; CSV ha
   expect(md).toContain("- Billed (est.): $4.40. Estimated from token counts; your provider's bill is the final word.");
   expect(md).toContain("- At API prices: $4.70. What it would cost at API prices, for comparison.");
   expect(md).toContain("- Per merged PR: $1.47 billed · $1.57 at API prices");
-  expect(md).toContain("- FERN-2 failed 2026-10-14: tests wouldn't start: missing env → a later run opened a PR that merged");
-  expect(md).toContain("Only merged PRs count.");
+  expect(md).toContain("- FERN-2 failed 2026-10-14: tests wouldn't start: missing env → a later run opened a pull request that merged");
+  expect(md).toContain("Only merged pull requests count.");
   expect(reportMarkdown(r, { cost: false })).not.toMatch(/Billed|API prices/);
   // the reader's date format in the header when the dashboard says which; YYYY-MM-DD when it's unknown or bogus
   expect(reportMarkdown(r, { cost: plainWords, day: localDay("de-DE") })).toContain("12.10.2026 to 18.10.2026");

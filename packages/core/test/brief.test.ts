@@ -43,20 +43,20 @@ test("a Ship merge is told in the brief, with where its Undo is", () => {
   const night = ["- 19:00 🎉 HONEY-2 PR merged on Ship https://github.com/o/r/pull/2", "- 20:00 🎉 HONEY-3 PR merged"];
   expect(nightCounts(night, [])).toEqual({ merged: 2, opened: 0, failed: 0, shipped: 1 });
   expect(composeBrief({ merged: 2, opened: 0, failed: 0, waiting: 0, billedYesterday: 0, shipped: 1 })?.body).toBe(
-    "Overnight: 2 PRs merged. 1 merged on Ship once CI was green; Undo is in Overhand.",
+    "Overnight: 2 pull requests merged. 1 merged by itself once its checks were green; Undo is in Overhand.",
   );
   expect(composeBrief({ merged: 1, opened: 0, failed: 0, waiting: 0, billedYesterday: 0, shipped: 1 })?.body).toContain(
-    "It merged on Ship",
+    "It merged by itself",
   );
 });
 
 test("the brief tells the night and what needs you in its title, the detail and cost beneath", () => {
   expect(composeBrief({ merged: 2, opened: 1, failed: 0, waiting: 1, billedYesterday: 12.5 })).toEqual({
-    title: "3 PRs overnight, 1 needs you",
-    body: "Overnight: 2 PRs merged, 1 new PR. Yesterday was billed about $12.50, an estimate.",
+    title: "3 pull requests overnight, 1 needs you",
+    body: "Overnight: 2 pull requests merged, 1 new pull request. Yesterday was billed about $12.50, an estimate.",
   });
   expect(composeBrief({ merged: 0, opened: 1, failed: 0, waiting: 0, billedYesterday: 0 })?.title).toBe(
-    "1 PR overnight, nothing needs you",
+    "1 pull request overnight, nothing needs you",
   );
   expect(composeBrief({ merged: 0, opened: 0, failed: 2, waiting: 0, billedYesterday: 0 })?.title).toBe(
     "2 runs failed overnight, nothing needs you",
@@ -70,7 +70,7 @@ test("the brief tells the night and what needs you in its title, the detail and 
 
 test("corners to check and guardrail blocks each get one line, and alone still make a brief", () => {
   expect(composeBrief({ merged: 0, opened: 1, failed: 0, waiting: 1, billedYesterday: 0, toCheck: 1, blocked: 2 })?.body).toBe(
-    "Overnight: 1 new PR. 1 PR has something to check before merging. The guardrails blocked 2 actions.",
+    "Overnight: 1 new pull request. 1 pull request has something to check before merging. The guardrails blocked 2 actions.",
   );
   expect(composeBrief({ merged: 0, opened: 0, failed: 0, waiting: 0, billedYesterday: 0, blocked: 1 })).toEqual({
     title: "A quiet night",
@@ -82,7 +82,7 @@ test("a milestone gets one line, and alone still makes a brief", () => {
   const milestone = milestoneLine("Honeycrust", "merge-100");
   expect(milestone).toBe("Honeycrust reached its 100th merge.");
   expect(composeBrief({ merged: 1, opened: 0, failed: 0, waiting: 0, billedYesterday: 0, milestone })?.body).toBe(
-    "Overnight: 1 PR merged. Honeycrust reached its 100th merge.",
+    "Overnight: 1 pull request merged. Honeycrust reached its 100th merge.",
   );
   expect(composeBrief({ merged: 0, opened: 0, failed: 0, waiting: 0, billedYesterday: 0, milestone })?.title).toBe("A quiet night");
 });

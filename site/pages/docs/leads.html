@@ -10,57 +10,57 @@
 {{> dochero}}
   <div class="wrap">
     <section class="block hood" id="what" aria-labelledby="h-what">
-      <h2 id="h-what">A lead looks after a project.</h2>
+      <h2 id="h-what">A project agent looks after a whole project.</h2>
       <ul class="facts">
-        <li><b>A long-running session</b> One agent session that works a whole project and asks you only what takes a person.</li>
-        <li><b>Asleep until there's work</b> Each lead wakes when its own kind of work shows up on its project, and works only on that.</li>
-        <li><b>Within the project's mode</b> A lead goes only as far as the project's <a href="modes.html">mode</a> allows.</li>
-        <li><b>Kept running</b> While a lead is On, {{name}} restarts it after it exits, gives up after repeated crashes, and waits while its account is at its usage limit.</li>
-        <li><b>How often</b> An always-on lead starts again a few minutes after it exits, and rests longer each time it finds nothing to do, up to 4 hours. In Settings → Leads, <em>{{w.leadRestartLabel}}</em> set to 1440 makes a daily lead and 10080 a weekly one, and it rests that long.</li>
+        <li><b>One agent, kept working</b> One agent that works a whole project and asks you only what takes a person.</li>
+        <li><b>Asleep until there's work</b> Each project agent wakes when its own kind of work shows up on its project, and works only on that.</li>
+        <li><b>Within the project's mode</b> It goes only as far as the project's <a href="modes.html">mode</a> allows.</li>
+        <li><b>Kept running</b> While a project agent is On, {{name}} restarts it after it exits, gives up after repeated crashes, and waits while its account is at its usage limit.</li>
+        <li><b>How often</b> An always-on one starts again a few minutes after it exits, and rests longer each time it finds nothing to do, up to 4 hours. In Settings → Project agents, <em>{{w.leadRestartLabel}}</em> set to 1440 makes it run daily and 10080 weekly, and it rests that long.</li>
         <li><b>Its accounts</b> <em>{{w.leadAccountsLabel}}</em> lists them. At one's usage limit the next run takes the next; with <em>{{w.leadFallbackLabel}}</em> off, it never runs on another, and waits once all of them are used up.</li>
-        <li><b>When it can't start</b> If a start fails before the lead runs, say an account missing its key, Needs you says why, with a button for that account and <em>{{w.signInRetry}}</em>.</li>
+        <li><b>When it can't start</b> If a start fails before it runs, say an account missing its key, Needs you says why, with a button for that account and <em>{{w.signInRetry}}</em>.</li>
       </ul>
     </section>
 
     <section class="block hood" id="ready" aria-labelledby="h-ready">
-      <h2 id="h-ready">Ready-made leads.</h2>
+      <h2 id="h-ready">Ready-made project agents.</h2>
       {{leadTemplates}}
-      <p class="fine">A project's view in Crew suggests them from its own work, each with the count behind it. The first click previews what it watches and does; <em>{{w.leadPreviewStart}}</em> is the second.</p>
+      <p class="fine">A project's view in {{w.viewCrew}} suggests them from its own work, each with the count behind it. The first click previews what it watches and does; <em>{{w.leadPreviewStart}}</em> is the second.</p>
     </section>
 
     <section class="block hood" id="way" aria-labelledby="h-way">
-      <h2 id="h-way">How every lead works.</h2>
+      <h2 id="h-way">How every project agent works.</h2>
       <ul class="facts">
-        <li><b>Whatever its goal</b> Every lead's prompt, ready-made, generic or your own skill, carries the same lines, written once in {{name}}. {{wayOfWorking}}</li>
+        <li><b>Whatever its goal</b> Every project agent's prompt, ready-made, generic or your own skill, carries the same lines, written once in {{name}}. {{wayOfWorking}}</li>
       </ul>
     </section>
 
     <section class="block hood" id="questions" aria-labelledby="h-questions">
-      <h2 id="h-questions">When a lead asks.</h2>
+      <h2 id="h-questions">When a project agent asks.</h2>
       <ul class="facts">
-        <li><b>Under Needs you</b> Answer in place, from your phone's notification, or from a terminal with <code>overhand answer &lt;lead&gt; "your answer"</code>, naming the lead by its key or label. <code>--default</code> goes with the default it gave.</li>
-        <li><b>From any terminal</b> <code>overhand answer</code> goes through the running daemon, the same as answering on the dashboard. So your terminal session, or an agent's, can unblock a lead it settled a question for. {{name}} never reads your other sessions.</li>
-        <li><b>Its default</b> A question ends with what the lead will do if nobody answers. After the wait set for that lead (4 hours unless you change it in Settings → Leads), {{name}} goes with it and tells you. A question with no default, or a wait of 0, waits for you.</li>
-        <li><b>Answered somewhere else</b> <em>{{w.answeredElsewhere}}</em> resumes the lead when you settled it outside {{name}}.</li>
+        <li><b>Under Needs you</b> Answer in place, from your phone's notification, or from a terminal with <code>overhand answer &lt;lead&gt; "your answer"</code>, naming the project agent by its key or label. <code>--default</code> goes with the default it gave.</li>
+        <li><b>From any terminal</b> <code>overhand answer</code> goes through the running daemon, the same as answering on the dashboard. So your terminal session, or an agent's, can unblock a project agent it settled a question for. {{name}} never reads your other sessions.</li>
+        <li><b>Its default</b> A question ends with what the agent will do if nobody answers. After the wait set for that agent (4 hours unless you change it in Settings → Project agents), {{name}} goes with it and tells you. A question with no default, or a wait of 0, waits for you.</li>
+        <li><b>Answered somewhere else</b> <em>{{w.answeredElsewhere}}</em> resumes the agent when you settled it outside {{name}}.</li>
       </ul>
     </section>
 
     <section class="block hood" id="talk" aria-labelledby="h-talk">
-      <h2 id="h-talk">Talk to a lead.</h2>
+      <h2 id="h-talk">Talk to a project agent.</h2>
       <ul class="facts">
-        <li><b>Any time</b> <em>{{w.leadTalk}}</em> in Crew opens a lead's drawer: one conversation with it, and a box that's always there. Ask why something is the way it is, or tell it what to do from now on. With a question open, the same box answers it. It works the same from your phone, through Access from anywhere.</li>
+        <li><b>Any time</b> <em>{{w.leadTalk}}</em> in {{w.viewCrew}} opens a project agent's drawer: one conversation with it, and a box that's always there. Ask why something is the way it is, or tell it what to do from now on. With a question open, the same box answers it. It works the same from your phone, through Access from anywhere.</li>
         <li><b>When it reads it</b> The line under the box says which: at its next step (a Claude Code run takes it mid-run), when its run ends (any other agent), or {{name}} starts it to read it.</li>
         <li><b>Its reply</b> The run's last words come back as its reply, with a notification that carries none of its words. The newest five replies are kept.</li>
-        <li><b>Its limits stay</b> A message is words in the lead's own file, nothing more: the lead keeps its project's <a href="modes.html">mode</a>, the guard and the sandbox, and its reply goes nowhere but the conversation. Only you send messages; an agent run can't, not even the lead's own.</li>
-        <li><b>Agents on tickets</b> To tell a running agent something, send its session a request under <em>{{w.paneRequests}}</em>; it's handed over at its next step and its answer shows there.</li>
+        <li><b>Its limits stay</b> A message is words in the agent's own file, nothing more: it keeps its project's <a href="modes.html">mode</a>, the guard and the sandbox, and its reply goes nowhere but the conversation. Only you send messages; an agent run can't, not even its own.</li>
+        <li><b>Agents on tasks</b> To tell a running agent something, send its session a request under <em>{{w.paneRequests}}</em>; it's handed over at its next step and its answer shows there.</li>
       </ul>
     </section>
 
     <section class="block hood" id="own" aria-labelledby="h-own">
-      <h2 id="h-own">Your own lead.</h2>
+      <h2 id="h-own">Your own project agent.</h2>
       <ul class="facts">
-        <li><b>The generic lead</b> Add one in Settings → Leads with no instruction of its own: it works the project's open issues and pull requests in priority order, with its notes kept in <code>~/.overhand</code>, never in your project.</li>
-        <li><b>A project's own lead skill</b> Point it at the skill, and have the skill keep a lock file and a questions file so {{name}} can supervise it. <a href="{{repo}}/blob/main/docs/leads.md">docs/leads.md</a> has both formats and a snippet to paste.</li>
+        <li><b>The generic one</b> Add one in Settings → Project agents with no instruction of its own: it works the project's open issues and pull requests in priority order, with its notes kept in <code>~/.overhand</code>, never in your project.</li>
+        <li><b>A project's own skill</b> Point it at the skill, and have the skill keep a lock file and a questions file so {{name}} can supervise it. <a href="{{repo}}/blob/main/docs/leads.md"><code>docs/leads.md</code></a> has both formats and a snippet to paste.</li>
       </ul>
     </section>
   </div>

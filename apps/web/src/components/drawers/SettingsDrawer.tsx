@@ -375,7 +375,7 @@ function ProjectsTab({
           >
             <Field label="Name" path={`clients.${i}.name`} />
             <Field label="Folder" path={`clients.${i}.dir`} kind="list" />
-            <Field label="Ticket prefix" path={`clients.${i}.prefix`} />
+            <Field label="Issue key prefix" path={`clients.${i}.prefix`} />
             <AutonomyField i={i} />
             <ProjectSandboxField i={i} tools={tools} />
             <Field label="Git host" path={`clients.${i}.host`} kind={{ options: ["github", "bitbucket"] }} />
@@ -409,7 +409,7 @@ function ProjectsTab({
             <SeededWords name={str(c.name)} prefix={str(c.prefix)} aliases={Array.isArray(c.aliases) ? c.aliases.map((a) => str(a)) : []} />
             <Field label="Agent accounts (runs use the first; empty = the first account)" path={`clients.${i}.accounts`} kind="csv" />
             <Field
-              label="Preview command for PR screenshots (e.g. bun run storybook --ci -p 6106; empty = none)"
+              label="Preview command for pull request screenshots (e.g. bun run storybook --ci -p 6106; empty = none)"
               path={`clients.${i}.preview.command`}
             />
             <Field label="Preview URL to screenshot once it answers" path={`clients.${i}.preview.url`} />
@@ -516,14 +516,14 @@ function ScheduleTab() {
         {num("Slack from hour", "schedule.inboxFromHour")}
         {num("Slack until hour", "schedule.inboxToHour")}
         {num("Slack every (min)", "schedule.inboxEveryMin")}
-        {num("Next pass after work (min)", "schedule.busyPollMin")}
-        {num("Next pass when idle (min)", "schedule.idlePollMin")}
+        {num("Look for work again after work (min)", "schedule.busyPollMin")}
+        {num("Look for work again when idle (min)", "schedule.idlePollMin")}
       </FieldCard>
       <FieldCard title="Limits">
-        {num("Tickets per pass", "limits.maxTasksPerRun")}
-        {num("Ticket timeout (min)", "limits.taskTimeoutMin")}
-        {num("Attempts per ticket", "limits.maxAttempts")}
-        {num("Fix rounds per PR", "limits.maxFixes")}
+        {num("Tasks each time it looks", "limits.maxTasksPerRun")}
+        {num("Task timeout (min)", "limits.taskTimeoutMin")}
+        {num("Attempts per task", "limits.maxAttempts")}
+        {num("Rounds of fixes per pull request", "limits.maxFixes")}
         {num("Account cooldown (min)", "limits.cooldownMin")}
         {num("Slack veto window (min)", "limits.slackVetoMin")}
         {num("Ignore repos idle (days)", "limits.dormantDays")}
@@ -598,9 +598,13 @@ function IntegrationsTab({ checks, store }: { checks: Check[]; store: (service: 
       <StatusUpdates checks={checks} store={store} />
       <SettingsReports />
       <FieldCard title="What clients see">
-        <Field label="Agent branch prefix (empty = ticket key only)" path="outward.branchPrefix" />
-        <Field label="Show AI attribution in commits and PRs" path="outward.aiAttribution" kind="bool" />
-        <Field label="Comment on agent PRs that may have cut a corner (once per new finding)" path="outward.cornerComment" kind="bool" />
+        <Field label="Agent branch prefix (empty = issue key only)" path="outward.branchPrefix" />
+        <Field label="Show AI attribution in commits and pull requests" path="outward.aiAttribution" kind="bool" />
+        <Field
+          label="Comment on agent pull requests that may have cut a corner (once per new finding)"
+          path="outward.cornerComment"
+          kind="bool"
+        />
         <Field label="Never send anywhere (private emails, hosts, names)" path="outward.deny" kind="csv" />
       </FieldCard>
       <FieldCard title="Other addresses">

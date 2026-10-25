@@ -99,7 +99,9 @@ export function guardLine(runtime: string): string {
 
 /** The no-merge claim (site/site.ts CLAIMS.noMerge): firm for confirmed CLIs, and says where each other one stands. */
 export const NO_MERGE_CLAIM = join(
-  sentence(`${withConfirmed}agents can't merge: only Ship merges, through GitHub's own auto-merge once the required checks pass.`),
+  sentence(
+    `${withConfirmed}agents can't merge: only Merge when green merges, through GitHub's own auto-merge once the required checks pass.`,
+  ),
   noShell,
   unconfirmed,
 );

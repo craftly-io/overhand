@@ -28,10 +28,10 @@ const DEMO_ORGANISE: Organise = {
       ],
       rules: { autonomy: "act", accounts: ["Sam"], private: ["Orchard Lane"], windows: [{ from: "09:00", to: "11:00", kinds: [] }] },
       lead: "repo",
-      advice: { scope: "repo", reason: "2 busy projects: each gets its own lead so none waits on another", confidence: "medium" },
+      advice: { scope: "repo", reason: "2 busy projects: each gets its own agent so none waits on another", confidence: "medium" },
       leads: [
-        { key: "shop", label: "Online shop lead", project: "Online shop", running: true },
-        { key: "booking", label: "Booking app lead", project: "Booking app", running: false },
+        { key: "shop", label: "Online shop agent", project: "Online shop", running: true },
+        { key: "booking", label: "Booking app agent", project: "Booking app", running: false },
       ],
     },
   ],

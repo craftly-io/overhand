@@ -169,7 +169,7 @@ test("the gate: a required status check on the base, from branch protection or a
     ["repos/o/r ", { out: JSON.stringify({ private: true, allow_auto_merge: false }) }],
   ]);
   expect(await repoGate("o/r", "main", free.run)).toBe(
-    "GitHub only enforces required checks on private repositories with a paid plan; this one stays on Open pull requests.",
+    "GitHub only enforces required checks on private repositories with a paid plan; this one stays on Pull requests.",
   );
   const pub = fake([
     ["/rules/", { out: "[]" }],
@@ -229,7 +229,7 @@ test("the verdict: proof first, then protected paths and the day's cap leave the
   expect(shipVerdict({ ...f, files: [".github/workflows/ci.yml"] })).toMatchObject({ merge: false, final: true });
   expect(shipVerdict({ ...f, today: 5 })).toEqual({
     merge: false,
-    why: "Today's Ship limit of 5 is reached, so the merge is yours.",
+    why: "Today's limit of 5 merges is reached, so the merge is yours.",
     final: true,
   });
   expect(shipVerdict({ ...f, asked: true })).toMatchObject({ merge: false, final: true });
@@ -331,7 +331,7 @@ test("protected paths, renamed out of them too, and the day's cap fall back to B
   const t = pr();
   await shipStep("HONEY-9", t, capped, "abc", third.run);
   expect(enabled(third.calls)).toEqual([]);
-  expect(t.ship?.why).toBe("Today's Ship limit of 2 is reached, so the merge is yours.");
+  expect(t.ship?.why).toBe("Today's limit of 2 merges is reached, so the merge is yours.");
 });
 
 test("auto-merge not allowed, or a PR already green: it waits for a person with a reason, never retried or merged", async () => {

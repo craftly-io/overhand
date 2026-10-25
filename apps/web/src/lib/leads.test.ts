@@ -164,7 +164,7 @@ test("a preview says what the lead does at the project's mode: on Ship its PRs m
   expect(row("ship", plainWords.leadPreviewHowFar)).toBe(`${plainWords.autonomyShipName}. ${plainWords.autonomyShip}`);
   expect(row("act", plainWords.leadPreviewHowFar)).toContain(plainWords.autonomyAct);
   expect(row("watch", plainWords.leadPreviewDoes)).toBe(
-    "Reports what it finds in Needs you and changes nothing: no code, no PRs. This project is on Plan and warn only.",
+    "Reports what it finds in Needs you and changes nothing: no code, no pull requests. This project is on Look only.",
   );
   expect(row("watch", plainWords.leadPreviewNow)).toBe("Right now it would look into web#4 and web#5 and report what it finds.");
   expect(row("act", plainWords.leadPreviewNow)).toBe("Right now it would answer the review on web#4 and web#5.");

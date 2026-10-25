@@ -30,7 +30,7 @@ test("the night tells its story in order", () => {
   expect(late.running.map((r) => r.name)).toEqual(["SHOP-142"]);
 
   const loop = nightAt(135); // 01:45, Company website's lead restarted three times and rests
-  expect(restarts(beats(loop.reports)).get("Company website lead")).toBe(3);
+  expect(restarts(beats(loop.reports)).get("Company website agent")).toBe(3);
 
   const morning = nightAt(510); // 08:00
   expect(morning.prs).toHaveLength(4); // the agents' own, Mobile app's first win among them; Sam's open PRs are listed too

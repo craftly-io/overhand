@@ -160,13 +160,13 @@ export const FEATURES: readonly Feature[] = [
   },
   {
     id: "upkeep-leads",
-    name: "Upkeep leads",
-    line: "Ready-made leads for current dependencies, untested code and TODO notes.",
+    name: "Upkeep agents",
+    line: "Ready-made project agents for current dependencies, untested code and TODO notes.",
     area: "agents",
     since: "2026-10-23",
     source: "packages/contract/src/leads.ts",
     docs: "docs/leads.html#ready",
-    tip: { text: "New ready-made leads: dependencies, untested code and TODOs.", where: "lead-suggested" },
+    tip: { text: "New ready-made project agents: dependencies, untested code and TODOs.", where: "lead-suggested" },
   },
   {
     id: "first-win",
@@ -262,8 +262,8 @@ export const FEATURES: readonly Feature[] = [
   },
   {
     id: "ship-leads",
-    name: "Ship for leads",
-    line: "A lead's pull requests go through the same Ship rules as a ticket's.",
+    name: "Merge when green for project agents",
+    line: "A project agent's pull requests go through the same Merge when green rules as a task's.",
     area: "safety",
     since: "2026-10-23",
     source: "packages/core/src/ship.ts",
@@ -339,7 +339,7 @@ export const FEATURES: readonly Feature[] = [
   {
     id: "mcp-server",
     name: "Overhand over MCP",
-    line: "Your agents ask what's running and what needs you, answer leads and hand on requests; a run does only what its key allows.",
+    line: "Your agents ask what's running and what needs you, answer project agents and hand on requests; a run does only what its key allows.",
     area: "agents",
     since: "2026-10-25",
     source: "packages/core/src/mcp-server.ts",
@@ -347,13 +347,13 @@ export const FEATURES: readonly Feature[] = [
   },
   {
     id: "talk-to-leads",
-    name: "Message a lead",
-    line: "Ask a lead anything or tell it what to do, any time, from the app or your phone; its reply comes back in the same conversation.",
+    name: "Message a project agent",
+    line: "Ask a project agent anything or tell it what to do, any time, from the app or your phone; its reply comes back in the same conversation.",
     area: "agents",
     since: "2026-10-25",
     source: "apps/web/src/components/drawers/LeadDrawer.tsx",
     docs: "docs/leads.html#talk",
-    tip: { text: "New: message a lead any time, not only when it asks.", where: "lead-message" },
+    tip: { text: "New: message a project agent any time, not only when it asks.", where: "lead-message" },
   },
   {
     id: "plugins",

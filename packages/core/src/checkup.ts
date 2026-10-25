@@ -7,6 +7,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { CheckupFinding, CheckupReport, FirstWinKind } from "@overhand/contract";
+import { plainWords as w } from "@overhand/themes";
 import { shAsync } from "./env";
 import { checkScripts, findTask, type WinTask } from "./firstwin";
 
@@ -118,7 +119,7 @@ export function ciTask(name: string, scripts: Readonly<Record<string, string>>):
   const run = ["typecheck", "lint", "test", "build"].filter((s) => s in scripts);
   return {
     kind: "ci",
-    title: "Add a CI workflow that runs the checks on every pull request",
+    title: "Add a workflow that runs the checks on every pull request",
     brief: `${name} has no CI, so nothing checks a pull request before it's merged. Add one GitHub Actions workflow (.github/workflows/ci.yml) that installs dependencies the way the repo does and runs ${run.length ? run.map((s) => `\`${s}\``).join(", ") : "its tests and build"} on pull requests and pushes to the default branch. Keep it to that one job; no deploys, no secrets.`,
   };
 }
@@ -211,32 +212,31 @@ export async function checkup(repo: string, until = Date.now() + CHECKUP_MS, now
     add("tests", "warn", "No test script in package.json");
 
   // CI: none at all, or the latest run failed
-  if (!ciOf(files, workflows)) offer("ci", "warn", "No CI: nothing checks a pull request", ciTask(name, scripts));
+  if (!ciOf(files, workflows)) offer("ci", "warn", w.checkupNoChecks, ciTask(name, scripts));
   else if (run?.ok) {
     const [last] = parse<{ conclusion: string; workflowName: string; headBranch: string; url: string }[]>(run.out, []);
     if (last?.conclusion === "failure")
-      offer("ci", "bad", `CI is failing: ${last.workflowName} on ${last.headBranch}`, {
+      offer("ci", "bad", w.checkupChecksRed.replace("{workflow}", last.workflowName).replace("{branch}", last.headBranch), {
         kind: "ci",
         title: `Fix the failing ${last.workflowName} run`,
         brief: `The latest ${last.workflowName} run on ${last.headBranch} failed (${last.url}). Read its log with \`gh run view --log-failed\`, find the cause and fix it in the code. Don't skip or disable the failing step.`,
       });
-    else if (last?.conclusion === "success") add("ci", "ok", `CI passes: ${last.workflowName}`);
+    else if (last?.conclusion === "success") add("ci", "ok", w.checkupChecksGreen.replace("{workflow}", last.workflowName));
   }
 
   // open work on GitHub
   const waiting = prs.ok ? prsWaiting(prs.out, now) : null;
-  if (waiting?.open)
-    add(
-      "prs",
-      waiting.quiet ? "warn" : "info",
-      `${waiting.open} open PR${waiting.open === 1 ? "" : "s"}${waiting.quiet ? `, ${waiting.quiet} untouched for two weeks` : ""}`,
-    );
+  if (waiting?.open) {
+    const open = waiting.open === 1 ? w.checkupPrsOne : w.checkupPrsMany.replace("{n}", String(waiting.open));
+    const quiet = w.checkupPrsQuiet.replace("{prs}", open).replace("{quiet}", String(waiting.quiet));
+    add("prs", waiting.quiet ? "warn" : "info", waiting.quiet ? quiet : open);
+  }
   const issueCount = issues.ok ? parse<unknown[]>(issues.out, []).length : 0;
   if (issueCount) add("issues", "info", `${issueCount}${issueCount === 100 ? "+" : ""} open issue${issueCount === 1 ? "" : "s"}`);
 
   // docs a newcomer looks for
   if (!files.some((f) => /^contributing(?:\.md)?$/i.test(f)) && !existsSync(join(repo, ".github", "CONTRIBUTING.md")))
-    offer("contributing", "info", "No CONTRIBUTING guide", {
+    offer("contributing", "info", w.checkupNoContributing, {
       kind: "contributing",
       title: "Add a CONTRIBUTING guide",
       brief: `${name} has no CONTRIBUTING.md. Write a short one from what the repo actually uses: how to set it up, run it, run the checks and tests, the branch and commit style its history shows, and how a pull request gets reviewed. Only facts you can see in the repo; no invented policy.`,

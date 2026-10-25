@@ -68,7 +68,7 @@ overhand stop &amp;&amp; overhand start</code></pre></li>
           <pre><code>overhand uninstall --dry-run   # see what it removes and keeps
 overhand uninstall</code></pre></li>
         <li><b>Your data stays</b> Settings, history and logs in <code>~/.overhand</code> are kept. To delete them too, add <code>--remove-data</code>; it asks before deleting anything.</li>
-        <li><b>Also kept</b> Secrets in Keychain or the keyring, and the hooks <code>overhand connect</code> wrote into projects. Run <code>overhand disconnect</code> in each connected project before you uninstall.</li>
+        <li><b>Also kept</b> Secrets in your secret store, and the hooks <code>overhand connect</code> wrote into projects. Run <code>overhand disconnect</code> in each connected project before you uninstall.</li>
         <li><b>Homebrew</b> Run <code>overhand uninstall</code>, then <code>brew uninstall overhand</code>.</li>
         <li><b>npx or bunx</b> <code>npx overhand uninstall</code> removes the service and the copy in <code>~/.overhand/npm</code>.</li>
       </ul>

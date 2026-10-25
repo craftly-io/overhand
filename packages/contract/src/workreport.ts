@@ -23,7 +23,7 @@ export const ESTIMATE = { baseMin: 20, perLineMin: 0.5, capMin: 240, docsFactor:
 
 /** The estimate's method in one paragraph, shown with every number it produces. */
 export const ESTIMATE_METHOD =
-  "Estimate, not a measurement. Only merged PRs count. Each counts 20 min (reading the ticket, branching, opening the PR) plus 30 s per changed line (lock files left out), at most 4 h; a docs-only PR counts half; a PR with no recorded diff counts 20 min. Open or closed PRs, fix rounds and reviews count nothing. Real time saved is likely higher.";
+  "Estimate, not a measurement. Only merged pull requests count. Each counts 20 min (reading the task, branching, opening the pull request) plus 30 s per changed line (lock files left out), at most 4 h; a docs-only pull request counts half; a pull request with no recorded diff counts 20 min. Open or closed pull requests, rounds of fixes and reviews count nothing. Real time saved is likely higher.";
 
 /** Estimated human minutes for one merged PR (see ESTIMATE). */
 export function estimateMinutes(size: PrSize | undefined): number {
@@ -122,14 +122,14 @@ export function workReport(
         at: r.start,
         outcome: r.outcome === "timeout" ? ("timeout" as const) : ("failed" as const),
         reason: reasons[r.key] ?? "",
-        fixedBy: fix ? `a later run opened a PR${fix.pr?.state === "merged" ? " that merged" : ""}` : "",
+        fixedBy: fix ? `a later run opened a pull request${fix.pr?.state === "merged" ? " that merged" : ""}` : "",
       };
     });
   // what's still open as of the range's end: PRs not merged or closed by then, and failures nothing fixed
   const open = [
     ...prRuns
       .filter((r) => r.pr && r.pr.openedAt < to && (r.pr.state === "open" || r.pr.doneAt >= to))
-      .map((r) => ({ key: r.key, url: r.pr?.url ?? "", what: "PR open, waiting for review" })),
+      .map((r) => ({ key: r.key, url: r.pr?.url ?? "", what: "Pull request open, waiting for review" })),
     ...[...new Set(failures.filter((f) => !f.fixedBy).map((f) => f.key))].map((key) => ({
       key,
       url: "",
@@ -203,8 +203,8 @@ export function reportMarkdown(r: WorkReport, opts: { cost: CostWords | false; d
     "",
     rangeText(r, opts.day),
     "",
-    `- Tickets done: ${r.ticketsDone.length}`,
-    `- PRs opened: ${r.opened}, merged: ${r.merged}`,
+    `- Tasks done: ${r.ticketsDone.length}`,
+    `- Pull requests opened: ${r.opened}, merged: ${r.merged}`,
     `- Agent time: ${hoursMin(r.agentMinutes)} over ${r.runs} run${r.runs === 1 ? "" : "s"}`,
     `- Estimated human time saved: about ${hoursMin(r.estimate.minutes)} (estimate, method below)`,
     ...(opts.cost ? costLines(r, opts.cost) : []),
@@ -213,7 +213,7 @@ export function reportMarkdown(r: WorkReport, opts: { cost: CostWords | false; d
     lines.push(
       "",
       "## Pull requests",
-      ...r.prs.map((p) => `- ${p.key}: ${p.state}${p.fixes ? `, ${p.fixes} fix round${p.fixes === 1 ? "" : "s"}` : ""} — ${p.url}`),
+      ...r.prs.map((p) => `- ${p.key}: ${p.state}${p.fixes ? `, ${p.fixes} round${p.fixes === 1 ? "" : "s"} of fixes` : ""} — ${p.url}`),
     );
   if (r.failures.length)
     lines.push(
@@ -224,7 +224,7 @@ export function reportMarkdown(r: WorkReport, opts: { cost: CostWords | false; d
           `- ${f.key} ${f.outcome === "timeout" ? "timed out" : "failed"} ${day(f.at)}${f.reason ? `: ${f.reason}` : ""} → ${f.fixedBy || "not fixed yet"}`,
       ),
     );
-  if (r.fixRounds) lines.push("", `Fix rounds on review or CI feedback: ${r.fixRounds}`);
+  if (r.fixRounds) lines.push("", `Rounds of fixes on review or check feedback: ${r.fixRounds}`);
   if (r.open.length) lines.push("", "## Open items", ...r.open.map((o) => `- ${o.key}: ${o.what}${o.url ? ` — ${o.url}` : ""}`));
   lines.push("", "## How time saved is estimated", "", r.estimate.method);
   return lines.join("\n");

@@ -42,8 +42,8 @@ A bakery's online ordering: menu, basket, payment and pickup slots. Next.js app 
 
 ## Pull requests
 
-- One ticket per PR, title starts with the ticket key.
-- Keep PRs under 400 lines; split otherwise.
+- One issue per pull request, title starts with the issue key.
+- Keep pull requests under 400 lines; split otherwise.
 `;
 
 const SHOP_AGENTS = `# Agent notes
@@ -53,7 +53,7 @@ Written for Codex when the repo moved over in spring.
 - Install with \`npm install\` and start with \`npm run dev\`.
 - Run tests with \`npm test\`.
 - Don't touch \`migrations/\` by hand; generate them with Drizzle.
-- Keep PRs small.
+- Keep pull requests small.
 `;
 
 const BOOKING_CLAUDE = `# Booking app
@@ -70,7 +70,7 @@ The clinic's booking API, behind the website and the front-desk app. Go 1.24, ch
 
 - Handlers stay thin: parse, call a service, write the response.
 - Return errors with \`fmt.Errorf("…: %w", err)\`; never panic in a handler.
-- Every new endpoint gets an entry in \`openapi.yaml\` in the same PR.
+- Every new endpoint gets an entry in \`openapi.yaml\` in the same pull request.
 - Never change a public response field's type. Add a new field instead.
 - Webhook payloads are versioned; bump the version for any breaking change.
 `;
@@ -97,7 +97,7 @@ A travel company's website: trips, bookings and the staff area. React 19, Vite, 
 ## Workflow
 
 - Use pnpm; the lockfile is \`pnpm-lock.yaml\`.
-- Run \`pnpm test\` and \`pnpm typecheck\` before opening a PR.
+- Run \`pnpm test\` and \`pnpm typecheck\` before opening a pull request.
 - Draft pull requests: a person marks them ready.
 
 ## UI
