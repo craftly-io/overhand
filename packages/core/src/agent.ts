@@ -43,7 +43,7 @@ import { previewOf } from "./preview";
 import { assembleProof } from "./proof";
 import { baseOf, disarmForPush, shipMerged, shipStep, shipSweep } from "./ship";
 import { takeShots } from "./shots";
-import { loadSplits, loadState, type State, saveSplits, saveState, type TrackedPr, takePrReview } from "./state";
+import { loadInterrupted, loadSplits, loadState, type State, saveSplits, saveState, type TrackedPr, takePrReview } from "./state";
 import { bitbucket, bitbucketAuth } from "./trackers/bitbucket";
 import { comment, labelledByOwner, mayPost, setLabels, tickets } from "./trackers/index";
 import type { Ticket } from "./trackers/types";
@@ -791,8 +791,11 @@ export async function work(): Promise<boolean> {
     budget -= await runGuides(state, budget);
     saveState(state);
 
+    // a task whose agent was stopped when Overhand restarted under it waits for your Try again (daemon.ts stopSurvivors)
+    const interrupted = loadInterrupted();
     const fixRound = async ([key, pr]: [string, TrackedPr]): Promise<boolean> => {
       if (budget <= 0) return false;
+      if (interrupted[key]) return true;
       const s = await prStatus(pr).catch((e: unknown) => {
         report(`⚠ ${key}: couldn't read ${pr.url}: ${String(e)}`);
         return null;
@@ -927,7 +930,7 @@ export async function work(): Promise<boolean> {
       async (tk) => {
         if (budget <= 0) return false;
         if (tk.statusType === "completed" || tk.labels.some((l) => busy.includes(l)) || state.prs[tk.key]) return true;
-        if ((state.attempts[tk.key] ?? 0) >= CFG.limits.maxAttempts || hostedTaken(tk.key)) return true;
+        if ((state.attempts[tk.key] ?? 0) >= CFG.limits.maxAttempts || hostedTaken(tk.key) || interrupted[tk.key]) return true;
         budget--;
         await takeBack(tk.key).catch(() => undefined); // running here now: never hosted as well
         const r = await handleTicket(state, tk).catch(async (e: unknown) => {

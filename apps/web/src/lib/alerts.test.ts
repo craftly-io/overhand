@@ -495,3 +495,21 @@ test("each plugin alert comes with its fix: review it, open the page its finding
   // an info finding stays in Health; a paused plugin asks nothing
   expect(pluginAlerts([{ ...on, state: "paused" }], plainWords)).toEqual([]);
 });
+
+test("alerts: a config file that doesn't load, unknown settings and an interrupted task each come with their fix", () => {
+  const titles = (s: Parameters<typeof computeAlerts>[0]) => computeAlerts(s, parsePlan([]), plainWords, NOW);
+  const broken = titles(state({ configFile: { broken: true, restore: true, ignored: ["autonmy"] } }));
+  expect(broken[0]).toMatchObject({ sev: 3, title: plainWords.alConfigBroken, target: { kind: "config", restore: true } });
+  expect(broken.some((a) => a.title.includes("autonmy"))).toBe(false); // the file that loaded is the one to fix first
+  const blank = titles(state({ configFile: { broken: true, restore: false, ignored: [] } }));
+  expect(blank[0]).toMatchObject({ title: plainWords.alConfigBlank, target: { kind: "config", restore: false } });
+  const unknown = titles(state({ configFile: { broken: false, restore: true, ignored: ["autonmy", "limits.taskTimeoutMn"] } }));
+  expect(unknown.find((a) => a.target.kind === "config")?.title).toBe(
+    "overhand.config.json has settings Overhand doesn't know: autonmy, limits.taskTimeoutMn",
+  );
+  const stopped = titles(state({ interrupted: [{ key: "SHOP-7", project: "Online shop", at: NOW }] }));
+  expect(stopped.find((a) => a.target.kind === "interrupted")).toMatchObject({
+    title: "SHOP-7's agent stopped when Overhand restarted",
+    target: { kind: "interrupted", key: "SHOP-7" },
+  });
+});

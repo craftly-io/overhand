@@ -14,10 +14,10 @@ import {
 import { loadAssignments, loadFindings } from "./assign";
 import { accountBilling, billingOf, budgetSpend, budgetUntil, refreshBilling, spendOnDay } from "./billing";
 import { callCounts } from "./calls";
-import type { Config } from "./config";
+import { type Config, lastGoodFile } from "./config";
 import { loadBeats, loadRequests, quietEnd } from "./control";
 import { snoozedItems } from "./decide";
-import { ACCOUNTS, BUNDLED, CFG, CLIENTS, HOME, INSTALL, LABEL, MIN, needsSetup, OPS, OWNER, SLACK_MCP, today } from "./env";
+import { ACCOUNTS, BUNDLED, CFG, CLIENTS, CONFIG_NOTE, HOME, INSTALL, LABEL, MIN, needsSetup, OPS, OWNER, SLACK_MCP, today } from "./env";
 import { firstWinState } from "./firstwin";
 import { gate, holders, readMachine } from "./governor";
 import { guardBlocks } from "./guard";
@@ -54,7 +54,7 @@ import { lastSelfCheck } from "./selfcheck";
 import { latestRelease, opsBehind, updateRoute, VERSION } from "./selfupdate";
 import { type LiveSession, liveSessions } from "./sessions";
 import { recentShips, refreshShipBlocks, shipBlock } from "./ship";
-import { currentRuns, loadNames, loadPrReview, loadSplits, loadState, ticketCache } from "./state";
+import { currentRuns, loadInterrupted, loadNames, loadPrReview, loadSplits, loadState, ticketCache } from "./state";
 import { status } from "./status/index";
 import { type Gauge, gauges, memoryInUse, STRAIN, worst } from "./strain";
 import { teamState } from "./team";
@@ -447,6 +447,8 @@ export async function dashboardState(): Promise<DashboardState> {
     team: teamState(),
     names: loadNames(),
     plugins: pluginStates(CFG),
+    configFile: { broken: CONFIG_NOTE.broken !== "", restore: existsSync(lastGoodFile(OPS)), ignored: CONFIG_NOTE.ignored },
+    interrupted: Object.entries(loadInterrupted()).map(([key, x]) => ({ key, ...x })),
   };
 }
 

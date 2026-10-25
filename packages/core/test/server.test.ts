@@ -196,3 +196,27 @@ test("OpenCode's key route takes only an OpenCode account, a listed provider and
   // its sign-in asks which provider first; a login without one is refused, not left at OpenCode's menu
   expect((await post("/api/accounts/login", { account: "nobody", via: "chatgpt" })).status).toBe(400);
 });
+
+test("Try again takes a task off the interrupted list and asks for a work pass", async () => {
+  const { loadInterrupted, saveInterrupted } = await import("../src/state");
+  saveInterrupted({ "HONEY-7": { project: "Honeycrust", at: 1 } });
+  rmSync(join(OPS, ".request-work"), { force: true });
+  expect((await post("/api/task/retry", { key: "HONEY-7" })).status).toBe(200);
+  expect(loadInterrupted()).toEqual({});
+  expect(existsSync(join(OPS, ".request-work"))).toBe(true);
+  expect((await post("/api/task/retry", { key: "HONEY-7" })).status).toBe(404);
+  rmSync(join(OPS, ".request-work"), { force: true });
+});
+
+test("Restore puts the last overhand.config.json that loaded back and runs on it", async () => {
+  const file = join(OPS, "overhand.config.json");
+  const before = CFG;
+  saveConfig(OPS, before);
+  writeFileSync(file, "{");
+  try {
+    expect((await post("/api/config/restore")).status).toBe(200);
+    expect(loadConfig(OPS)).toEqual(before);
+  } finally {
+    applyConfig(saveConfig(OPS, before));
+  }
+});

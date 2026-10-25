@@ -7,6 +7,7 @@ import {
   addRequest,
   applyHook,
   type Beat,
+  claimHome,
   dueFor,
   editRequests,
   forgetRun,
@@ -17,6 +18,7 @@ import {
   recordRun,
   ruleHold,
   settingsFile,
+  survivingRuns,
   windowUntil,
   withHook,
 } from "../src/control";
@@ -530,4 +532,28 @@ test("a lead's row goes by the lead's one name (your rename first), not its labe
   const [lead] = buildRegistry(input({ live, beats: [], leadName: (l) => (l === "Honey lead" ? "Night watch" : l) }));
   expect(lead?.label).toBe("Night watch");
   expect(buildRegistry(input({ live, beats: [] }))[0]?.label).toBe("Honey lead");
+});
+
+test("runs a stopped Overhand left running are found by pid and start time; leads and reused pids aren't", () => {
+  const ops = scratch();
+  const live = (pid: number) => pid < 300;
+  recordRun(ops, 101, { run: "HONEY-1", autonomy: "act", project: "Honeycrust" }, live, NOW, "Mon 1");
+  recordRun(ops, 102, { run: "lead-core", autonomy: "act", project: "Honeycrust" }, live, NOW, "Mon 2");
+  recordRun(ops, 103, { run: "HONEY-2-fix", autonomy: "act", project: "Honeycrust" }, live, NOW, "Mon 3");
+  // 103's pid now belongs to a process that started at another time: someone else's
+  const started = (pid: number) => ({ 101: "Mon 1", 102: "Mon 2", 103: "Tue 9" })[pid] ?? "";
+  expect(survivingRuns(ops, started)).toEqual([{ pid: 101, run: "HONEY-1", project: "Honeycrust" }]);
+});
+
+test("one daemon per state folder: a second sees the first while it lives, and takes over once it's gone", () => {
+  const ops = scratch();
+  const starts: Record<number, string> = { 1: "Mon 1", 2: "Mon 2" };
+  const started = (pid: number) => starts[pid] ?? "";
+  expect(claimHome(ops, 4317, 1, started)).toBeNull();
+  expect(claimHome(ops, 4318, 2, started)).toEqual({ pid: 1, port: 4317 });
+  expect(claimHome(ops, 4317, 1, started)).toBeNull(); // its own claim again, after a restart in place
+  starts[1] = "Wed 5"; // gone: its pid went to another process
+  expect(claimHome(ops, 4318, 2, started)).toBeNull();
+  // another state folder is another Overhand's (a checkout's and a worktree's daemons side by side)
+  expect(claimHome(scratch(), 4319, 3, started)).toBeNull();
 });

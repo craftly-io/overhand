@@ -142,7 +142,7 @@ function AlertCard({ a, brief, className }: { a: Alert; brief?: string; classNam
     else if (t.kind === "notes" || t.kind === "sweep") ui.openDrawer({ kind: t.kind });
     else if (t.kind === "settings") ui.openDrawer({ kind: "settings", tab: t.tab, project: t.project });
     else if (t.kind === "rule") ui.openDrawer({ kind: "instructions", project: t.project });
-    else if (t.kind === "held" && t.key) ui.openDrawer({ kind: "ticket", key: t.key });
+    else if ((t.kind === "held" && t.key) || t.kind === "interrupted") ui.openDrawer({ kind: "ticket", key: t.key });
     else if (t.kind === "card") ui.openDrawer({ kind: "crew" });
     else if (t.kind === "update") void selfUpdate();
     else if (t.kind === "restart") void run({ name: "restart" });
@@ -178,8 +178,23 @@ function QuickActions({ a }: { a: Alert }) {
 function Actions({ a }: { a: Alert }) {
   const w = useWords();
   const ui = useUi();
-  const { gitAllow, heldDismiss, heldPost, leadAnswer, leadStart, plugin, quiet, ruleAdd, ruleDismiss, run, selfUpdate, slackSignIn } =
-    useActions();
+  const {
+    configOpen,
+    configRestore,
+    gitAllow,
+    heldDismiss,
+    heldPost,
+    leadAnswer,
+    leadStart,
+    plugin,
+    quiet,
+    ruleAdd,
+    ruleDismiss,
+    run,
+    selfUpdate,
+    slackSignIn,
+    taskRetry,
+  } = useActions();
   const save = useQuickSave();
   const [open, setOpen] = useState(false);
   const [elsewhere, setElsewhere] = useState(false);
@@ -236,6 +251,20 @@ function Actions({ a }: { a: Alert }) {
     );
   if (t.kind === "leak") return <LeakActions f={t.finding} />;
   if (t.kind === "selfcheck") return <SelfCheckActions />;
+  if (t.kind === "interrupted") return one(w.signInRetry, () => void taskRetry(t.key));
+  if (t.kind === "config")
+    return (
+      <div className="flex flex-wrap justify-end gap-1">
+        <Button variant={t.restore ? "outline" : "primary"} size="xs" onClick={() => void configOpen()}>
+          {w.alConfigOpen}
+        </Button>
+        {t.restore ? (
+          <Button size="xs" onClick={() => void configRestore()}>
+            {w.alConfigRestore}
+          </Button>
+        ) : null}
+      </div>
+    );
   if (t.kind === "held")
     return (
       <div className="flex flex-wrap justify-end gap-1">

@@ -513,6 +513,26 @@ export function useActions() {
         toast(fmt(w.saidGitAllowed, { dir: at }));
         refresh();
       }),
+    /** Try again on a task whose agent was stopped when Overhand restarted: the next pass starts a new one. */
+    taskRetry: (key: string) =>
+      guard(false, async () => {
+        await post("/api/task/retry", { key }, Ok);
+        toast(fmt(w.saidRetry, { key }));
+        refresh();
+      }),
+    /** Puts back the last overhand.config.json that loaded. */
+    configRestore: () =>
+      guard(false, async () => {
+        await post("/api/config/restore", {}, Ok);
+        toast(w.saidConfigRestored);
+        refresh();
+      }),
+    /** Opens overhand.config.json in the computer's text editor. */
+    configOpen: () =>
+      guard(false, async () => {
+        await post("/api/config/open", {}, Ok);
+        toast(w.saidConfigOpened);
+      }),
     selfUpdate: () =>
       guard(false, async () => {
         if (!(await ui.confirm({ title: w.confirmUpdateTitle, body: w.confirmUpdate, go: w.confirmUpdateGo, tone: "primary" }))) return;

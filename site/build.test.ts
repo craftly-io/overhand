@@ -435,6 +435,8 @@ test("the docs give only commands the CLI has, and quote only messages the code 
   const code = [
     ...[...new Bun.Glob("packages/core/src/**/*.ts").scanSync(join(here, ".."))].map((f) => join(here, "..", f)),
     join(here, "../release/install.sh"),
+    // what the daemon and the dashboard say in the house's words (plainWords)
+    join(here, "../packages/themes/src/words.ts"),
   ]
     .map((f) => readFileSync(f, "utf8"))
     .join("\n");

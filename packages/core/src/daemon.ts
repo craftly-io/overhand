@@ -10,7 +10,7 @@ import { morningBrief } from "./brief";
 import { loadLocalCode } from "./claude";
 import { autoDue, cleanupJob, dropVoiceModel } from "./cleanup";
 import { saveConfig } from "./config";
-import { extended, ingestOutboxes, insideRun, pruneRuns, ruleHold } from "./control";
+import { claimHome, extended, ingestOutboxes, insideRun, pruneRuns, ruleHold, survivingRuns } from "./control";
 import { ackCli, askCli, autoAct, connectCli, sampleStrain } from "./control-api";
 import { dashboardState } from "./dashboard";
 import { keyFile, localHeaders, openLink, resetLocalKey } from "./devices";
@@ -21,13 +21,16 @@ import {
   CFG,
   CLIENTS,
   CODE,
+  CONFIG_NOTE,
   cli,
+  clientOf,
   DASHBOARD,
   HOME,
   INSTALL,
   MIN,
   needsSetup,
   OPS,
+  reloadIfFixed,
   runtimeOf,
   SELF_EXEC,
   SLACK_MCP,
@@ -67,7 +70,7 @@ import { liveDeps, runSelfCheck, SELF_CHECK_EVERY } from "./selfcheck";
 import { latestRelease, restartIfRequested, updateRoute, VERSION } from "./selfupdate";
 import { cleanupActive, PORT_BUSY, portInUse, pushState, serveDashboard, spawnCleanup } from "./server";
 import { checks } from "./setup";
-import { currentRuns, loadState, readJson, saveState } from "./state";
+import { currentRuns, loadInterrupted, loadState, readJson, saveInterrupted, saveState } from "./state";
 import { uninstallCli } from "./uninstall";
 import { tickUpdates } from "./updates";
 import { tickReports } from "./workreport";
@@ -141,12 +144,36 @@ function noticeMoves(): void {
 }
 
 /** Runs forever: serves the dashboard, plans daily when the plan is on, reads Slack on config.schedule, works the queue. */
+/**
+ * Stops the agents an Overhand that stopped mid-run left running (survivingRuns), before anything starts another in
+ * their worktrees. Waiting instead would gain nothing: their output went to the Overhand that stopped, so their result
+ * can't be read. A ticket's task is marked interrupted, and Needs you offers Try again.
+ */
+export async function stopSurvivors(ops = OPS, kill: (pid: number) => Promise<unknown> = killTree): Promise<string[]> {
+  const runs = survivingRuns(ops);
+  if (!runs.length) return [];
+  await Promise.all(runs.map((r) => kill(r.pid)));
+  const interrupted = loadInterrupted();
+  const keys: string[] = [];
+  for (const r of runs) {
+    report(`↺ ${r.run}: stopped its agent, left running when Overhand stopped`);
+    const key = r.run.replace(/-(fix|route)$/, "");
+    if (!clientOf(key)) continue;
+    interrupted[key] = { project: r.project, at: Date.now() };
+    keys.push(key);
+  }
+  saveInterrupted(interrupted);
+  return keys;
+}
+
 export async function daemon(): Promise<void> {
   const local = await loadLocalCode();
   if (local) reportDaily(`🔌 account order from local code ${local}`);
+  if (CONFIG_NOTE.broken) report(`⚠ ${CONFIG_NOTE.broken.replace(/\s*\n\s*/g, " ")}`);
   writeAgentHome();
   noticeMoves();
   void finishMoves();
+  await stopSurvivors();
   pruneRuns(OPS); // runs whose process is gone, or whose pid another process now has
   if (dropVoiceModel(OPS)) report("🧹 removed the old in-page voice model (no longer used)");
   serveDashboard();
@@ -193,6 +220,8 @@ export async function daemon(): Promise<void> {
   // organising suggestions: cheap git reads, every half hour (ponytail: in-process; move out like cleanup if it lags)
   setInterval(() => needsSetup() || refreshSuggestions(CFG, CODE, OPS, SRC), 30 * MIN);
   setInterval(() => writeFileSync(join(OPS, ".heartbeat"), String(Date.now())), 10_000);
+  // a config file that didn't load is taken in once you've fixed it, with no restart
+  setInterval(() => reloadIfFixed() && report("⚙ overhand.config.json loads again"), 10_000);
   writeFileSync(join(OPS, ".heartbeat"), String(Date.now()));
   let lastPlanTry = 0;
   let lastInbox = inboxReadAt();
@@ -626,6 +655,13 @@ export async function main(mode: string | undefined): Promise<void> {
       process.exit(1);
     }
     if (mode === "daemon") {
+      const other = claimHome(OPS, UI_PORT);
+      if (other) {
+        console.error(
+          plainWords.daemonHomeTaken.replace("{home}", OPS).replace("{pid}", String(other.pid)).replace("{port}", String(other.port)),
+        );
+        process.exit(1);
+      }
       // the first start with a local key (a new install, or the update that brought the key): this computer's browser is
       // signed in once, as `overhand start` would, so the open dashboard isn't left on the pair screen
       // only the installed login service: a copy started by a test, the release's checks or a script never opens a browser

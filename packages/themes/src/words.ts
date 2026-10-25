@@ -91,6 +91,24 @@ export const plainWords = {
   // the card for a hosted run that stopped or never started; the ticket is back in this computer's queue
   alHostedNoMinutes: "{key} didn't run while your computer was off",
   alHostedNoMinutesSub: "No run minutes were free. It runs here now; buy minutes for next time.",
+  /** An agent a stopped Overhand left running: the next start stopped it, and the task waits for Try again. */
+  alInterrupted: "{key}'s agent stopped when Overhand restarted",
+  alInterruptedSub: "Its work so far stays in its worktree. Try again starts a new agent on it.",
+  saidRetry: "{key}: a new agent starts on it.",
+  /** overhand.config.json won't load: Overhand runs on the last copy that did (Restore), else with nothing set up. */
+  alConfigBroken: "overhand.config.json doesn't load, so Overhand runs on the last copy that did",
+  alConfigBrokenSub: "Restore puts that copy back, or open the file and fix it.",
+  alConfigBlank: "overhand.config.json doesn't load, so Overhand runs with no projects",
+  alConfigBlankSub: "Open the file and fix it; Overhand takes it in once it loads.",
+  alConfigIgnored: "overhand.config.json has settings Overhand doesn't know: {keys}",
+  alConfigIgnoredSub: "They do nothing. Open the file to fix their names or remove them.",
+  alConfigRestore: "Restore",
+  alConfigOpen: "Open the file",
+  saidConfigRestored: "The last overhand.config.json that loaded is back.",
+  saidConfigOpened: "overhand.config.json is open on your computer.",
+  /** A second daemon on the same state folder (OVERHAND_HOME) refuses to start, and says where the first is. */
+  daemonHomeTaken:
+    "Overhand already runs from {home} (pid {pid}, port {port}). One Overhand per folder: stop that one first, or give this one its own OVERHAND_HOME.",
   alHostedStopped: "{key}'s hosted run stopped",
   alHostedStoppedSub: "{why} It's back in this computer's queue.",
   alHostedBuy: "Buy run minutes",
