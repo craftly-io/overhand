@@ -41,7 +41,7 @@ import {
 import { plainWords } from "@overhand/themes";
 import { z } from "zod";
 import { AddAccountSchema, accountLabel, addAccount, budgetAfterAdd, KEY_ITEM, LOGIN_CLIS, onSharedLogin } from "./accounts";
-import { activeRepos } from "./agent";
+import { activeRepos, reopenPr } from "./agent";
 import {
   AGENT_HOMES,
   accountLogin,
@@ -1674,29 +1674,38 @@ async function route(req: Request): Promise<Response> {
       try {
         const finding = body.id ? loadFindings().find((f) => f.id === body.id) : undefined;
         if (body.id && !finding) return json({ error: "that finding is gone; reload" }, 404);
-        // a plan you go ahead with builds its own task, told the plan you approved; `plan` starts one from a sentence
-        const a = finding?.task
-          ? assign({
-              project: finding.project,
-              key: finding.task,
-              title: finding.title,
-              brief: `The plan the owner approved:\n${finding.text}`,
-              by: "dashboard",
-              allowAct: true,
-            })
-          : assign({
-              project: finding?.project ?? String(body.project ?? ""),
-              key: finding ? finding.key : String(body.key ?? ""),
-              title: finding?.title ?? String(body.title ?? ""),
-              brief: finding?.text ?? String(body.brief ?? ""),
-              by: "dashboard",
-              // a teammate's hand-off lands held even where agents act on their own; assigning it runs it there
-              allowAct: finding?.from === "team",
-              plan: !finding && body.plan === true,
-            });
+        // a plan you go ahead with builds its own task, told the plan you approved; a run that stopped goes again as the
+        // same task, with its own brief and branch; `plan` starts one from a sentence
+        const a = finding?.failed
+          ? assign({ project: finding.project, key: finding.failed.task, title: finding.title, by: "dashboard", allowAct: true })
+          : finding?.task
+            ? assign({
+                project: finding.project,
+                key: finding.task,
+                title: finding.title,
+                brief: `The plan the owner approved:\n${finding.text}`,
+                by: "dashboard",
+                allowAct: true,
+              })
+            : assign({
+                project: finding?.project ?? String(body.project ?? ""),
+                key: finding ? finding.key : String(body.key ?? ""),
+                title: finding?.title ?? String(body.title ?? ""),
+                brief: finding?.text ?? String(body.brief ?? ""),
+                by: "dashboard",
+                // a teammate's hand-off lands held even where agents act on their own; assigning it runs it there
+                allowAct: finding?.from === "team",
+                plan: !finding && body.plan === true,
+              });
         if (finding) dropFinding(finding.id, false);
         writeFileSync(join(OPS, ".request-work"), "");
-        report(a.plan ? `📝 ${a.key}: you started an agent; it plans first` : `🙋 ${a.key}: you assigned an agent to build it`);
+        report(
+          a.plan
+            ? `📝 ${a.key}: you started an agent; it plans first`
+            : finding?.failed
+              ? `🔁 ${a.key}: you asked it to try again`
+              : `🙋 ${a.key}: you assigned an agent to build it`,
+        );
         return json({ ok: true, key: a.key });
       } catch (e) {
         return json({ error: e instanceof Error ? e.message : String(e) }, 400);
@@ -1725,10 +1734,25 @@ async function route(req: Request): Promise<Response> {
         const sent = await comment(tk, f.post, "owner");
         report(`📮 ${f.key}: ${sent ? "you posted a held comment" : "the outward firewall held a comment you posted"}`);
       }
-      dropFinding(f.id, url.pathname.endsWith("/dismiss"));
-      // dropping a plan drops the task it was for
-      if (f.task && url.pathname.endsWith("/dismiss")) unassign(f.task);
+      // a stopped run's Close isn't remembered as dismissed: if the same task runs and stops again, its card comes back
+      dropFinding(f.id, url.pathname.endsWith("/dismiss") && !f.failed);
+      // dropping a plan, or closing a stopped run, drops the task it was for
+      const task = f.task ?? f.failed?.task;
+      if (task && url.pathname.endsWith("/dismiss")) unassign(task);
       return json({ ok: true });
+    }
+    case "/api/failed/reopen": {
+      // Open the pull request again: its branch is pushed, so this only opens the PR (nothing runs again)
+      const f = loadFindings().find((x) => x.id === body.id);
+      if (!f?.failed) return json({ error: "that card is gone; reload" }, 404);
+      try {
+        const pr = await reopenPr(f.failed.task);
+        dropFinding(f.id, false);
+        writeFileSync(join(OPS, ".request-work"), "");
+        return json({ ok: true, url: pr.url });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : String(e) }, 502);
+      }
     }
     case "/api/selfcheck/report":
       // Report: what the self-check saw, with nothing private in it, in a local file

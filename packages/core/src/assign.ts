@@ -127,9 +127,9 @@ export function holdFinding(f: Omit<Finding, "id" | "at">, now = Date.now()): st
   return id;
 }
 
-/** A finding's id: the same project, ticket, finder and text are the same finding. */
-export const findingId = (f: Pick<Finding, "project" | "key" | "from" | "text">): string =>
-  Bun.hash([f.project, f.key, f.from, f.text].join("\n")).toString(36);
+/** A finding's id: the same project, ticket, finder and text (and a stopped run's task) are the same finding. */
+export const findingId = (f: Pick<Finding, "project" | "key" | "from" | "text"> & Pick<Partial<Finding>, "failed">): string =>
+  Bun.hash([f.project, f.key, f.from, f.text, ...(f.failed ? [f.failed.task] : [])].join("\n")).toString(36);
 
 /** Removes a finding: done with (posted or assigned), or dismissed so it isn't filed again. */
 export function dropFinding(id: string, dismissed: boolean): Finding | undefined {

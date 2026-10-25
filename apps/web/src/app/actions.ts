@@ -446,6 +446,13 @@ export function useActions() {
         toast(w.saidHeldDismissed);
         refresh();
       }),
+    /** Open the pull request again, from a stopped run's card: its branch is pushed, so only the PR is opened. */
+    reopenPr: (id: string) =>
+      guard(false, async () => {
+        const r = await post("/api/failed/reopen", { id }, z.object({ url: z.string() }));
+        toast(fmt(w.saidReopened, { url: r.url }));
+        refresh();
+      }),
     /** Has the project's agent write or refresh its onboarding guide on the next pass: a PR, or on watch a report. */
     guideRun: (project: string) =>
       guard(false, async () => {

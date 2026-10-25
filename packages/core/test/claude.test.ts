@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { INSTRUCTIONS_FILE } from "../src/agent-home";
-import { claude, testAccount } from "../src/claude";
+import { claude, failureOf, testAccount } from "../src/claude";
 import { parseConfig } from "../src/config";
 import { applyConfig, CFG } from "../src/env";
 import { bench, benched, markSignedOut, signedOutAccounts } from "../src/limits";
@@ -90,4 +90,19 @@ test("a real limit, from the CLI's own result and rate_limit_event, benches the 
   expect(r).toBeNull();
   expect(limited).toBe(true);
   expect(benched().work).toBeGreaterThan(Date.now());
+});
+
+const failed = (over: { text?: string; stderr?: string; code?: number; timedOut?: boolean }) => ({
+  out: { ok: false, text: over.text ?? "", structured: undefined, cost: 0, usage: null },
+  stderr: over.stderr ?? "",
+  code: over.code ?? 0,
+  timedOut: over.timedOut ?? false,
+});
+
+test("a run with no answer says why: timed out, signed out, crashed, or output Overhand can't read", () => {
+  expect(failureOf(failed({ timedOut: true, code: 143 }))).toBe("timeout");
+  expect(failureOf(failed({ text: "OAuth token has expired. Please run /login", code: 1 }))).toBe("signed-out");
+  expect(failureOf(failed({ stderr: "TypeError: x is undefined", code: 1 }))).toBe("crashed");
+  // exit 0 and no result Overhand recognises: the CLI changed how it reports
+  expect(failureOf(failed({ text: '{"type":"brand-new-event"}' }))).toBe("unreadable");
 });

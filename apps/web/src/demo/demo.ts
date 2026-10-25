@@ -30,8 +30,9 @@ import {
 } from "@overhand/contract";
 import { plainWords } from "@overhand/themes";
 import type { QueryClient } from "@tanstack/react-query";
+import { samplePr } from "./links";
 import { ARRIVE_FROM, MOMENTS, MORNING, minutesOf } from "./moments";
-import { clockAt, nightAt, OWNER } from "./night";
+import { clockAt, nightAt, OWNER, STOPPED_FINDING } from "./night";
 import { demoReviewPost, demoReviewRound } from "./review";
 import { demoSignInPost } from "./signin";
 import { stressed } from "./stress";
@@ -160,6 +161,8 @@ const did = {
   names: new Map<string, string>(),
   /** Ready-made leads the visitor started from a suggestion: on, and up with the work they were suggested for. */
   leads: [] as Lead[],
+  /** Held findings the visitor acted on (the stopped run: tried again, closed or its PR opened). */
+  done: new Set<string>(),
 };
 
 /**
@@ -211,7 +214,7 @@ export const demoState = (): DashboardState => {
       ]),
     ),
     governor: { ...s.governor, quietUntil: did.quietUntil > Date.now() ? did.quietUntil : s.governor.quietUntil },
-    findings: [...did.plans.map((p) => p.plan), ...s.findings],
+    findings: [...did.plans.map((p) => p.plan), ...s.findings.filter((f) => !did.done.has(f.id))],
     assigned: [...did.plans.map((p) => p.task), ...s.assigned],
     // notes pinned on a preview: the PR's card says which round they became, and counts it once the agent has pushed
     prs: s.prs.map((p) => {
@@ -283,6 +286,11 @@ export function demoPost(url: string, body: Record<string, unknown>): unknown {
   if (planned && (url === "/api/assign" || url === "/api/finding/dismiss")) {
     did.plans = did.plans.filter((p) => p !== planned);
     return { ok: true, key: planned.task.key };
+  }
+  // the stopped run: Try again, Close and Open the pull request again each take its card away
+  if (body.id === STOPPED_FINDING.id && (url === "/api/assign" || url === "/api/finding/dismiss" || url === "/api/failed/reopen")) {
+    did.done.add(STOPPED_FINDING.id);
+    return url === "/api/failed/reopen" ? { url: samplePr("example/website", 53) } : { ok: true, key: STOPPED_FINDING.failed.task };
   }
   const named = NameSchema.safeParse(body);
   if (url === "/api/name" && named.success) {

@@ -179,6 +179,7 @@ function Actions({ a }: { a: Alert }) {
   const w = useWords();
   const ui = useUi();
   const {
+    assign,
     configOpen,
     configRestore,
     gitAllow,
@@ -188,6 +189,7 @@ function Actions({ a }: { a: Alert }) {
     leadStart,
     plugin,
     quiet,
+    reopenPr,
     ruleAdd,
     ruleDismiss,
     run,
@@ -249,6 +251,33 @@ function Actions({ a }: { a: Alert }) {
         <AccountSignIn account={t.account} tool={t.tool} label={fmt(w.addAccountSignIn, { tool: t.tool })} />
       </div>
     );
+  if (t.kind === "failed") {
+    // the same fixes as its decision card, for when its brief can't be read: the reason's own, then Close
+    const r = t.failed.reason;
+    return (
+      <div className="flex flex-wrap justify-end gap-1">
+        <Button variant="ghost" size="xs" onClick={() => void heldDismiss(t.id)}>
+          {w.close}
+        </Button>
+        {r === "signed-out" && t.tool ? (
+          <AccountSignIn account={t.failed.account} tool={t.tool} label={fmt(w.addAccountSignIn, { tool: t.tool })} />
+        ) : null}
+        {r === "pr-open" ? (
+          <Button size="xs" onClick={() => void reopenPr(t.id)}>
+            {w.failedReopen}
+          </Button>
+        ) : r === "no-changes" ? (
+          <Button size="xs" onClick={() => void heldDismiss(t.id).then(() => ui.openPalette(`${t.project}: ${t.title}`))}>
+            {w.failedMoreDetail}
+          </Button>
+        ) : (
+          <Button size="xs" onClick={() => void assign({ project: t.project, id: t.id })}>
+            {w.signInRetry}
+          </Button>
+        )}
+      </div>
+    );
+  }
   if (t.kind === "leak") return <LeakActions f={t.finding} />;
   if (t.kind === "selfcheck") return <SelfCheckActions />;
   if (t.kind === "interrupted") return one(w.signInRetry, () => void taskRetry(t.key));

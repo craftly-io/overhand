@@ -3,6 +3,8 @@ import {
   budgetNotice,
   comboLabel,
   type DashboardState,
+  FAILURE_WORDS,
+  type Failure,
   type Finding,
   isNewerVersion,
   type Lead,
@@ -51,6 +53,11 @@ type AlertTarget =
   | { kind: "rule"; id: string; project: string }
   /** Something held for you on a watch project instead of posted: Post it (when it has a ticket and a comment) or Dismiss. */
   | { kind: "held"; id: string; key: string; post: boolean }
+  /**
+   * A run that stopped for good: its reason's one sentence and the button that fixes it (Try again, Try again with more
+   * detail, Open the pull request again, Sign in), and Close.
+   */
+  | { kind: "failed"; id: string; project: string; title: string; failed: Failure; tool: string }
   /** Something the outward firewall stopped: Edit and post, Post anyway, Dismiss. */
   | { kind: "leak"; finding: Finding }
   /** The dashboard failed its own render check: Report, Reload. */
@@ -438,7 +445,29 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       say: fmt(w.alLeakSay, { dest: f.leak?.dest ?? "" }),
       target: { kind: "leak", finding: f },
     });
-  for (const f of s.findings.filter((x) => !x.leak && !x.task))
+  // a run that stopped for good: why in one sentence, and its fix on the card (contract decide.ts failedBrief)
+  for (const f of s.findings) {
+    const failed = f.failed;
+    if (f.leak || f.task || !failed) continue;
+    const acc = s.accounts.find((x) => x.name === failed.account);
+    a.push({
+      sev: 2,
+      broken: true,
+      title: fmt(w.alFailed, { title: f.title }),
+      sub: `${f.project} · ${fmt(w[FAILURE_WORDS[failed.reason]], { branch: failed.branch })}`,
+      say: fmt(w.alFailedSay, { project: f.project }),
+      item: `held:${f.id}`,
+      target: {
+        kind: "failed",
+        id: f.id,
+        project: f.project,
+        title: f.title,
+        failed,
+        tool: acc ? (RUNTIME_NAMES[acc.runtime] ?? acc.runtime) : "",
+      },
+    });
+  }
+  for (const f of s.findings.filter((x) => !x.leak && !x.task && !x.failed))
     a.push({
       sev: 2,
       title: fmt(w.alHeld, { title: f.title }),

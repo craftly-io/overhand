@@ -62,6 +62,7 @@ function useRunner(): OptionRunner {
       await a.heldDismiss(finding);
       ui.openPalette(`${project}: ${text}`);
     },
+    reopenPr: a.reopenPr,
     openDrawer: ui.openDrawer,
     openLink: (url) => void window.open(url, "_blank", "noopener,noreferrer"),
   };
@@ -116,7 +117,7 @@ export function DecisionCard({
   const rec = options.find((o) => o.id === b.recommend.option);
   // a plan's "Change the plan" sits before Go ahead, and the agent's other answer choices after its recommendation, so
   // every choice shows; the rest wait behind …
-  const before: BriefOption[] = compact ? options.filter((o) => o.do === "replan") : [];
+  const before: BriefOption[] = compact ? options.filter((o) => o.do === "replan" && o !== rec) : [];
   const after: BriefOption[] = compact ? options.filter((o) => o !== rec && CHOICE_IDS.some((id) => id === o.id)) : [];
   const rest = options.filter((o) => o !== rec && !before.includes(o) && !after.includes(o));
   // the recommended answer's words when they're too long for its button (a paragraph-long default)
