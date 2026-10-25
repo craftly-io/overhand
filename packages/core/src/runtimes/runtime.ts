@@ -2,7 +2,7 @@
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve, sep } from "node:path";
-import { type Autonomy, WIN_STEPS, type WinStep } from "@overhand/contract";
+import type { Autonomy, WinStep } from "@overhand/contract";
 import type { Provider, Runtime, RuntimeId } from "../config";
 import type { AccountUsage } from "../usage";
 
@@ -304,6 +304,12 @@ export function stepOf(line: string): WinStep | null {
 }
 
 /**
+ * Each step's place in WIN_STEPS' order, typed against it. Kept here rather than imported: this file loads with no
+ * packages installed (release/leakcheck.ts), so it imports types only.
+ */
+const RANK = { read: 0, change: 1, checks: 2, pr: 3 } as const satisfies Record<WinStep, number>;
+
+/**
  * Reads a run's output as it arrives, chunk by chunk, and calls `on` each time it reaches a later step (steps only move
  * forward: a check run before the change doesn't tick the change off).
  */
@@ -315,7 +321,7 @@ export function stepReader(on: (step: WinStep) => void): (chunk: string) => void
     rest = lines.pop() ?? "";
     for (const l of lines) {
       const s = stepOf(l);
-      const i = s ? WIN_STEPS.indexOf(s) : -1;
+      const i = s ? RANK[s] : -1;
       if (s && i > far) {
         far = i;
         on(s);
