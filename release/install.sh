@@ -1,6 +1,6 @@
 #!/bin/sh
-# Installs (or updates) Overhand: downloads the package for this machine from the latest release, checks its SHA-256,
-# unpacks it into its own folder in ~/.overhand/releases and points the ~/.overhand/app link at it in one rename, so an
+# Installs (or updates) Overhand: downloads the package for this machine from the latest release, checks its SHA-256
+# (and, when cosign is installed, the release's signature on SHA256SUMS), unpacks it into its own folder in ~/.overhand/releases and points the ~/.overhand/app link at it in one rename, so an
 # install is either complete or not there at all. Links `overhand` into ~/.local/bin, installs GitHub's command tool
 # when it's missing, puts ~/.local/bin on PATH in the shell's startup file and starts Overhand, which opens the dashboard
 # in the browser; a running Overhand sees its binary moved and restarts on the new one once no agent is running.
@@ -32,13 +32,24 @@ step() { printf '  %s✓%s %s\n' "$ok" "$r" "$1"; }
 note() { printf '  %s!%s %s\n' "$warn" "$r" "$1"; }
 fail() { printf '  %s✗%s %s\n' "$bad" "$r" "$1" >&2; exit 1; }
 sum256() { if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1; else sha256sum "$1" | cut -d' ' -f1; fi; }
+# every download over HTTPS with TLS 1.2 or later, redirects included, so a bad mirror or redirect fails closed; only a
+# test server on this machine (file://, http://127.0.0.1 or localhost) named in OVERHAND_DOWNLOAD or
+# OVERHAND_GH_DOWNLOAD may be plain
+proto='=https'
+for u in "$DOWNLOAD" "${OVERHAND_GH_DOWNLOAD:-}"; do
+  case "$u" in file://* | http://127.0.0.1[:/]* | http://localhost[:/]*) proto='=https,http,file' ;; esac
+done
+get() { curl --proto "$proto" --tlsv1.2 "$@"; }
+# who signs a release's SHA256SUMS (RELEASE_SIGNER in packages/contract/src/links.ts): this repository's release
+# workflow, run for a version tag, which only an admin can push
+SIGNER='^https://github\.com/craftly-io/overhand/\.github/workflows/release\.yml@refs/tags/v'
 
 # GitHub's command tool (gh), which agents open pull requests through, installed the vendor's own way (cli.github.com,
 # checked 2026-10-25): Homebrew on a Mac that has it, else GitHub's release for this Mac into ~/.local/bin; on Linux
 # GitHub's apt or dnf repository, as root, which needs sudo that asks nothing here (the script came down a pipe, so
 # there's no one to type a password); otherwise the one command to run. Anything else: the setup page links its docs.
-GH_APT='mkdir -p -m 755 /etc/apt/keyrings /etc/apt/sources.list.d && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gh'
-GH_DNF='curl -fsSL https://cli.github.com/packages/rpm/gh-cli.repo -o /etc/yum.repos.d/gh-cli.repo && dnf install -y gh --repo gh-cli'
+GH_APT='mkdir -p -m 755 /etc/apt/keyrings /etc/apt/sources.list.d && curl --proto =https --tlsv1.2 -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gh'
+GH_DNF='curl --proto =https --tlsv1.2 -fsSL https://cli.github.com/packages/rpm/gh-cli.repo -o /etc/yum.repos.d/gh-cli.repo && dnf install -y gh --repo gh-cli'
 install_gh() {
   if [ "$os" = darwin ]; then
     if command -v brew >/dev/null 2>&1; then brew install gh >"${tmp}/gh.log" 2>&1; else gh_release >"${tmp}/gh.log" 2>&1; fi
@@ -58,11 +69,11 @@ install_gh() {
 # GitHub's own build of gh for this Mac, from its latest release, checked against the release's checksums
 gh_release() {
   rel="${OVERHAND_GH_DOWNLOAD:-https://github.com/cli/cli/releases}"
-  tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "${rel}/latest")" || return 1
+  tag="$(get -fsSLI -o /dev/null -w '%{url_effective}' "${rel}/latest")" || return 1
   tag="${tag##*/}"
   if [ "$arch" = x64 ]; then zip="gh_${tag#v}_macOS_amd64.zip"; else zip="gh_${tag#v}_macOS_arm64.zip"; fi
-  curl -fsSL "${rel}/download/${tag}/${zip}" -o "${tmp}/${zip}" || return 1
-  curl -fsSL "${rel}/download/${tag}/gh_${tag#v}_checksums.txt" -o "${tmp}/gh-sums" || return 1
+  get -fsSL "${rel}/download/${tag}/${zip}" -o "${tmp}/${zip}" || return 1
+  get -fsSL "${rel}/download/${tag}/gh_${tag#v}_checksums.txt" -o "${tmp}/gh-sums" || return 1
   [ "$(grep " ${zip}\$" "${tmp}/gh-sums" | cut -d' ' -f1)" = "$(sum256 "${tmp}/${zip}")" ] || return 1
   unzip -q "${tmp}/${zip}" -d "${tmp}/gh" && mv "${tmp}/gh/${zip%.zip}/bin/gh" "${BIN}/gh"
 }
@@ -95,14 +106,24 @@ trap 'rm -rf "$tmp"' EXIT
 # a progress bar on a terminal, quiet otherwise
 if [ "$tty" = 1 ]; then
   printf '  %s↓%s Downloading %s\n' "$hi" "$r" "$pkg"
-  curl -fL --progress-bar "${url}/${pkg}" -o "${tmp}/${pkg}" || fail "Download failed: ${url}/${pkg}. The installed Overhand is unchanged."
+  get -fL --progress-bar "${url}/${pkg}" -o "${tmp}/${pkg}" || fail "Download failed: ${url}/${pkg}. The installed Overhand is unchanged."
   printf '\033[1A\033[2K\033[1A\033[2K'
 else
-  curl -fsSL "${url}/${pkg}" -o "${tmp}/${pkg}" || fail "Download failed: ${url}/${pkg}. The installed Overhand is unchanged."
+  get -fsSL "${url}/${pkg}" -o "${tmp}/${pkg}" || fail "Download failed: ${url}/${pkg}. The installed Overhand is unchanged."
 fi
 step "Downloaded ${pkg}"
 
-curl -fsSL "${url}/SHA256SUMS" -o "${tmp}/SHA256SUMS" || fail "Couldn't fetch SHA256SUMS. The installed Overhand is unchanged."
+get -fsSL "${url}/SHA256SUMS" -o "${tmp}/SHA256SUMS" || fail "Couldn't fetch SHA256SUMS. The installed Overhand is unchanged."
+# with cosign installed, SHA256SUMS must carry the release workflow's signature (SIGNER), or nothing installs; without
+# it, only the checksum below is checked
+if command -v cosign >/dev/null 2>&1; then
+  get -fsSL "${url}/SHA256SUMS.sigstore.json" -o "${tmp}/SHA256SUMS.sigstore.json" \
+    || fail "Couldn't fetch the release's signature (SHA256SUMS.sigstore.json); not installing. The installed Overhand is unchanged."
+  cosign verify-blob --bundle "${tmp}/SHA256SUMS.sigstore.json" --certificate-identity-regexp "$SIGNER" \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com "${tmp}/SHA256SUMS" >"${tmp}/cosign.log" 2>&1 \
+    || { cat "${tmp}/cosign.log" >&2; fail "SHA256SUMS isn't signed by Overhand's release workflow; not installing."; }
+  step "Signature verified (Sigstore)"
+fi
 want="$(grep " ${pkg}\$" "${tmp}/SHA256SUMS" | cut -d' ' -f1)"
 got="$(sum256 "${tmp}/${pkg}")"
 if [ -z "$want" ] || [ "$want" != "$got" ]; then fail "Checksum mismatch for ${pkg}; not installing."; fi

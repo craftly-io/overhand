@@ -36,6 +36,12 @@ export const SETUP_PROMPT = `Set up Overhand from ${SETUP_GUIDE}. Ask me before 
  * REPO's GitHub releases; clients never link those directly, so the files can move without a client update.
  */
 export const DOWNLOAD = `${INSTALLER}/download`;
+/**
+ * Who signs each release's SHA256SUMS (Sigstore, keyless, as SHA256SUMS.sigstore.json), as cosign's
+ * --certificate-identity-regexp: REPO's release workflow, run for a version tag. release/install.sh and
+ * .github/workflows/release.yml check by the same rule (release/install.test.ts).
+ */
+export const RELEASE_SIGNER = `^${REPO_URL.replaceAll(".", "\\.")}/\\.github/workflows/release\\.yml@refs/tags/v`;
 /** The Docker image the Dockerfile builds, tagged with each release's version and `latest` (release/launch.ts pushes it). */
 export const IMAGE = `ghcr.io/${REPO}`;
 /** The ready-made server setups in release/server, served by the site at `${SERVER_FILES}/<file>`. */

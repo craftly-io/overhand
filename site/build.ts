@@ -18,6 +18,7 @@
  *                 {{docLine}}; {{cli}}: the CLI's own help; {{guardTable}}: the guard's coverage; {{leadTemplates}}: the
  *                 ready-made leads; {{also}}: the home page's few features and {{everything}}: all of them by area (packages/contract/src/features.ts); {{wayOfWorking}}: how every lead works (WAY_OF_WORKING); {{firstDayCap}}, {{shipPerDay}}, {{shipProtect}}, {{localUrl}}, {{freshMin}}: the defaults they name;
  *                 {{image}} / {{serverFiles}}: the Docker image and where release/server is served; {{port}}: the local port;
+ *                 {{verifyRelease}}: the commands that check a release's signature and sums by hand (RELEASE_SIGNER);
  *                 {{w.key}}: a control's or message's name from the app's words; {{cfg.a.b}}: a config default (config.ts)
  * The header link to the page itself (on a docs page, Docs) gets aria-current. /llms.txt lists the docs (`llmsTxt`). Markdown in site/pages (setup.md, for agents) is filled the
  * same way and served as it is. For agents, every docs page is also written as Markdown beside it (`docMarkdown`), all of
@@ -48,7 +49,7 @@ import {
   SHIP_DEFAULTS,
   WAY_OF_WORKING,
 } from "@overhand/contract";
-import { INSTALL_COMMAND, LOCAL_PORT, PERMISSIONS, SETUP_GUIDE, SETUP_PROMPT } from "@overhand/contract/links";
+import { DOWNLOAD, INSTALL_COMMAND, LOCAL_PORT, PERMISSIONS, RELEASE_SIGNER, SETUP_GUIDE, SETUP_PROMPT } from "@overhand/contract/links";
 import { blankConfig, FIRST_DAY_BUDGET_USD } from "@overhand/core/config";
 import { markSvg } from "@overhand/themes/brand";
 import { SYSTEM, systemSchemeCss } from "@overhand/themes/system";
@@ -384,6 +385,15 @@ export function render(src: string, root: string, self: string, prices: PriceTab
     host: new URL(SITE.url).host,
     // the install line and the prompt for your agent, as app.overhand.dev shows them too; the prompt's address a link
     install: INSTALL_COMMAND,
+    // checking a release by hand: its sums' signature (who signed them, RELEASE_SIGNER), then the package against them
+    verifyRelease: esc(
+      [
+        `curl -fsSL -O ${DOWNLOAD}/latest/SHA256SUMS -O ${DOWNLOAD}/latest/SHA256SUMS.sigstore.json`,
+        `cosign verify-blob --bundle SHA256SUMS.sigstore.json --certificate-identity-regexp '${RELEASE_SIGNER}' \\`,
+        "  --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS",
+        "shasum -a 256 -c --ignore-missing SHA256SUMS",
+      ].join("\n"),
+    ),
     setupPrompt: SETUP_PROMPT.replace(SETUP_GUIDE, `<a href="${root}setup.md">${SETUP_GUIDE}</a>`),
     questionFallback: String(QUESTION_FALLBACK_MS / 60_000),
     docsList: docsListHtml(root),
