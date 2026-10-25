@@ -37,7 +37,8 @@ when its Start is pressed; Settings saved before then leave it open.
 - `overhand start` / `overhand stop` / `overhand update`: start at login, stop, update.
 - `overhand uninstall`: stop it and remove the program, keeping `~/.overhand`. `--remove-data` deletes that too; run it
   only when the person asks for it, and `--dry-run` first to show them what goes.
-- `overhand open`: the dashboard in the browser, signed in.
+- `overhand open`: the dashboard in the browser, signed in. Its home, Now, is one sentence, Needs you and In
+  progress; Work, Agents and Health open as drawers from the sentence's numbers or the W, A and H keys.
 
 ## Give it work
 

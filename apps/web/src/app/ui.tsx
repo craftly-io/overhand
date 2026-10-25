@@ -21,7 +21,10 @@ export const cardSpanNow = (now = new Date(Date.now())): CardSpan => (now.getHou
 
 import { useWords } from "./theme";
 
-/** The full views, each a drawer off the bridge on a computer and a tab of its own on a phone. */
+/**
+ * The full views behind Now, each a drawer: Work (every task and pull request), Agents (who's at work and where) and
+ * Health (checks, spend and accounts). Now's sentence opens them from its numbers, and their keys open them too.
+ */
 export const VIEWS = ["work", "crew", "health"] as const;
 export type View = (typeof VIEWS)[number];
 /** Each view's name and the key that opens it when you aren't typing. */
@@ -31,9 +34,8 @@ export const VIEW_META: Record<View, { word: WordKey; key: string }> = {
   health: { word: "viewHealth", key: "H" },
 };
 
-/** The five places, one job each: Now is the bridge, then Work, Crew, Health and Settings. */
-export const PLACES = ["now", "work", "crew", "health", "settings"] as const;
-export type Place = (typeof PLACES)[number];
+/** Where the command bar groups its lines: Now, each view, and Settings. */
+export type Place = "now" | View | "settings";
 export const PLACE_WORD: Record<Place, WordKey> = {
   now: "viewNow",
   work: "viewWork",
@@ -41,10 +43,9 @@ export const PLACE_WORD: Record<Place, WordKey> = {
   health: "viewHealth",
   settings: "settings",
 };
-const isPlace = (v: string): v is Place => PLACES.some((x) => x === v);
 
 const phoneQuery = "(max-width: 1023px)";
-/** True on phone and tablet widths, where places are tabs and drawers rise from the bottom. */
+/** True on phone and tablet widths, where drawers rise from the bottom. */
 export function usePhone(): boolean {
   return useSyncExternalStore(
     (l) => {
@@ -55,9 +56,6 @@ export function usePhone(): boolean {
     () => matchMedia(phoneQuery).matches,
   );
 }
-
-/** Where a phone is: a place, and the Settings tab or the project (Settings, Crew) it opened on. */
-export type PhonePlace = { kind: Place; tab?: string; project?: string };
 
 /** Which drawer is open, and what it shows. */
 export type Drawer =
@@ -119,13 +117,8 @@ export function returnFocus(): boolean {
 
 interface UiContext {
   drawer: Drawer | null;
-  /** Opens a drawer; on a phone a place (Work, Crew, Health, Settings) becomes the open tab instead. */
+  /** Opens a drawer, noting the control it opened from. */
   openDrawer: (d: Drawer) => void;
-  /** The place you're in: the open place drawer on a computer, the tab on a phone. */
-  place: Place;
-  /** On a phone, the open tab and what it opened on. */
-  phonePlace: PhonePlace;
-  goPlace: (p: Place) => void;
   closeDrawer: () => void;
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
@@ -143,39 +136,10 @@ const Ctx = createContext<UiContext | null>(null);
 export function UiProvider({ children }: { children: ReactNode }) {
   const w = useWords();
   const [drawer, setDrawer] = useState<Drawer | null>(null);
-  const phone = usePhone();
-  const [phonePlace, setPhonePlace] = useState<PhonePlace>({ kind: "now" });
-  const openDrawer = useCallback(
-    (d: Drawer) => {
-      if (phone && isPlace(d.kind)) {
-        setPhonePlace({
-          kind: d.kind,
-          ...("tab" in d && d.tab ? { tab: d.tab } : {}),
-          ...("project" in d && d.project ? { project: d.project } : {}),
-        });
-        setDrawer(null);
-        scrollTo({ top: 0 });
-      } else {
-        noteOpener();
-        setDrawer(d);
-      }
-    },
-    [phone],
-  );
-  const goPlace = useCallback(
-    (p: Place) => {
-      if (phone) {
-        setPhonePlace({ kind: p });
-        setDrawer(null);
-        scrollTo({ top: 0 });
-      } else {
-        if (p !== "now") noteOpener();
-        setDrawer(p === "now" ? null : { kind: p });
-      }
-    },
-    [phone],
-  );
-  const place: Place = phone ? phonePlace.kind : drawer && isPlace(drawer.kind) ? drawer.kind : "now";
+  const openDrawer = useCallback((d: Drawer) => {
+    noteOpener();
+    setDrawer(d);
+  }, []);
   const [paletteOpen, setOpen] = useState(false);
   const [paletteSeed, setSeed] = useState("");
   const setPaletteOpen = useCallback((open: boolean) => {
@@ -210,7 +174,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
     q.delete("drawer");
     history.replaceState(null, "", `${location.pathname}${q.size ? `?${q}` : ""}${location.hash}`);
   }, [openDrawer]);
-  // the landing page's tour opens the views (it still calls them tabs; "now" is the bridge with nothing open), a lead and settings
+  // the landing page's tour opens the views (it still calls them tabs; "now" is Now with nothing open), a lead and settings
   useEffect(() => {
     if (!DEMO) return;
     const onMessage = (e: MessageEvent<unknown>) => {
@@ -218,7 +182,10 @@ export function UiProvider({ children }: { children: ReactNode }) {
       const d = e.data;
       if (d.type === "overhand:tab" && "id" in d && typeof d.id === "string") {
         const id = d.id;
-        if (id === "now" || isPlace(id)) goPlace(id);
+        const view = VIEWS.find((v) => v === id);
+        if (id === "now") setDrawer(null);
+        else if (view) openDrawer({ kind: view });
+        else if (id === "settings") openDrawer({ kind: "settings" });
         // the landing page's tour still names the old Inbox: it's Needs you in full now
         else if (id === "inbox") openDrawer({ kind: "alerts" });
       } else if (d.type === "overhand:lead" && "key" in d && typeof d.key === "string") setDrawer({ kind: "lead", key: d.key });
@@ -226,15 +193,12 @@ export function UiProvider({ children }: { children: ReactNode }) {
     };
     addEventListener("message", onMessage);
     return () => removeEventListener("message", onMessage);
-  }, [goPlace, openDrawer]);
+  }, [openDrawer]);
 
   const value = useMemo(
     () => ({
       drawer,
       openDrawer,
-      place,
-      phonePlace,
-      goPlace,
       closeDrawer: () => setDrawer(null),
       paletteOpen,
       setPaletteOpen,
@@ -242,7 +206,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
       openPalette,
       confirm,
     }),
-    [drawer, openDrawer, place, phonePlace, goPlace, paletteOpen, setPaletteOpen, paletteSeed, openPalette, confirm],
+    [drawer, openDrawer, paletteOpen, setPaletteOpen, paletteSeed, openPalette, confirm],
   );
   return (
     <Ctx value={value}>
@@ -282,7 +246,7 @@ export function useViewport(): number {
   return useSyncExternalStore(onResize, () => innerWidth);
 }
 
-/** The width of the place docked beside the bridge (Work, Crew, Health or Settings from `3xl`), or 0 when none is. */
+/** The width of the view docked beside Now (Work, Agents, Health or Settings from `3xl`), or 0 when none is. */
 export function useDock(): number {
   const { drawer } = useUi();
   const vw = useViewport();

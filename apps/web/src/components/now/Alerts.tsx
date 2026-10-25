@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { type Alert, trackerItem } from "@/lib/alerts";
+import { type Alert, brokenCount, trackerItem } from "@/lib/alerts";
 import { post } from "@/lib/api";
 import { BUTTON_WORDS } from "@/lib/decide";
 import { explainCalls } from "@/lib/explain";
@@ -23,9 +23,11 @@ import { AssignButton } from "../AssignButton";
 import { DecisionCard, InsightLine, useBrief } from "../DecisionCard";
 import { Explain } from "../Explain";
 import { LeakActions, SelfCheckActions } from "../Outward";
-import { Pane } from "../Pane";
+import { Dot, Pane } from "../Pane";
 import { useQuickSave } from "../QuickSettings";
 import { AccountSignIn } from "../SignIn";
+import { Suggested } from "./Suggested";
+import { Today } from "./Today";
 
 /** One thing in the inbox: a Slack request about to be filed (veto it with the switch), a reply with its suggested answer, or a note. */
 export function InboxRow({ x, className }: { x: InboxItem; className?: string }) {
@@ -525,7 +527,16 @@ export function SlackRead({ m, className }: { m: Model; className?: string }) {
  * replies and requests), most urgent first. "All N" opens every one of them, with Slack's notes and filed requests.
  * `slice` picks the ones shown (a live piece on the site shows its own few); by default the first six.
  */
-export function NeedsYou({ m, slice = (l) => l.slice(0, 6) }: { m: Model; slice?: (list: Need[]) => Need[] }) {
+export function NeedsYou({
+  m,
+  slice = (l) => l.slice(0, 6),
+  home = false,
+}: {
+  m: Model;
+  slice?: (list: Need[]) => Need[];
+  /** On Now: what's broken leads the list, and what matters today and the project agents worth starting follow it. */
+  home?: boolean;
+}) {
   const w = useWords();
   const ui = useUi();
   const list = needs(m);
@@ -540,6 +551,8 @@ export function NeedsYou({ m, slice = (l) => l.slice(0, 6) }: { m: Model; slice?
     week || last ? fmt(last ? (week <= last ? w.callsWeekDown : w.callsWeekUp) : w.callsWeek, { n: week, last }) : w.callsCounting;
   const cut = calls.lastIndexOf(" ") + 1;
   const [head, tail] = [calls.slice(0, cut), calls.slice(cut)];
+  // red checks and new errors are facts, not decisions (alerts.ts): one line for all of them, opening Health
+  const broken = home ? brokenCount(m.s) : 0;
   return (
     <Pane
       title="paneAlerts"
@@ -557,19 +570,26 @@ export function NeedsYou({ m, slice = (l) => l.slice(0, 6) }: { m: Model; slice?
         </span>
       }
       extra={
-        <>
-          {list.length ? (
-            <Button variant="ghost" size="xs" className="-mr-1 text-muted-foreground" onClick={() => ui.openDrawer({ kind: "alerts" })}>
-              {fmt(w.allCount, { n: list.length })}
-              <ChevronRight aria-hidden="true" />
-            </Button>
-          ) : null}
-        </>
+        list.length ? (
+          <Button variant="ghost" size="xs" className="-mr-1 text-muted-foreground" onClick={() => ui.openDrawer({ kind: "alerts" })}>
+            {fmt(w.allCount, { n: list.length })}
+            <ChevronRight aria-hidden="true" />
+          </Button>
+        ) : null
       }
     >
+      {broken ? (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-bad/40 px-2.5 py-2 text-sm">
+          <Dot color="var(--bad)" />
+          <span className="min-w-0 flex-1">{fmt(w.needsBroken, { n: broken })}</span>
+          <Button variant="outline" size="xs" onClick={() => ui.openDrawer({ kind: "health" })}>
+            {fmt(w.openPlace, { name: w.viewHealth })}
+          </Button>
+        </div>
+      ) : null}
       {shown.length ? (
         <NeedsList list={shown} />
-      ) : (
+      ) : broken ? null : (
         <>
           <p className="py-2 text-sm text-muted-foreground">
             <Term k="calm" />
@@ -578,6 +598,12 @@ export function NeedsYou({ m, slice = (l) => l.slice(0, 6) }: { m: Model; slice?
           <InsightLine m={m} surface="now" className="pt-0" />
         </>
       )}
+      {home ? (
+        <>
+          <Today m={m} />
+          <Suggested m={m} />
+        </>
+      ) : null}
       {/* under the list it fills, never in the header beside its count */}
       <SlackRead m={m} className="mt-1 text-right" />
     </Pane>

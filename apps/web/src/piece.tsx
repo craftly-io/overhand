@@ -19,12 +19,12 @@ import { NeedsList, NeedsYou, needs } from "./components/now/Alerts";
 import { Cast } from "./components/now/Cast";
 import { DayRibbon } from "./components/now/DayRibbon";
 import { FirstWin } from "./components/now/FirstWin";
+import { InProgress } from "./components/now/InProgress";
 import { Prologue } from "./components/now/Story";
 import { ProjectRules } from "./components/QuickSettings";
 import { Sheet } from "./components/ui/sheet";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { InFlight } from "./components/work/InFlight";
 import { browserHost, PIECE_PLAYS, pieceSlice } from "./demo/demo";
 import { focusOnce, MOTION } from "./lib/motion";
 import "./index.css";
@@ -50,7 +50,7 @@ const max = Number(params.get("max")) || undefined;
 /** Each piece, drawn at the night's minute; `round` counts its plays (the brief counts its numbers up again). */
 const PIECES: Record<string, (m: Model, round: number) => ReactNode> = {
   needs: (m) => <NeedsYou m={m} slice={(l) => pieceSlice(l, max ?? 6, (n) => "alert" in n && n.alert.item === PLAY.focus)} />,
-  inflight: (m) => <InFlight m={m} />,
+  inflight: (m) => <InProgress m={m} />,
   firstwin: (m) => <FirstWin m={m} />,
   cast: (m) => <Cast m={m} max={max} />,
   morning: (m, round) =>

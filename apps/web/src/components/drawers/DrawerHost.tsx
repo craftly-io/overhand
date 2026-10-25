@@ -1,8 +1,8 @@
 import { plainWords, type WordKey } from "@overhand/themes";
-import { createContext, lazy, type ReactNode, Suspense, use } from "react";
+import { lazy, type ReactNode, Suspense } from "react";
 import type { Model } from "@/app/data";
 import { useWords } from "@/app/theme";
-import { type PhonePlace, returnFocus, useDock, usePhone, useUi } from "@/app/ui";
+import { returnFocus, useDock, usePhone, useUi } from "@/app/ui";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useTeamViewing } from "../team/viewing";
@@ -23,26 +23,6 @@ const ShareDrawer = lazy(() => import("../share/ShareDrawer").then((x) => ({ def
 const ReviewDrawer = lazy(() => import("./ReviewDrawer").then((x) => ({ default: x.ReviewDrawer })));
 const FeedbackDrawer = lazy(() => import("./FeedbackDrawer").then((x) => ({ default: x.FeedbackDrawer })));
 
-/** Set while a place renders as a phone's tab instead of in a drawer. */
-const Inline = createContext(false);
-
-/** A place as a phone's tab: Work, Crew, Health or Settings, as a page of its own. */
-export function PlaceBody({ m, at }: { m: Model; at: PhonePlace }) {
-  return (
-    <Inline value={true}>
-      <div className="place-body m-enter grid gap-4">
-        <Suspense fallback={null}>
-          {at.kind === "settings" ? (
-            <SettingsDrawer tab={at.tab} project={at.project} />
-          ) : at.kind === "now" ? null : (
-            <ViewDrawer m={m} view={at.kind} project={at.project} />
-          )}
-        </Suspense>
-      </div>
-    </Inline>
-  );
-}
-
 /**
  * A drawer's heading: a small kicker line above the title. A themed title (`named`) carries its plain meaning on a
  * line of its own, so a drawer always says what it is.
@@ -51,15 +31,6 @@ export function DrawerHead({ kicker, title, named, color }: { kicker: ReactNode;
   const w = useWords();
   const plain = named && w[named] !== plainWords[named] ? plainWords[named] : "";
   const heading = named ? w[named] : title;
-  // a place shown as a phone's tab is a page, not a dialog: plain headings, no dialog title to announce
-  if (use(Inline))
-    return (
-      <header className="grid gap-1">
-        <p className="drawer-kicker text-xs tracking-widest text-primary uppercase">{kicker}</p>
-        <h1 className="font-display text-xl leading-snug">{heading}</h1>
-        {plain ? <p className="drawer-plain -mt-1 text-sm text-muted-foreground">{plain}</p> : null}
-      </header>
-    );
   return (
     <SheetHeader className="px-0 pt-0">
       <p className="drawer-kicker text-xs tracking-widest text-primary uppercase" style={color ? { color } : undefined}>
@@ -73,8 +44,8 @@ export function DrawerHead({ kicker, title, named, color }: { kicker: ReactNode;
 }
 
 /**
- * Renders whichever drawer is open: from the right on desktop, as a bottom sheet on phones. From `3xl` a place (Work,
- * Crew, Health, Settings) docks beside the bridge instead: no dimming, the bridge stays live and clickable beside it.
+ * Renders whichever drawer is open: from the right on desktop, as a bottom sheet on phones. From `3xl` a view (Work,
+ * Agents, Health, Settings) docks beside Now instead: no dimming, Now stays live and clickable beside it.
  */
 export function DrawerHost({ m }: { m: Model | undefined }) {
   const ui = useUi();
@@ -114,9 +85,9 @@ export function DrawerHost({ m }: { m: Model | undefined }) {
     <Sheet open={d !== null && m !== undefined} onOpenChange={(open) => !open && ui.closeDrawer()} modal={!dock}>
       <SheetContent
         side={phone ? "bottom" : "right"}
-        // docked, a click on the bridge is work on the bridge, not a request to close the place
+        // docked, a click on Now is work on Now, not a request to close the view
         onInteractOutside={dock ? (e) => e.preventDefault() : undefined}
-        // docked, it's part of the room: it's there, without sliding in over the bridge
+        // docked, it's part of the room: it's there, without sliding in over Now
         style={dock ? { width: dock, maxWidth: dock, animation: "none" } : undefined}
         // no trigger to return to: closing hands focus back to the control it opened from, not to the page
         onCloseAutoFocus={(e) => {

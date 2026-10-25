@@ -364,6 +364,15 @@ export const FEATURES: readonly Feature[] = [
     source: "packages/core/src/plugins.ts",
     docs: "docs/plugins.html#plugins",
   },
+  {
+    id: "now-three-blocks",
+    name: "Now in three blocks",
+    line: "The home screen is one sentence, Needs you and In progress; every number in the sentence opens what it counts.",
+    area: "overhand",
+    since: "2026-10-25",
+    source: "apps/web/src/App.tsx",
+    docs: "docs/everyday.html#now",
+  },
 ];
 
 /** The features newest first; within a day, in the registry's order. */

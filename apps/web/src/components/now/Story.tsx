@@ -153,7 +153,11 @@ export function Prologue({ m, greeting = true }: { m: Model; greeting?: boolean 
     sentences.push(
       fill(w.storyWeek, {
         prs: <Fact onClick={() => ui.openDrawer({ kind: "work" })}>{fmt(w.storyPrs, { n: s.week.opened })}</Fact>,
-        merged: <Fact color="var(--ok)">{s.week.merged}</Fact>,
+        merged: (
+          <Fact color="var(--ok)" onClick={() => ui.openDrawer({ kind: "work" })}>
+            {s.week.merged}
+          </Fact>
+        ),
       }),
     );
 

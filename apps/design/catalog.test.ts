@@ -49,7 +49,7 @@ test("every control shows default, hover, focus and disabled; a passive one says
   }
 });
 
-test("Now, Work, Crew, Health and Settings each show loading, empty, busy, broken and phone", () => {
+test("Now, Work, Agents, Health and Settings each show loading, empty, busy, broken and phone", () => {
   const screens = CATALOG.filter((e) => e.group === "screens");
   expect(screens.map((e) => e.id).sort()).toEqual(["crew", "health", "now", "settings", "work"]);
   for (const e of screens) expect(Object.keys(e.states).sort(), e.id).toEqual(["broken", "busy", "empty", "loading", "phone"]);

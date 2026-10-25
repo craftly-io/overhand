@@ -78,9 +78,8 @@
   * {
     @apply border-border outline-ring/50;
   }
-  /* reading text in a drawer or a phone's place stops near 72 characters a line (33em; ch is a digit, wider than the average letter) */
-  [data-slot="sheet-content"] p,
-  .place-body p {
+  /* reading text in a drawer stops near 72 characters a line (33em; ch is a digit, wider than the average letter) */
+  [data-slot="sheet-content"] p {
     max-width: 33em;
   }
   html,
@@ -217,16 +216,6 @@
     animation-delay: calc(var(--n, 0) * var(--m-stagger) + var(--m-base));
   }
 
-  /* the wings of the bridge: glass turned toward you, scrolling on their own, fading at the edges */
-  .wing {
-    /* down only: a story's scrim reaches past the wing's sides, which made it scroll sideways too */
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--primary) 25%, transparent) transparent;
-    mask-image: linear-gradient(180deg, transparent, black 12px, black calc(100% - 28px), transparent);
-  }
   /* reading text over the scene: a soft local scrim behind the text only, so it keeps its contrast and the world shows round it */
   /* positioned, so the scrim's ::before sits round this text only: unpositioned, it spanned the nearest positioned
      ancestor (the whole window) and painted the background over the story above it */
@@ -603,38 +592,6 @@
     border-bottom-color: var(--ink-12);
     backdrop-filter: none;
   }
-  .place-nav {
-    border: 0;
-    padding: 0;
-    gap: 1.25rem;
-    align-self: stretch;
-    border-radius: 0;
-  }
-  .place-tab {
-    height: auto;
-    align-self: stretch;
-    padding: 0;
-    border-radius: 0;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    font-size: 14px;
-    color: var(--ink-10);
-    background: none;
-  }
-  .place-tab:hover {
-    color: var(--ink-12);
-    background: none;
-  }
-  .place-tab[aria-current="page"] {
-    color: var(--ink-12);
-    background: none;
-    border-bottom-color: var(--ink-12);
-  }
-  .jump-bar {
-    background: var(--ink-1);
-    border-top-color: var(--ink-12);
-    backdrop-filter: none;
-  }
 
   /* panes: square, a hairline, the header ruled in ink 12 */
   .hud-pane {
@@ -671,11 +628,6 @@
     font-size: 12px;
   }
 
-  /* the wings face you straight on */
-  .wing {
-    transform: none;
-    scrollbar-color: var(--ink-7) transparent;
-  }
 
   /* counts: square, mono; what waits on you is a filled square */
   .pane-count {
@@ -1038,8 +990,7 @@
 }
 /* [data-theme] keeps the specificity this block always had over the hairline chrome above */
 :root[data-chrome="house"][data-theme] {
-  .app-header,
-  .jump-bar {
+  .app-header {
     background: var(--glass);
     border-color: var(--hair);
     backdrop-filter: var(--glass-blur);

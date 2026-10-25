@@ -38,7 +38,7 @@ function Choices<T extends string>({
   );
 }
 
-/** How the dashboard looks and sounds: one world picker, appearance, the map's motion, sounds. Kept in this browser. */
+/** How the dashboard looks and sounds: one world picker, appearance, the map on Now (off, moving or still), sounds. Kept in this browser. */
 export function LookTab() {
   const { theme, setTheme, appearance, setAppearance, light } = useTheme();
   const sound = useSound();
@@ -86,6 +86,7 @@ export function LookTab() {
           label={w.sceneSetting}
           value={motion}
           options={[
+            ["off", w.sceneOff],
             ["on", w.sceneOn],
             ["still", w.sceneStill],
           ]}

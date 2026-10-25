@@ -1,7 +1,6 @@
 /**
- * Patterns: the dashboard's real panes, cards and drawers on the demo's sample night. A pane takes the model as the
- * bridge gives it; a drawer, the command bar and Quick settings open over the whole dashboard, in a frame, the way a
- * person opens them.
+ * Patterns: the dashboard's real panes, cards and drawers on the demo's sample night. A pane takes the model as Now
+ * gives it; a drawer, the command bar and Pause open over the whole dashboard, in a frame, the way a person opens them.
  */
 import { teamBrief } from "@overhand/contract";
 import { plainWords } from "@overhand/themes";
@@ -20,7 +19,6 @@ import { Plugins } from "@/components/health/Plugins";
 import { WorkReports } from "@/components/health/Reports";
 import { Scorecard } from "@/components/health/Scorecard";
 import { Spend } from "@/components/health/Spend";
-import { Systems } from "@/components/health/Systems";
 import { Updates } from "@/components/health/Updates";
 import { Week } from "@/components/health/Week";
 import { Activity } from "@/components/now/Activity";
@@ -30,15 +28,14 @@ import { ControlRoom } from "@/components/now/ControlRoom";
 import { DayRibbon } from "@/components/now/DayRibbon";
 import { FirstRun } from "@/components/now/FirstRun";
 import { FirstWin } from "@/components/now/FirstWin";
+import { InProgress } from "@/components/now/InProgress";
 import { BeatCaption, Prologue } from "@/components/now/Story";
 import { Today } from "@/components/now/Today";
 import { Tonight } from "@/components/now/Tonight";
 import { MapWindow } from "@/components/now/Window";
 import { Worktrees } from "@/components/now/Worktrees";
-import { PlaceNav } from "@/components/PlaceBar";
 import { Facepile } from "@/components/team/Facepile";
 import { type TeamActs, TeamMap, TeamView } from "@/components/team/TeamView";
-import { InFlight } from "@/components/work/InFlight";
 import { Pipeline } from "@/components/work/Pipeline";
 import { post } from "@/lib/api";
 import { briefing } from "@/lib/briefing";
@@ -232,16 +229,16 @@ export const PATTERNS: Entry[] = [
     id: "attention-map",
     group: "patterns",
     title: "Attention map",
-    about: "The centre of Now: each project in its place, lit where something needs you.",
+    about: "An optional look on Now, off by default (Settings › Look & sound): each project in its place, lit where something needs you.",
     covers: ["MapWindow"],
     states: {
       morning: function Morning() {
         const { theme } = useTheme();
-        return <Live>{(m) => <Sized>{<MapWindow m={m} world={theme.world} />}</Sized>}</Live>;
+        return <Live>{(m) => <Sized>{<MapWindow m={m} world={theme.world} always />}</Sized>}</Live>;
       },
       "at work": function Busy() {
         const { theme } = useTheme();
-        return <Live seed={working()}>{(m) => <Sized>{<MapWindow m={m} world={theme.world} />}</Sized>}</Live>;
+        return <Live seed={working()}>{(m) => <Sized>{<MapWindow m={m} world={theme.world} always />}</Sized>}</Live>;
       },
     },
     frame: { height: 620 },
@@ -265,12 +262,12 @@ export const PATTERNS: Entry[] = [
       ),
     },
   },
-  pane("day-ribbon", "DayRibbon", "Day ribbon", "The day along the bottom of Now: when agents ran, and what landed.", (m) => (
+  pane("day-ribbon", "DayRibbon", "Day ribbon", "The day as one ribbon, in Agents: when agents ran, and what landed.", (m) => (
     <OnPane>
       <DayRibbon m={m} />
     </OnPane>
   )),
-  pane("today", "Today", "Today", "What's on today: the calendar beside what the agents will do.", (m) => <Today m={m} />),
+  pane("today", "Today", "What matters today", "The plan's top three, at the foot of Needs you on Now.", (m) => <Today m={m} />),
   pane("activity", "Activity", "The day so far", "Everything that happened, newest first, in plain words.", (m) => <Activity m={m} />),
   pane("first-win", "FirstWin", "First win", "A new project's first pull request, made right after setup.", (m) => <FirstWin m={m} />),
   pane("tonight", "Tonight", "Set up tonight", "While the first win runs: the first night set up, one click per card.", (m) =>
@@ -334,20 +331,21 @@ export const PATTERNS: Entry[] = [
     },
     frame: { height: 300, only: ["in the header"] },
   },
-  // Work
   {
-    id: "in-flight",
+    id: "in-progress",
     group: "patterns",
-    title: "In flight",
-    covers: ["InFlight"],
-    about: "Every pull request the agents opened, with its checks, its preview and its proof.",
+    title: "In progress",
+    covers: ["InProgress"],
+    about: "Now's third block: every agent at work in one list, each row with its time and Open; done items fold into Done today.",
     states: {
-      default: () => <Live>{(m) => <InFlight m={m} />}</Live>,
-      failing: () => <Live seed={failing()}>{(m) => <InFlight m={m} />}</Live>,
+      default: () => <Live>{(m) => <InProgress m={m} />}</Live>,
+      "at work": () => <Live seed={working()}>{(m) => <InProgress m={m} />}</Live>,
+      failing: () => <Live seed={failing()}>{(m) => <InProgress m={m} />}</Live>,
     },
-    notes: { failing: "02:30: BOOK-88's preview deploy fails, before its fix round." },
+    notes: { failing: "02:30: BOOK-88's preview deploy fails, before its round of fixes." },
     frame: { height: 640, only: ["failing"] },
   },
+  // Work
   // a list of catalog entries, alike by design, not copied logic
   // jscpd:ignore-start
   pane("pipeline", "Pipeline", "Pipeline", "Work: every ticket from queued to merged, per project.", (m) => <Pipeline m={m} />),
@@ -364,7 +362,6 @@ export const PATTERNS: Entry[] = [
     ),
   ),
   // Health
-  pane("systems", "Systems", "Systems", "The bridge's glance at Health: checks, deploys and errors per project.", (m) => <Systems m={m} />),
   pane("health-pane", "HealthPane", "Health", "Is anything broken: every project's checks, deploys and errors.", (m) => (
     <HealthPane m={m} />
   )),
@@ -389,31 +386,20 @@ export const PATTERNS: Entry[] = [
     id: "header",
     group: "patterns",
     title: "Header",
-    about: "The bar across the top: the places, ask anything, Quick settings, more, and the clock with today's spend.",
-    covers: ["PlaceNav"],
+    about: "The bar across the top: the status, the Night report, Pause, ask anything, Settings and more.",
     states: {
       default: () => <Live>{(m) => <Header m={m} unreachable={false} />}</Live>,
       unreachable: () => <Live>{(m) => <Header m={m} unreachable />}</Live>,
-      places: () => <Live>{(m) => <PlaceNav m={m} />}</Live>,
     },
     // the bar spans the whole screen: it needs a screen's width, not the stage's
     frame: { height: 120, only: ["default", "unreachable"] },
   },
   {
-    id: "place-bar",
-    group: "patterns",
-    title: "Place bar",
-    about: "On a phone, the places as a bar along the bottom.",
-    covers: ["PlaceBar"],
-    states: { phone: () => <Screen seed={morning()} /> },
-    notes: { phone: "All of Overhand on a phone; the bar sits at the bottom." },
-    frame: { height: 760 },
-  },
-  {
     id: "quick-settings",
     group: "patterns",
-    title: "Quick settings",
-    about: "One tap from the header: pause, quiet mode, the daily budget, pacing, sound, and how far agents go per project.",
+    title: "Pause",
+    about:
+      "One tap from the header: pause new work and quiet mode, then the daily budget, pacing, sound, and how far agents go per project.",
     covers: ["QuickSettings"],
     states: { open: () => <Screen seed={morning()} press={`header button[aria-label="${plainWords.quickSettings}"]`} /> },
     frame: { height: 760 },
