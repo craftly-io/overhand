@@ -153,7 +153,7 @@ function AccountCard({ a, home }: { a: string; home: string }) {
     <FieldCard title={a} note={note}>
       {live && m ? (
         <ul className="sm:col-span-2">
-          <AccountRow a={live} m={m} />
+          <AccountRow a={live} m={m} named={false} />
         </ul>
       ) : null}
       {signIn}

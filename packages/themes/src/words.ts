@@ -1643,7 +1643,7 @@ export const plainWords = {
   setAgentsHint: "The agents your work runs on, each signed in once in a folder of its own. More holds the model and effort.",
   setAddAgent: "Add an agent",
   setSignInChecks: "Sign-ins that need you",
-  setHouseRules: "House rules, in your words, one per line (every agent is handed them)",
+  setHouseRules: "In your words, one per line (every agent is handed them)",
   setSlackDrafts: "Slack: drafts only (agents may search and read; you send)",
   setPrivate: "Private words: never sent anywhere (people, emails, hosts)",
   setQuietHours: "Quiet hours, one per line: 22:00-07:00 holds every heavy job; add kinds to hold only those ({kinds})",

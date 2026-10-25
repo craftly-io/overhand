@@ -13,7 +13,7 @@ import { TeamSettings } from "@/components/team/TeamSettings";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { fmt } from "@/lib/format";
-import { Field, FieldCard } from "./SettingsFields";
+import { Field, FieldCard, FOLD, FoldMark } from "./SettingsFields";
 
 /** A choice among a few, as pressed buttons. */
 function Choices<T extends string>({
@@ -178,7 +178,10 @@ export function YouSection() {
       </FieldCard>
       {/* folded: a team works through your Overhand account, and says so until this computer is signed in */}
       <details className="field-card border border-border p-4">
-        <summary className="flex min-h-11 cursor-pointer items-center font-display text-sm select-none">{w.setTeam}</summary>
+        <summary className={`${FOLD} font-display text-sm`}>
+          <FoldMark />
+          {w.setTeam}
+        </summary>
         <div className="mt-2 grid gap-3">
           <TeamSettings />
         </div>

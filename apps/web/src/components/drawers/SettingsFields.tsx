@@ -1,4 +1,5 @@
 import { type Check, localOnly } from "@overhand/contract";
+import { ChevronRight } from "lucide-react";
 import { createContext, type ReactNode, use, useId, useState } from "react";
 import { useWords } from "@/app/theme";
 import { Button } from "@/components/ui/button";
@@ -188,6 +189,19 @@ export function FieldCard({
   );
 }
 
+/** A fold's summary row: one line, its own marker, a full-size target. */
+export const FOLD = "flex min-h-11 cursor-pointer list-none items-center gap-1.5 select-none [&::-webkit-details-marker]:hidden";
+
+/** The fold's marker: points right while closed, down while open (its own details only, not an outer one). */
+export function FoldMark() {
+  return (
+    <ChevronRight
+      aria-hidden="true"
+      className="size-4 shrink-0 text-muted-foreground transition-transform duration-(--m-instant) [details[open]>summary>&]:rotate-90"
+    />
+  );
+}
+
 /**
  * Inside a card, the fields most visits never need, folded under "More" (closed until opened, or opened for a deep link
  * with `open`). Its fields lay out like the card's own.
@@ -195,8 +209,11 @@ export function FieldCard({
 export function More({ open = false, children }: { open?: boolean; children: ReactNode }) {
   const w = useWords();
   return (
-    <details className="group sm:col-span-2" open={open || undefined}>
-      <summary className="flex min-h-11 cursor-pointer items-center text-xs text-muted-foreground select-none">{w.setMore}</summary>
+    <details className="sm:col-span-2" open={open || undefined}>
+      <summary className={`${FOLD} text-xs text-muted-foreground`}>
+        <FoldMark />
+        {w.setMore}
+      </summary>
       <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">{children}</div>
     </details>
   );

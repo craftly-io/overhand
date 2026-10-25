@@ -1,7 +1,7 @@
 import { useModel } from "@/app/data";
 import { Switch } from "@/components/ui/switch";
 import { getAt } from "@/lib/json";
-import { Field, useForm } from "./SettingsFields";
+import { Field, FOLD, FoldMark, useForm } from "./SettingsFields";
 
 /**
  * What each agent CLI takes, per field (packages/core/src/runtimes/tune.ts turns them into flags, each checked against
@@ -66,7 +66,10 @@ export function AgentTuning({ account, runtime, home }: { account: string; runti
         <Field label={effort} path={`${at}.effort`} />
       ) : null}
       <details className="group sm:col-span-2">
-        <summary className="flex min-h-11 cursor-pointer items-center text-xs text-muted-foreground select-none">Advanced</summary>
+        <summary className={`${FOLD} text-xs text-muted-foreground`}>
+          <FoldMark />
+          Flags and limits
+        </summary>
         <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
           {has("fallbackModel") ? <Field label="Fallback model (when the model is busy)" path={`${at}.fallbackModel`} /> : null}
           {has("maxRunUsd") ? <Field label="Cost cap per task run (USD, empty = none)" path={`${at}.maxRunUsd`} kind="num" /> : null}

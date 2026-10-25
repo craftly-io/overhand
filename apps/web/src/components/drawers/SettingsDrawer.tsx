@@ -25,7 +25,7 @@ import { placeOf, SECTIONS } from "@/lib/settings-places";
 import { DrawerHead } from "./DrawerHost";
 import { AgentsSection } from "./SettingsAccounts";
 import { AdvancedSection, blankLead } from "./SettingsAdvanced";
-import { Field, FieldCard, FormCtx, More, type SettingsForm, useForm } from "./SettingsFields";
+import { Field, FieldCard, FOLD, FoldMark, FormCtx, More, type SettingsForm, useForm } from "./SettingsFields";
 import { YouSection } from "./SettingsLook";
 import { SafetySection } from "./SettingsRules";
 
@@ -298,7 +298,10 @@ function ProjectsSection({ codeRoot, focus }: { codeRoot: string; focus?: string
             <Field
               label="Tracker"
               path={`clients.${i}.tracker.kind`}
-              kind={{ options: ["", "linear", "jira", "github"], labels: { "": "No tracker" } }}
+              kind={{
+                options: ["", "linear", "jira", "github"],
+                labels: { "": "No tracker", linear: "Linear", jira: "Jira", github: "GitHub Issues" },
+              }}
             />
             <KeepAgent client={c} />
             <More open={focus !== undefined && focus === str(c.name)}>
@@ -388,8 +391,11 @@ function ConnectionsSection() {
   const clients = objects(f.draft.clients);
   return (
     <>
-      <Connections />
-      <Phone />
+      {/* two panes stack with the panes' own gap, not the cards' */}
+      <div className="grid gap-6">
+        <Connections />
+        <Phone />
+      </div>
       <FieldCard title={w.hostedHere}>
         <p className="text-xs text-muted-foreground sm:col-span-2">{m?.s.hosted ? w.hostedHereHint : w.setRunOffNone}</p>
         {m?.s.hosted
@@ -402,7 +408,10 @@ function ConnectionsSection() {
           : null}
       </FieldCard>
       <details className="field-card border border-border p-4">
-        <summary className="flex min-h-11 cursor-pointer items-center font-display text-sm select-none">{w.setConnectionsMore}</summary>
+        <summary className={`${FOLD} font-display text-sm`}>
+          <FoldMark />
+          {w.setConnectionsMore}
+        </summary>
         <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
           {f.draft.bitbucket ? (
             <>
@@ -626,7 +635,7 @@ export function SettingsDrawer({ tab: opening, project }: { tab?: string; projec
         </TabsContent>
       </Tabs>
       {tab === "advanced" ? null : (
-        <Button variant="link" className="mt-3 justify-self-start px-0" onClick={() => setTab("advanced")}>
+        <Button variant="link" className="mt-3 self-start justify-self-start px-0" onClick={() => setTab("advanced")}>
           {w.setAdvancedOpen}
         </Button>
       )}
@@ -636,7 +645,7 @@ export function SettingsDrawer({ tab: opening, project }: { tab?: string; projec
         </p>
       ) : null}
       {/* the look, sound, plugins and the team act at once; everything else is a draft until Save */}
-      <div className="sticky -bottom-5 -mx-5 mt-4 flex gap-2 border-t border-border bg-popover px-5 pt-3 pb-5 max-lg:bottom-[calc(4.5rem+env(safe-area-inset-bottom))]">
+      <div className="sticky -bottom-5 -mx-5 mt-4 flex gap-2 border-t border-border bg-popover px-5 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
         <Button onClick={() => void save()}>{w.save}</Button>
         <Button
           variant="outline"

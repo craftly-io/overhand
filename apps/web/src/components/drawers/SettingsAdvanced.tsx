@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { isObject, type Json, type JsonObject } from "@/lib/json";
 import { ADVANCED, type AdvancedGroup } from "@/lib/settings-places";
-import { CheckRows, Field, FieldCard, useForm } from "./SettingsFields";
+import { CheckRows, Field, FieldCard, FOLD, FoldMark, useForm } from "./SettingsFields";
 import { CleanupCard } from "./SettingsLook";
 import { PluginsTab } from "./SettingsPlugins";
 import { SettingsReports } from "./SettingsReports";
@@ -289,8 +289,11 @@ export function AdvancedSection({
     <>
       <p className="text-sm text-muted-foreground">{w.setAdvancedHint}</p>
       {ADVANCED.map(([id, title]) => (
-        <details key={id} id={`set-adv-${id}`} className="group scroll-mt-4 border-b border-border pb-2" open={group === id || undefined}>
-          <summary className="flex min-h-11 cursor-pointer items-center font-display text-sm select-none">{w[title]}</summary>
+        <details key={id} id={`set-adv-${id}`} className="scroll-mt-4 border-b border-border" open={group === id || undefined}>
+          <summary className={`${FOLD} font-display text-sm`}>
+            <FoldMark />
+            {w[title]}
+          </summary>
           <div className="mt-2 grid gap-3">{body[id]}</div>
         </details>
       ))}

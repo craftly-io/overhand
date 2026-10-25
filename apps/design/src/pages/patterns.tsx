@@ -492,6 +492,7 @@ export const PATTERNS: Entry[] = [
       "AccountRow",
       "AdvancedSection",
       "More",
+      "FoldMark",
       "SettingsReports",
       "StatusUpdates",
       "PluginsTab",
