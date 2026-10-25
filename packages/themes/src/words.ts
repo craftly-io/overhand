@@ -282,6 +282,8 @@ export const plainWords = {
   setBillingFromGateway: "from its gateway's address",
   setBillingFromCli: "from its agent",
   setBudget: "Daily budget for pay-per-use and cloud agents (USD, 0 = off)",
+  setPlanOn: "Plan the day each morning (one planner run)",
+  setPlanFrom: "Plan from hour",
   addAccountSave: "Save",
   addAccountKeyInstead: "Use an API key instead",
   addAccountSignInInstead: "Sign in in your browser instead",
@@ -1311,7 +1313,8 @@ export const plainWords = {
   saidLeakStill: "It still names something private: {terms}",
   // the dashboard's look at itself
   alSelfCheck: "Overhand's page failed to render: {error}",
-  alSelfCheckSub: "Overhand looks at its own page every 15 minutes; Report writes what it saw, with nothing private in it.",
+  alSelfCheckSub:
+    "Overhand checks its own page every 15 minutes and opens it once after each start or update; Report writes what it saw, with nothing private in it.",
   alSelfCheckSay: "Overhand's page failed its self-check",
   selfCheckReport: "Report",
   selfCheckReload: "Reload",
@@ -1476,13 +1479,21 @@ export const plainWords = {
   save: "Save",
   discard: "Discard changes",
 
-  // pairing: another device opening the dashboard (a browser on the Mac itself never pairs)
+  // pairing: another device opening the dashboard (a browser on the computer itself never pairs)
   pairTitle: "Pair this device",
   pairBody: "Overhand runs on your computer. Pair this device once with the code the computer shows under Settings → Phone → Add a device.",
   pairHere: "On the computer itself? Run {command} in a terminal: it opens this page signed in.",
   pairCode: "Pairing code",
   pairButton: "Pair",
   pairWorking: "Pairing…",
+  // the daemon's refusals, read on the device being paired (the computer may be a Mac, a Linux server or a container)
+  pairExpired: "That code has expired. Make a new one on the computer: Settings, Phone, Add a device.",
+  pairMismatch: "That code doesn't match. Check it on the computer and try again.",
+  pairNotNeeded: "This browser is on the computer itself; it needs no pairing.",
+  pairFromComputer: "Add a device from the computer itself.",
+  setUpFromComputer: "Set this up from the computer itself.",
+  // Settings fields only the computer changes (contract LOCAL_ONLY): commands Overhand runs, the sandbox, allowed addresses
+  changeOnComputer: "Open Settings on the computer itself to change commands Overhand runs, the OS sandbox or the allowed addresses.",
 
   // Settings → Phone: Tailscale, paired devices, notifications
   phoneTitle: "Phone",
@@ -1850,6 +1861,9 @@ export const plainWords = {
   decConfMedium: "Likely",
   decConfLow: "A judgement call",
   decFromFacts: "From the facts alone",
+  // the facts show at once; Explain asks your agent once to put them in its own words, with a recommendation
+  decExplain: "Explain",
+  decExplainHint: "Your agent reads these facts and says what they mean and what it would do. One short model call.",
   decReading: "Your agent is reading the facts…",
   decMoreOptions: "More options",
   decAnswer: "Answer: {text}",

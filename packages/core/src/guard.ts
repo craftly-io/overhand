@@ -63,6 +63,47 @@ const AGENT_CONFIG =
   /(^|[^\w.-])(\.(gemini|codex|opencode)\b|\.cursor\/(hooks|cli)\.json\b|opencode\.jsonc?\b|\.aider\.conf\.ya?ml\b|\.aiderignore\b)/;
 const AGENT_CONFIG_WHY = "no changing an agent CLI's project config";
 
+/**
+ * Browser profiles: their cookie stores are sign-ins to everything; no run reads them (macOS and Linux paths of
+ * Chrome, Chromium, Brave, Edge, Arc, Firefox and Safari).
+ */
+export const BROWSERS = [
+  "Library/Application Support/Google/Chrome",
+  "Library/Application Support/Chromium",
+  "Library/Application Support/BraveSoftware",
+  "Library/Application Support/Microsoft Edge",
+  "Library/Application Support/Arc",
+  "Library/Application Support/Firefox",
+  "Library/Safari",
+  "Library/Cookies",
+  "Library/Containers/com.apple.Safari",
+  ".config/google-chrome",
+  ".config/chromium",
+  ".config/BraveSoftware",
+  ".config/microsoft-edge",
+  ".mozilla",
+  "snap/chromium",
+  "snap/firefox",
+  "snap/brave",
+  ".var/app/org.mozilla.firefox",
+  ".var/app/com.google.Chrome",
+  ".var/app/org.chromium.Chromium",
+  ".var/app/com.brave.Browser",
+  ".var/app/com.microsoft.Edge",
+];
+
+/** A browser profile, named in a command with its spaces written any way (`\ `, quoted, or plain once split). */
+const BROWSER_DIRS = BROWSERS.map((b) => b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll(" ", String.raw`\\?\s`)).join("|");
+
+/** Credential folders under your home, and credential files: one list for commands (BASH_RULES) and file tools (PATH_RULES). */
+const CRED_DIRS = String.raw`\.ssh|\.aws|\.config\/gcloud|\.azure|Library\/Keychains|\.kube|\.docker|\.config\/gh|Library\/Cookies|\.zsh_sessions`;
+const CRED_FILES = String.raw`\.npmrc|\.netrc|\.[a-z]*_history|\.zhistory|fish_history`;
+const HOME_PREFIX = String.raw`(~|\$HOME|\$\{HOME\}|\/Users\/[^/\s]+|\/home\/[^/\s]+|\/root)\/`;
+/** Credentials named in a command: a folder right under your home, or a credential file anywhere under it. */
+const CRED_COMMAND = new RegExp(`${HOME_PREFIX}((${CRED_DIRS}|${BROWSER_DIRS})(\\/|\\b)|([^\\s'"]*\\/)?(${CRED_FILES})\\b)|\\$HISTFILE\\b`);
+/** Credentials a file tool would open (an absolute path). */
+const CRED_PATH = new RegExp(`\\/(${CRED_DIRS}|${BROWSER_DIRS})(\\/|$)|\\/(${CRED_FILES})$`);
+
 const BASH_RULES: [RegExp, string][] = [
   [/\bgit\s+push\b[^|;&]*(\s-f\b|--force|\s\+\S)/, "force push is never allowed"],
   [PROTECTED_PUSH, "push only the agent's own feature branch"],
@@ -90,10 +131,7 @@ const BASH_RULES: [RegExp, string][] = [
   [/\.env\.(prod|production)\b/, "no access to production env files"],
   // the same credentials PATH_RULES keeps from the file tools, named in a command (`cat ~/.ssh/id_rsa`): CLIs whose agents
   // read files through the shell (Codex has no read tool) meet them here
-  [
-    /(~|\$HOME|\$\{HOME\}|\/Users\/[^/\s]+|\/home\/[^/\s]+|\/root)\/((\.ssh|\.aws|\.config\/gcloud|\.azure|Library\/Keychains)(\/|\b)|\.npmrc\b)/,
-    "no access to credentials",
-  ],
+  [CRED_COMMAND, "no access to credentials"],
   [AGENT_CONFIG, AGENT_CONFIG_WHY],
   [/\b(psql|mongosh|mongo|mysql|redis-cli)\b[^|;&]*(prod|production|\.rds\.|mongodb\+srv)/i, "no production database access"],
   [/\b(DROP\s+(TABLE|DATABASE|SCHEMA)|TRUNCATE\s+TABLE)\b/i, "no destructive SQL"],
@@ -109,7 +147,7 @@ const PATH_RULES: [RegExp, string][] = [
   [AGENT_CONFIG, AGENT_CONFIG_WHY],
   [/password|Admin Password|env\.local\.docx/i, "no access to password files"],
   [/\.env\.(prod|production)\b/, "no access to production env files"],
-  [/\/(\.ssh|\.aws|\.config\/gcloud|\.azure|Library\/Keychains)(\/|$)|\/\.npmrc$/, "no access to credentials"],
+  [CRED_PATH, "no access to credentials"],
   [/\/\.claude[^/]*\/(settings(\.local)?\.json|\.claude\.json)$/, "no changing Claude Code's settings"],
 ];
 
@@ -215,11 +253,30 @@ function pushAllowed(cmd: string, allowed: readonly string[]): boolean {
 
 /** The rule a shell command breaks, or null: the hard rules, comments for ticket runs, Overhand's own files, autonomy. */
 function bashRule(cmd: string, self: string[], autonomy: string, run: string, push: readonly string[], cwd: string): string | null {
-  for (const [re, why] of BASH_RULES) if (re.test(cmd) && !(re === PROTECTED_PUSH && pushAllowed(cmd, push))) return why;
-  if (ticketRun(run) && COMMENT_RULE[0].test(cmd)) return COMMENT_RULE[1];
+  const text = (c: string): string | null => {
+    for (const [re, why] of BASH_RULES) if (re.test(c) && !(re === PROTECTED_PUSH && pushAllowed(c, push))) return why;
+    if (ticketRun(run) && COMMENT_RULE[0].test(c)) return COMMENT_RULE[1];
+    return null;
+  };
+  const late = (c: string): string | null =>
+    autonomyRule(c, autonomy) ?? (ticketRun(run) && TICKET_PUSH[0].test(c) ? TICKET_PUSH[1] : null);
+  // the command as written, as before; then each command the shell would run (simpleCommands), so quoting hides nothing
+  const raw = text(cmd);
+  if (raw) return raw;
   if (namesSelf(cmd, self, cwd)) return SELF;
-  const rule = leadsCommand(cmd, run, cwd) ?? autonomyRule(cmd, autonomy);
-  return rule ?? (ticketRun(run) && TICKET_PUSH[0].test(cmd) ? TICKET_PUSH[1] : null);
+  const leads = leadsCommand(cmd, run, cwd);
+  if (leads) return leads;
+  const parts = simpleCommands(cmd);
+  if (parts === null) return UNREADABLE;
+  for (const c of parts) {
+    const why = text(c);
+    if (why) return why;
+  }
+  for (const c of [cmd, ...parts]) {
+    const why = late(c);
+    if (why) return why;
+  }
+  return null;
 }
 
 /** How paths compare: macOS folders ignore case, and one name can be written in more than one Unicode form. */
@@ -233,6 +290,124 @@ const under = (p: string, root: string): boolean => {
 
 /** A command as the shell reads its words, compared like paths: quotes and escapes gone, folded. */
 const plain = (cmd: string): string => fold(cmd).replace(/["'\\]/g, "");
+
+/** Why a command whose quoting the guard can't follow is refused: what the shell would run can't be checked. */
+const UNREADABLE = "the guard can't read that command (an unclosed quote or substitution); write it out plainly";
+
+/**
+ * A command as the shell would split it: each simple command's words, quotes and escapes gone, joined by spaces, and
+ * the scripts inside it (`sh -c '…'`, `bash -c`, `eval …`, `$( )` and backticks) split the same way after it. null when
+ * a quote or a substitution never closes. The rules then judge what runs, not how it was quoted: `gh pr 'mer'ge` is
+ * `gh pr merge`, and a `;` inside quotes no longer ends a rule's look-ahead.
+ */
+export function simpleCommands(cmd: string, depth = 0): string[] | null {
+  if (depth > 4) return null; // scripts inside scripts inside scripts: too deep to follow, so refused
+  const out: string[] = [];
+  const inner: string[] = [];
+  let words: string[] = [];
+  let word = "";
+  let started = false;
+  const endWord = () => {
+    if (started) words.push(word.replace(/[;&|]/g, ""));
+    word = "";
+    started = false;
+  };
+  const endCommand = () => {
+    endWord();
+    if (words.length) {
+      out.push(words.join(" "));
+      const [head = "", ...rest] = words[0] === "env" || words[0] === "command" || words[0] === "exec" ? words.slice(1) : words;
+      const name = head.split("/").pop() ?? head;
+      const c = rest.indexOf("-c");
+      if (/^(ba|z|da|k)?sh$/.test(name) && c >= 0 && rest[c + 1] !== undefined) inner.push(rest[c + 1] ?? "");
+      if (name === "eval") inner.push(rest.join(" "));
+    }
+    words = [];
+  };
+  /** The text up to the bracket that closes the one at `from` (for `$(`), or -1. */
+  const closing = (from: number): number => {
+    let depthIn = 0;
+    for (let j = from; j < cmd.length; j++) {
+      const ch = cmd[j];
+      if (ch === "\\") j++;
+      else if (ch === "'") {
+        const k = cmd.indexOf("'", j + 1);
+        if (k < 0) return -1;
+        j = k;
+      } else if (ch === "(") depthIn++;
+      else if (ch === ")" && --depthIn === 0) return j;
+    }
+    return -1;
+  };
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i] ?? "";
+    if (ch === "\\") {
+      if (cmd[i + 1] === "\n")
+        i++; // a line continuation
+      else {
+        word += cmd[i + 1] ?? "";
+        started = true;
+        i++;
+      }
+    } else if (ch === "'" || (ch === "$" && cmd[i + 1] === "'")) {
+      const from = ch === "$" ? i + 2 : i + 1;
+      const end = cmd.indexOf("'", from);
+      if (end < 0) return null;
+      word += cmd.slice(from, end);
+      started = true;
+      i = end;
+    } else if (ch === '"') {
+      let j = i + 1;
+      for (; j < cmd.length && cmd[j] !== '"'; j++) {
+        if (cmd[j] === "\\") {
+          word += cmd[j + 1] ?? "";
+          j++;
+        } else if (cmd[j] === "$" && cmd[j + 1] === "(") {
+          const end = closing(j + 1);
+          if (end < 0) return null;
+          inner.push(cmd.slice(j + 2, end));
+          word += cmd.slice(j, end + 1);
+          j = end;
+        } else if (cmd[j] === "`") {
+          const end = cmd.indexOf("`", j + 1);
+          if (end < 0) return null;
+          inner.push(cmd.slice(j + 1, end));
+          j = end;
+        } else word += cmd[j];
+      }
+      if (j >= cmd.length) return null;
+      started = true;
+      i = j;
+    } else if (ch === "$" && cmd[i + 1] === "(") {
+      const end = closing(i + 1);
+      if (end < 0) return null;
+      inner.push(cmd.slice(i + 2, end));
+      word += cmd.slice(i, end + 1);
+      started = true;
+      i = end;
+    } else if (ch === "`") {
+      const end = cmd.indexOf("`", i + 1);
+      if (end < 0) return null;
+      inner.push(cmd.slice(i + 1, end));
+      i = end;
+    } else if (ch === "#" && !started) {
+      const nl = cmd.indexOf("\n", i);
+      i = nl < 0 ? cmd.length : nl - 1; // a comment, to the end of its line
+    } else if (";&|\n()".includes(ch)) endCommand();
+    else if (/\s/.test(ch)) endWord();
+    else {
+      word += ch;
+      started = true;
+    }
+  }
+  endCommand();
+  for (const script of inner) {
+    const more = simpleCommands(script, depth + 1);
+    if (more === null) return null;
+    out.push(...more);
+  }
+  return out;
+}
 
 /** How a command can name a path, folded: as written, and from ~, $HOME or ${HOME} when it's in the home folder. */
 const spellings = (p: string): string[] => {

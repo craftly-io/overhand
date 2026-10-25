@@ -174,3 +174,25 @@ test("rerun while Overhand runs, the installer leaves the restart to it rather t
     server.stop(true);
   }
 });
+
+test("for overhand update, the installer stops after its install lines: no Start it with box, no notes", async () => {
+  const r = await install(fakeRelease(), "Linux", "x86_64", { env: { OVERHAND_QUIET: "1" } });
+  expect(r.code, r.out).toBe(0);
+  expect(r.out).toContain("Installed Overhand");
+  expect(r.out).not.toContain("Start it with");
+  expect(r.out).not.toContain("isn't installed yet");
+});
+
+test("started on a server with no display, the installer ends with the one SSH tunnel that opens it", async () => {
+  const env = { OVERHAND_NO_START: "", OVERHAND_PORT: "4399", DISPLAY: "", WAYLAND_DISPLAY: "" };
+  const ssh = await install(fakeRelease(), "Linux", "x86_64", { env: { ...env, SSH_CONNECTION: "10.0.0.5 50000 203.0.113.7 22" } });
+  expect(ssh.code, ssh.out).toBe(0);
+  expect(ssh.out).toMatch(/ssh -N -L 4399:127\.0\.0\.1:4399 \S+@203\.0\.113\.7\n/);
+  expect(ssh.out).toContain("overhand open");
+  // a container: no SSH session to name the server by
+  const container = await install(fakeRelease(), "Linux", "x86_64", { env });
+  expect(container.out).toContain("ssh -N -L 4399:127.0.0.1:4399 you@your-server");
+  // a desktop opens it itself
+  const desktop = await install(fakeRelease(), "Linux", "x86_64", { env: { ...env, DISPLAY: ":0" } });
+  expect(desktop.out).not.toContain("ssh -N");
+});

@@ -34,7 +34,8 @@
         <li><b>Pull requests</b> Merging, closing or approving them, by <code>gh</code> or by the API.</li>
         <li><b>The GitHub repository itself</b> Its administration, releases and secrets.</li>
         <li><b>Going live</b> Deploys, infrastructure changes and package publishing.</li>
-        <li><b>Secret files</b> Keychain, password and credential files (SSH, cloud) and production env files, by file tool or named in a command.</li>
+        <li><b>Secret files</b> Keychain, password and credential files (SSH, cloud, Kubernetes, Docker, GitHub's command-line sign-in, netrc), browser profiles, shell history and production env files, by file tool or named in a command.</li>
+        <li><b>However it's written</b> A command is checked as the shell would run it: quotes, escapes and the scripts inside <code>sh -c</code>, <code>eval</code> and <code>$( )</code> hide nothing, and a command whose quoting never closes is refused.</li>
         <li><b>SSH keys</b> Naming an SSH key or <code>~/.ssh</code> in a command, so no <code>ssh -i ~/.ssh/&lt;key&gt;</code> and no edits to <code>known_hosts</code> or <code>config</code>. A lead's plain <code>git push</code> over SSH still works: it names neither.</li>
         <li><b>Data</b> Production databases and destructive SQL.</li>
         <li><b>Your disk</b> Deleting your home folder or the root.</li>

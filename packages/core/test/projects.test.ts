@@ -26,6 +26,7 @@ import {
   parseRepoList,
   remoteUrls,
   repoKey,
+  tilde,
 } from "../src/projects";
 
 const scratch = (name: string) => realpathSync(mkdtempSync(join(tmpdir(), `overhand-${name}-`)));
@@ -306,4 +307,11 @@ test("install commands are the vendors' own, per OS and what's on the machine; n
   expect(connectCommand(null, "codex login")).toBe("codex login");
   expect(GEMINI_KEY_URL).toBe("https://aistudio.google.com/app/apikey");
   expect(geminiKeyItem("main")).toBe("gemini-key-main"); // the item the Gemini runtime passes as GEMINI_API_KEY
+});
+
+test("tilde shortens only a path inside the home folder, never a sibling folder that starts with its name", () => {
+  expect(tilde("/Users/sam/code/app", "/Users/sam")).toBe("~/code/app");
+  expect(tilde("/Users/samantha/code/app", "/Users/sam")).toBe("/Users/samantha/code/app");
+  expect(tilde("/srv/code/app", "/Users/sam")).toBe("/srv/code/app");
+  expect(tilde("", "/Users/sam")).toBe("");
 });

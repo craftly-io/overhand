@@ -7,6 +7,7 @@ import { CFG } from "../src/env";
 import {
   browserArgs,
   findBrowser,
+  oncePerStart,
   redactPrivate,
   renderCheck,
   runSelfCheck,
@@ -80,6 +81,42 @@ test("headless only with a browser, room on the machine and a free browser slot;
   });
   expect((await runSelfCheck(boom.d, url, built)).error).toContain("crashed");
   expect(boom.did.released).toBe(1);
+});
+
+test("the headless browser opens once per start: after a passing render only the cheap check runs, until the next start", async () => {
+  const url = "http://127.0.0.1:1/";
+  const built = dist(true);
+  let renders = 0;
+  let fail = true;
+  const live = oncePerStart(
+    () => "/fake/chrome",
+    async () => {
+      renders++;
+      return fail ? "a page error: boom" : "";
+    },
+  );
+  const d = deps(live).d;
+  expect((await runSelfCheck(d, url, built)).mode).toBe("browser"); // a failing render: looked at again next time
+  fail = false;
+  expect((await runSelfCheck(d, url, built)).mode).toBe("browser");
+  expect(await runSelfCheck(d, url, built)).toMatchObject({ ok: true, mode: "schema" });
+  expect(await runSelfCheck(d, url, built)).toMatchObject({ ok: true, mode: "schema" });
+  expect(renders).toBe(2);
+  // a new start (another set of deps) renders again
+  expect(
+    (
+      await runSelfCheck(
+        deps(
+          oncePerStart(
+            () => "/fake/chrome",
+            async () => "",
+          ),
+        ).d,
+        url,
+        built,
+      )
+    ).mode,
+  ).toBe("browser");
 });
 
 test("a failure is kept with its error and notified once, until it passes again", async () => {

@@ -11,6 +11,7 @@ import {
   realpathSync,
   renameSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -76,6 +77,14 @@ export const SELF_EXEC = BUNDLED && existsSync(stableExec()) ? stableExec() : pr
 export const WEB_DIST = BUNDLED ? join(SRC, "web") : join(SRC, "apps", "web", "dist");
 /** How the running copy was installed. */
 export const INSTALL = installKind();
+/**
+ * A printed `overhand <sub>` as it runs for this copy: a checkout's from source, the npx launcher's through npx or bunx
+ * (`overhand` itself isn't on PATH there), else the installed `overhand`.
+ */
+export function cli(sub: string, kind: InstallKind = INSTALL, src = SRC, npx = Bun.which("npx") !== null): string {
+  if (kind === "checkout") return `cd ${src} && bun run.ts ${sub}`;
+  return `${kind === "npx" ? (npx ? "npx " : "bunx ") : ""}overhand ${sub}`;
+}
 /** Config and state: the checkout itself, or ~/.overhand for the binary. Tests and CI point OVERHAND_HOME at a scratch folder. */
 export const OPS = process.env.OVERHAND_HOME ?? (BUNDLED ? join(homedir(), ".overhand") : SRC);
 mkdirSync(OPS, { recursive: true });
@@ -87,8 +96,21 @@ export const SLACK_MCP = join(OPS, "slack-mcp.json");
 // it used to sit beside the binary: move it over once
 if (BUNDLED) moveOnce(join(SRC, "slack-mcp.json"), SLACK_MCP);
 const CONFIG_FILE = join(OPS, "overhand.config.json");
-/** No config saved yet: the dashboard runs its setup wizard and no agent starts. */
-export const needsSetup = (): boolean => !existsSync(CONFIG_FILE);
+/**
+ * Onboarding's Start hasn't been pressed: the dashboard runs its setup wizard and no agent starts. A Settings save
+ * before then (Extra origins, a pairing) writes the config but leaves setup open.
+ */
+export const needsSetup = (ops = OPS): boolean => !existsSync(join(ops, ".setup-done"));
+/** Marks setup finished: what onboarding's Start does once it has saved the first config. */
+export const markSetupDone = (ops = OPS): void => writeFileSync(join(ops, ".setup-done"), "");
+/**
+ * Installs from before the marker finished setup when their config has an account (onboarding and `bun run setup`
+ * always write one; a Settings save before setup doesn't), so they count as set up without seeing onboarding again.
+ * ponytail: runs at every start, so an account added in Settings before setup, then a restart, also counts as done.
+ */
+export function migrateSetupDone(ops: string, c: Config, saved = existsSync(join(ops, "overhand.config.json"))): void {
+  if (saved && c.accounts.length && needsSetup(ops)) markSetupDone(ops);
+}
 /** The folder that holds every project: config codeRoot, else the checkout's parent (ops sits beside the projects) or ~/Code. */
 const codeRootOf = (c: Config): string => c.codeRoot || process.env.OVERHAND_CODE || (BUNDLED ? join(HOME, "Code") : dirname(SRC));
 export let CODE = ""; // set by applyConfig
@@ -99,7 +121,8 @@ export let PROJECTS = ""; // set by applyConfig
 export const today = (): string => new Date().toLocaleDateString("sv-SE"); // local YYYY-MM-DD
 
 // Live config: the dashboard's Settings saves overhand.config.json and calls applyConfig, so no restart is needed.
-export let CFG: Config = needsSetup() ? blankConfig(userInfo().username) : loadConfig(OPS);
+export let CFG: Config = existsSync(CONFIG_FILE) ? loadConfig(OPS) : blankConfig(userInfo().username);
+migrateSetupDone(OPS, CFG);
 export let CLIENTS: Client[] = [];
 export let ACCOUNTS: string[] = [];
 export let LABEL: Config["labels"] = CFG.labels;

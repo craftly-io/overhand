@@ -9,6 +9,7 @@ import { gitRepos, lastUsed, pool } from "./cleanup";
 import { CFG, CLIENTS, CODE, gitRefused, HOME, OPS, safeCmd } from "./env";
 import { report } from "./notify";
 import { type FirewallConfig, scanOutward } from "./outward";
+import { tilde } from "./projects";
 import { gitEnv, isGit } from "./runtimes/runtime";
 import type { LiveSession } from "./sessions";
 
@@ -170,7 +171,7 @@ async function scanAll(): Promise<Scanned> {
             project: c.name,
             repoPaths,
             wt: {
-              path: e.path.replace(HOME, "~"),
+              path: tilde(e.path),
               repo: repo.split("/").pop() ?? repo,
               branch: e.branch,
               main: i === 0,

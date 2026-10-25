@@ -148,9 +148,8 @@ test("the service keeps the port and state folder it was started with, and paths
 });
 
 test("after Turn off, the start-again command fits how it runs: the service, the installed binary or a checkout", () => {
-  expect(startAgainCommand("/src", true, "", "overhand.service")).toBe("systemctl --user start overhand.service");
-  expect(startAgainCommand("/opt/overhand", true, "", "")).toBe("overhand start");
-  expect(startAgainCommand("/src", false, "", "")).toBe("cd /src && bun run.ts daemon");
+  expect(startAgainCommand("overhand start", "", "overhand.service")).toBe("systemctl --user start overhand.service");
+  expect(startAgainCommand("npx overhand start", "", "")).toBe("npx overhand start");
 });
 
 test("hasDisplay: X11 or Wayland on Linux, always on macOS", () => {

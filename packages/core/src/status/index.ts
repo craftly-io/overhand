@@ -1,9 +1,9 @@
 /** Status sources, refreshed in the background every 3 minutes. This module owns the status cache. */
-import { refreshUsage } from "../claude";
-import { shAsync } from "../env";
-import { firstWinFirst } from "../firstwin";
+import { join } from "node:path";
+import { OPS, shAsync } from "../env";
 import { report } from "../notify";
 import { checkOpsUpdate } from "../selfupdate";
+import { readJson, writeJsonAtomic } from "../state";
 import { calendarToday } from "./calendar";
 import { ciHealth } from "./ci";
 import { dependabotAlerts } from "./dependabot";
@@ -21,26 +21,42 @@ const named = (p: UiPr) => `${p.client}: ${p.repo.split("/")[1] ?? p.repo}#${p.n
 
 /**
  * What changed in your open pull requests between two refreshes, as lines for the day's log: opened, checks turning red,
- * changes requested, approved. `gone` left the open list; the caller looks up whether they merged.
+ * changes requested, approved. `gone` left the open list; the caller looks up whether they merged. A pull request in
+ * `told` was seen open before (a restart, or one GitHub's search left out for a refresh): it isn't "opened" again.
  */
-export function prChanges(before: readonly UiPr[], after: readonly UiPr[]): { lines: string[]; gone: UiPr[] } {
+export function prChanges(
+  before: readonly UiPr[],
+  after: readonly UiPr[],
+  told: ReadonlySet<string> = new Set(),
+): { lines: string[]; gone: UiPr[] } {
   const was = new Map(before.map((p) => [p.url, p]));
   const now = new Set(after.map((p) => p.url));
   const lines: string[] = [];
   for (const p of after) {
     const old = was.get(p.url);
-    if (!old) lines.push(`🆕 ${named(p)} opened: ${p.title}`);
-    else if (failing(p) && !failing(old)) lines.push(`🔴 ${named(p)} checks failing: ${p.title}`);
+    if (!old) {
+      if (!told.has(p.url)) lines.push(`🆕 ${named(p)} opened: ${p.title}`);
+    } else if (failing(p) && !failing(old)) lines.push(`🔴 ${named(p)} checks failing: ${p.title}`);
     if (old && p.review !== old.review && p.review === "CHANGES_REQUESTED") lines.push(`✍ ${named(p)} changes requested: ${p.title}`);
     if (old && p.review !== old.review && p.review === "APPROVED") lines.push(`👍 ${named(p)} approved: ${p.title}`);
   }
   return { lines, gone: before.filter((p) => !now.has(p.url)) };
 }
 
-/** Tells the day's log what happened to your pull requests since the last refresh; skips the first, which only learns them. */
-async function tellPrs(before: UiPr[], after: UiPr[], known: boolean): Promise<void> {
+/** The pull requests already seen open, kept across restarts; the newest 500 are plenty. */
+const TOLD = () => join(OPS, ".prs-seen.json");
+
+/**
+ * Tells the day's log what happened to your pull requests since the last refresh; the first only learns them. Each
+ * one is "opened" once, ever: what's been seen open is kept on disk.
+ */
+export async function tellPrs(before: UiPr[], after: UiPr[], known: boolean): Promise<void> {
+  const seen = readJson<string[]>(TOLD(), []);
+  const told = new Set(seen);
+  const fresh = after.map((p) => p.url).filter((u) => !told.has(u));
+  if (fresh.length) writeJsonAtomic(TOLD(), [...seen, ...fresh].slice(-500));
   if (!known) return;
-  const { lines, gone } = prChanges(before, after);
+  const { lines, gone } = prChanges(before, after, told);
   for (const l of lines) report(l);
   for (const p of gone) {
     const r = await shAsync(["gh", "pr", "view", p.url, "--json", "state", "-q", ".state"]);
@@ -52,7 +68,8 @@ async function tellPrs(before: UiPr[], after: UiPr[], known: boolean): Promise<v
 /** Re-reads every status source; a failing source keeps its last value and adds an error line. */
 export async function refreshStatus(): Promise<void> {
   void checkOpsUpdate();
-  if (!firstWinFirst()) void refreshUsage(); // a usage probe is a model run too (firstWinFirst)
+  // usage readings aren't refreshed here: a reading costs a model call, so it's read when you open the dashboard and
+  // right before a new ticket's run (claude.ts), not every few minutes around the clock
   const errors: string[] = [];
   const safe = async <T>(name: string, f: () => Promise<T>, fallback: T): Promise<T> => {
     try {

@@ -3,7 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, 
 import { join } from "node:path";
 import { blankConfig, parseConfig, saveConfig } from "../src/config";
 import { OPS, today } from "../src/env";
-import { report } from "../src/notify";
+import { report, reportDaily } from "../src/notify";
 import { writeJsonAtomic } from "../src/state";
 
 const mode = (p: string) => statSync(p).mode & 0o777;
@@ -30,7 +30,7 @@ async function withProbes(
 
 test("the same line within 30 minutes goes into the day's report once", () => {
   const file = join(OPS, "reports", `${today()}.md`);
-  const line = `⚠ loop error: test ${Math.random()}`;
+  const line = `↻ restarting test ${Math.random()}`;
   const t = Date.now();
   report(line, t);
   report(line, t + 60_000);
@@ -38,6 +38,24 @@ test("the same line within 30 minutes goes into the day's report once", () => {
   expect(readFileSync(file, "utf8").split(line).length - 1).toBe(1);
   report(line, t + 31 * 60_000);
   expect(readFileSync(file, "utf8").split(line).length - 1).toBe(2);
+});
+
+test("a warning, and a notice said at every start, go into the day's report once a day, even after a restart", () => {
+  const file = join(OPS, "reports", `${today()}.md`);
+  const count = (line: string) => readFileSync(file, "utf8").split(`${line}\n`).length - 1;
+  const warning = `⚠ loop error: test ${Math.random()}`;
+  const t = Date.now();
+  report(warning, t);
+  report(warning, t + 31 * 60_000);
+  report(warning, t + 5 * 3_600_000);
+  expect(count(warning)).toBe(1);
+  // a line that only ends like it is another line
+  report(`⚠ again: ${warning}`, t);
+  expect(count(warning)).toBe(2);
+  const notice = `🔐 Sign in once for test ${Math.random()}`;
+  expect(reportDaily(notice, t)).toBe(true);
+  expect(reportDaily(notice, t + 3_600_000)).toBe(false); // the map has forgotten it by then; the day's file hasn't
+  expect(count(notice)).toBe(1);
 });
 
 test("Overhand's folder is private to this user, and so are the files it writes", () => {

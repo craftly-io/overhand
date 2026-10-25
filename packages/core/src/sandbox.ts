@@ -27,7 +27,7 @@ import { RUN_CACHES, runCacheKey } from "./cleanup-sources";
 import type { RuntimeId } from "./config";
 import { controlDir, outboxDir, RUN_KEY_ENV, runKey, writeAtomic } from "./control";
 import { CFG, OPS, safeCmd, shAsync } from "./env";
-import { projectAt, selfPaths } from "./guard";
+import { BROWSERS, projectAt, selfPaths } from "./guard";
 import { report } from "./notify";
 import { gitCommonDir, gitEnv, gitPointersOk } from "./runtimes/runtime";
 
@@ -135,35 +135,6 @@ export const runCacheEnv = (runTmp: string, cache: string, env: Record<string, s
   ...Object.fromEntries(Object.entries(CACHE_ENV).map(([k, v]) => [k, join(cache, v)])),
   MAVEN_OPTS: [env.MAVEN_OPTS ?? "", `-Dmaven.repo.local=${join(cache, "m2")}`].filter(Boolean).join(" "),
 });
-/**
- * Browser profiles: their cookie stores are sign-ins to everything; no run reads them (macOS and Linux paths of
- * Chrome, Chromium, Brave, Edge, Arc, Firefox and Safari).
- */
-const BROWSERS = [
-  "Library/Application Support/Google/Chrome",
-  "Library/Application Support/Chromium",
-  "Library/Application Support/BraveSoftware",
-  "Library/Application Support/Microsoft Edge",
-  "Library/Application Support/Arc",
-  "Library/Application Support/Firefox",
-  "Library/Safari",
-  "Library/Cookies",
-  "Library/Containers/com.apple.Safari",
-  ".config/google-chrome",
-  ".config/chromium",
-  ".config/BraveSoftware",
-  ".config/microsoft-edge",
-  ".mozilla",
-  "snap/chromium",
-  "snap/firefox",
-  "snap/brave",
-  ".var/app/org.mozilla.firefox",
-  ".var/app/com.google.Chrome",
-  ".var/app/org.chromium.Chromium",
-  ".var/app/com.brave.Browser",
-  ".var/app/com.microsoft.Edge",
-];
-
 /** The CLIs whose runs never use your own state folder (agent-home.ts runHome: their login moves to one of Overhand's). */
 const MOVED_IDS = ["claude-code", "codex"] as const;
 const MOVED: ReadonlySet<string> = new Set(MOVED_IDS);

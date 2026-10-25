@@ -21,6 +21,7 @@ import {
   CFG,
   CLIENTS,
   CODE,
+  cli,
   DASHBOARD,
   HOME,
   INSTALL,
@@ -56,10 +57,10 @@ import { inbox, inboxReadAt } from "./inbox";
 import { blankLead, leadPid, loadLeads, lockHolder, superviseLeads, watchQuestions } from "./leads";
 import { serveMcp } from "./mcp-server";
 import { syncMenubar } from "./menubar";
-import { diskFree, notify, problems, report, stampConsole } from "./notify";
+import { diskFree, notify, problems, report, reportDaily, stampConsole } from "./notify";
 import { refreshSuggestions } from "./organise";
-import { plan } from "./plan";
-import { daemonLog, installService, isLoginService, openBrowser, readSecret, SERVICE, uninstallService } from "./platform";
+import { plan, planDue } from "./plan";
+import { daemonLog, hasDisplay, installService, isLoginService, openBrowser, readSecret, SERVICE, uninstallService } from "./platform";
 import { tickPlugins } from "./plugins";
 import { claudeSignedIn } from "./runtimes/claude-code";
 import { codexSignedIn } from "./runtimes/codex";
@@ -129,19 +130,21 @@ export async function finishMoves(
   return moved;
 }
 
-/** Says which accounts still wait for their one-time sign-in in a folder of their own (Settings shows each one's row). */
+/**
+ * Says which accounts still wait for their one-time sign-in in a folder of their own (Settings shows each one's row):
+ * once a day, not at every start.
+ */
 function noticeMoves(): void {
   const waiting = pendingMoves(CFG);
   if (!waiting.length) return;
   const title = plainWords.movedOffOwnTitle.replace("{accounts}", waiting.join(", "));
-  report(`🔐 ${title}`);
-  notify(title, plainWords.movedOffOwnBody);
+  if (reportDaily(`🔐 ${title}`)) notify(title, plainWords.movedOffOwnBody);
 }
 
-/** Runs forever: serves the dashboard, plans daily, reads Slack on config.schedule, works the queue. */
+/** Runs forever: serves the dashboard, plans daily when the plan is on, reads Slack on config.schedule, works the queue. */
 export async function daemon(): Promise<void> {
   const local = await loadLocalCode();
-  if (local) report(`🔌 account order from local code ${local}`);
+  if (local) reportDaily(`🔌 account order from local code ${local}`);
   writeAgentHome();
   noticeMoves();
   void finishMoves();
@@ -182,8 +185,10 @@ export async function daemon(): Promise<void> {
         plugging = false;
       });
   }, MIN);
-  // the dashboard looks at itself every 15 min, the first time once it has warmed up; a failure shows in Needs you
-  const selfCheck = () => void runSelfCheck(liveDeps(dashboardState)).then(() => pushState().catch(() => {}));
+  // the dashboard looks at itself every 15 min, the first time once it has warmed up; a failure shows in Needs you.
+  // One set of deps for the daemon's life: the headless render passes once per start (oncePerStart)
+  const checkDeps = liveDeps(dashboardState);
+  const selfCheck = () => void runSelfCheck(checkDeps).then(() => pushState().catch(() => {}));
   setTimeout(selfCheck, 2 * MIN);
   setInterval(selfCheck, SELF_CHECK_EVERY);
   // organising suggestions: cheap git reads, every half hour (ponytail: in-process; move out like cleanup if it lags)
@@ -204,16 +209,27 @@ export async function daemon(): Promise<void> {
       const paused = existsSync(join(OPS, "PAUSE"));
       const hour = new Date().getHours();
       const planned = existsSync(join(OPS, "plans", `${today()}.md`));
-      const planAsked = takeRequest(".request-plan");
+      const asked = takeRequest(".request-plan");
+      const sinceTryMin = (Date.now() - lastPlanTry) / MIN;
       // nothing of Overhand's own starts before the first win's PR (firstWinFirst); what you ask for still runs
       const first = firstWinFirst();
-      if (planAsked || (!planned && !first && hour >= CFG.schedule.planFromHour && !paused && Date.now() - lastPlanTry > 60 * MIN)) {
+      const due = {
+        on: CFG.schedule.plan,
+        asked,
+        planned,
+        paused: paused || first,
+        hour,
+        fromHour: CFG.schedule.planFromHour,
+        sinceTryMin,
+      };
+      if (planDue(due)) {
         lastPlanTry = Date.now();
         await plan();
       }
       const inboxAsked = takeRequest(".request-inbox");
+      // with the plan on, Slack waits for today's plan (its items land in the plan's Inbox sections)
       const inboxDue =
-        planned &&
+        (planned || !CFG.schedule.plan) &&
         hour >= CFG.schedule.inboxFromHour &&
         hour < CFG.schedule.inboxToHour &&
         Date.now() - lastInbox > CFG.schedule.inboxEveryMin * MIN &&
@@ -353,16 +369,16 @@ async function start(): Promise<void> {
     // the binary runs itself, by the path that follows its updates (Homebrew's opt link, the launcher's npm/current); a
     // checkout runs run.ts with the bun that runs this
     const cmd = BUNDLED ? [SELF_EXEC, "daemon"] : [process.execPath, join(SRC, "run.ts"), "daemon"];
-    const r = installService(cmd, HOME, join(OPS, "logs"));
+    const r = installService(cmd, HOME, join(OPS, "logs"), cli("start"));
     if (!r.ok) {
-      console.error(`Couldn't start the ${SERVICE} service: ${r.err}\nRun it in the foreground instead: overhand daemon`);
+      console.error(`Couldn't start the ${SERVICE} service: ${r.err}\nRun it in the foreground instead: ${cli("daemon")}`);
       process.exit(1);
     }
     if (r.note) console.log(`Note: ${r.note}`); // the installer shows Note: lines
     // a first start (fresh build, many projects to scan) can take well over 10s; give up only after a minute
     for (let i = 0; i < 240 && !(await running()); i++) await Bun.sleep(250);
     if (!(await running())) {
-      console.error(`Overhand didn't come up on port ${UI_PORT}. Its log says why: ${LOG}  (overhand logs)`);
+      console.error(`Overhand didn't come up on port ${UI_PORT}. Its log says why: ${LOG}  (${cli("logs")})`);
       process.exit(1);
     }
   }
@@ -392,6 +408,19 @@ function openDashboard(): void {
   console.log(
     `Overhand is running. ${opened ? `Opened ${DASHBOARD}` : `Open this link within two minutes: ${link}`}${needsSetup() ? " to set it up." : "."}`,
   );
+  const tunnel = opened ? "" : tunnelHint();
+  if (tunnel) console.log(tunnel);
+}
+
+/**
+ * On a machine with no display (a server over SSH, a container), the one SSH tunnel that makes the printed link open
+ * in your own computer's browser, as /docs/server gives it: this server's address when SSH says it. "" with a display.
+ */
+export function tunnelHint(env: Record<string, string | undefined> = process.env, port = UI_PORT): string {
+  if (hasDisplay(env) && !env.SSH_CONNECTION) return "";
+  const host = env.SSH_CONNECTION?.split(" ")[2];
+  const at = host ? `${env.USER || "you"}@${host}` : "you@your-server";
+  return `No browser here: on your own computer, run ssh -N -L ${port}:127.0.0.1:${port} ${at} first, then open the link there.`;
 }
 
 /**
@@ -408,7 +437,7 @@ export async function openCli(args: readonly string[], env: Record<string, strin
     console.log("Made a new local key: every browser on this computer is signed out, and open links given out stop working.");
   }
   if (!(await running())) {
-    console.error(`Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: overhand start`);
+    console.error(`Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: ${cli("start")}`);
     return 1;
   }
   openDashboard();
@@ -429,7 +458,7 @@ async function showStatus(): Promise<void> {
   const runs = currentRuns();
   console.log(
     [
-      up ? `Overhand is running on ${DASHBOARD}` : `Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: overhand start`,
+      up ? `Overhand is running on ${DASHBOARD}` : `Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: ${cli("start")}`,
       `  version         ${VERSION}${BUNDLED && isNewerVersion(latestRelease(), VERSION) ? ` (${latestRelease()} is out: ${updateRoute(INSTALL).say})` : ""}`,
       `  last heartbeat  ${beat ? ago(beat) : "never"}`,
       `  agents running  ${runs.length}${runs.length ? ` (${runs.map((r) => r.name).join(", ")})` : ""}`,
@@ -461,7 +490,7 @@ export async function answerFromTerminal(args: string[], base = DASHBOARD): Prom
     body: JSON.stringify({ key: lead, text, kind: byDefault ? "default" : "answer" }),
     signal: AbortSignal.timeout(10_000),
   }).catch(() => null);
-  if (!res) return { ok: false, message: `Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: overhand start` };
+  if (!res) return { ok: false, message: `Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: ${cli("start")}` };
   const body = (await res.json().catch(() => ({}))) as { error?: unknown };
   if (!res.ok) return { ok: false, message: `Not answered: ${String(body.error ?? res.status)}` };
   return { ok: true, message: `Answered ${lead}${byDefault ? " with its default" : ""}; it picks up from here.` };
@@ -470,7 +499,7 @@ export async function answerFromTerminal(args: string[], base = DASHBOARD): Prom
 /** `overhand logs [-f]`: the daemon log's tail, or follows it. */
 function logs(follow: boolean): void {
   if (!existsSync(LOG)) {
-    console.error(`No daemon log yet at ${LOG}. The login service writes it (overhand start); overhand daemon prints to the terminal.`);
+    console.error(`No daemon log yet at ${LOG}. The login service writes it (${cli("start")}); ${cli("daemon")} prints to the terminal.`);
     process.exit(1);
   }
   const r = Bun.spawnSync(["tail", "-n", "200", ...(follow ? ["-f"] : []), LOG], { stdout: "inherit", stderr: "inherit" });
@@ -490,7 +519,11 @@ async function update(): Promise<void> {
   const { run, say } = updateRoute(INSTALL);
   let code: number | null = 1;
   try {
-    code = Bun.spawnSync(run, { env: { ...process.env, OVERHAND_NO_START: "1" }, stdout: "inherit", stderr: "inherit" }).exitCode;
+    code = Bun.spawnSync(run, {
+      env: { ...process.env, OVERHAND_NO_START: "1", OVERHAND_QUIET: "1" },
+      stdout: "inherit",
+      stderr: "inherit",
+    }).exitCode;
   } catch {} // brew or npx isn't on PATH
   if (code !== 0) {
     console.error(`The update didn't install; Overhand is unchanged. To update by hand: ${say}`);
@@ -509,7 +542,7 @@ async function update(): Promise<void> {
   console.log(
     res?.ok
       ? "Overhand restarts on the new version as soon as no agent is running."
-      : "Restart Overhand to use the new version: overhand stop && overhand start",
+      : `Restart Overhand to use the new version: ${cli("stop")} && ${cli("start")}`,
   );
 }
 
@@ -521,8 +554,9 @@ async function doctor(): Promise<void> {
   for (const x of list)
     console.log(`${x.ok ? "✓" : x.optional ? "–" : "✗"} ${x.what}${x.ok ? "" : x.optional ? " (optional)" : `\n    ${x.fix}`}`);
   const missing = list.filter((x) => !x.ok && !x.optional).length;
-  if (needsSetup()) console.log(`\nNot set up yet: run overhand start and finish the setup in the browser (${DASHBOARD}).`);
-  if (missing) console.log(`\n${missing} thing(s) to fix.`);
+  if (needsSetup())
+    console.log(`\nNot set up yet: run ${cli((await running()) ? "open" : "start")} and finish the setup in the browser (${DASHBOARD}).`);
+  if (missing) console.log(`\n${missing} ${missing === 1 ? "thing" : "things"} to fix.`);
   else if (!needsSetup()) console.log("\nAll set.");
   process.exitCode = missing ? 1 : 0;
 }
@@ -581,7 +615,7 @@ export async function main(mode: string | undefined): Promise<void> {
   else if (mode === "open") process.exitCode = await openCli(process.argv.slice(3));
   else if (mode === "stop") {
     const r = uninstallService(HOME, join(OPS, "logs"));
-    console.log(r.ok ? "Overhand stopped; it won't start at login. Start it again with: overhand start" : `Couldn't stop it: ${r.err}`);
+    console.log(r.ok ? `Overhand stopped; it won't start at login. Start it again with: ${cli("start")}` : `Couldn't stop it: ${r.err}`);
     if (!r.ok) process.exitCode = 1;
   } else if (mode === "status") await showStatus();
   else if (mode === "answer") {

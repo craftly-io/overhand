@@ -35,6 +35,7 @@ import {
   paddleBase,
   selectPacks,
   selectPrices,
+  workspaceSig,
 } from "./paddle";
 import { access } from "./team";
 import { BRAND, type Env, html, json, page } from "./worker";
@@ -532,7 +533,10 @@ export async function billingRoute(req: Request, env: Env, url: URL, s: SessionC
       const t = z.object({ id: z.string() }).parse(
         await paddle(base, env.PADDLE_API_KEY, "/transactions", {
           method: "POST",
-          body: { items: [{ price_id: price.id, quantity }], custom_data: { workspace: s.ws } },
+          body: {
+            items: [{ price_id: price.id, quantity }],
+            custom_data: { workspace: s.ws, sig: await workspaceSig(env.SIGNING_KEY, s.ws) },
+          },
         }),
       );
       return json({ transactionId: t.id, email: s.email });
@@ -547,7 +551,10 @@ export async function billingRoute(req: Request, env: Env, url: URL, s: SessionC
       const t = z.object({ id: z.string() }).parse(
         await paddle(base, env.PADDLE_API_KEY, "/transactions", {
           method: "POST",
-          body: { items: [{ price_id: pack.id, quantity: 1 }], custom_data: { workspace: s.ws } },
+          body: {
+            items: [{ price_id: pack.id, quantity: 1 }],
+            custom_data: { workspace: s.ws, sig: await workspaceSig(env.SIGNING_KEY, s.ws) },
+          },
         }),
       );
       return json({ transactionId: t.id, email: s.email });

@@ -33,7 +33,9 @@ import {
   paddleHmac,
   paddleIps,
   selectPrices,
+  signedWorkspace,
   verifyPaddleSignature,
+  workspaceSig,
 } from "../src/paddle";
 import { MAX_PEERS, type Who, Workspace } from "../src/signal";
 import worker, { type Env, relayKeys, route, safeNext, TURN_GRANTS } from "../src/worker";
@@ -260,8 +262,17 @@ const ipsFetch = async (input: string | URL | Request) =>
     ? Response.json(PADDLE_IPS)
     : new Response(null, { status: 404 });
 
-async function webhook(body: object, opts: { secret?: string; ts?: number; ip?: string } = {}) {
-  const raw = JSON.stringify(body);
+/** A subscription event as a checkout the relay made sends it: its workspace carries the relay's mark (workspaceSig). */
+async function signed<T extends ReturnType<typeof subscriptionEvent>>(e: T): Promise<T> {
+  const ws = e.data.custom_data.workspace;
+  return { ...e, data: { ...e.data, custom_data: { workspace: ws, sig: await workspaceSig(keys.priv, ws) } } };
+}
+
+async function webhook(
+  body: ReturnType<typeof subscriptionEvent>,
+  opts: { secret?: string; ts?: number; ip?: string; unsigned?: boolean } = {},
+) {
+  const raw = JSON.stringify(opts.unsigned ? body : await signed(body));
   const ts = String(Math.floor((opts.ts ?? Date.now()) / 1000));
   const h1 = await paddleHmac(opts.secret ?? "pdl_ntfset_secret", ts, raw);
   const headers = { "paddle-signature": `ts=${ts};h1=${h1}`, "cf-connecting-ip": opts.ip ?? PADDLE_IP };
@@ -617,7 +628,10 @@ describe("checkout", () => {
       expect(await r.json()).toEqual({ transactionId: "txn_1", email: "user_A@x" });
       expect(calls.at(-1)).toEqual({
         url: "https://sandbox-api.paddle.com/transactions",
-        body: { items: [{ price_id: "pri_team_m", quantity: 2 }], custom_data: { workspace: "user_A" } },
+        body: {
+          items: [{ price_id: "pri_team_m", quantity: 2 }],
+          custom_data: { workspace: "user_A", sig: await workspaceSig(keys.priv, "user_A") },
+        },
       });
       expect(calls.every((c) => !c.url.startsWith("https://api.paddle.com"))).toBe(true);
     } finally {
@@ -1286,5 +1300,40 @@ describe("what a security scanner sees", () => {
   test("every relay page and every static file turns off the same unused browser features", async () => {
     expect((await route(new Request(`${APP}/relay/login`), env())).headers.get("permissions-policy")).toBe(PERMISSIONS);
     expect(readFileSync(join(import.meta.dir, "..", "wrangler.jsonc"), "utf8")).toContain(`Permissions-Policy: ${PERMISSIONS}`);
+  });
+});
+
+describe("a checkout opened in a browser", () => {
+  // Paddle.js with the public client token can open a checkout with any custom_data: a buyer naming someone else's
+  // workspace must never take over or end that workspace's subscription
+  test("can't claim another workspace's subscription, and the owner's own renewals still apply", async () => {
+    const at = (h: number) => `2026-10-2${h}T10:00:00.000000Z`;
+    expect(await applyEvent(db, subscriptionEvent({ ws: "user_V", sub: "sub_victim", at: at(0) }), 0, true)).toBe("applied");
+    // the attacker's own subscription, naming the victim's workspace, then cancelled: both refused
+    expect(await applyEvent(db, subscriptionEvent({ ws: "user_V", sub: "sub_attacker", at: at(1) }), 0, false)).toBe("stale");
+    const cancel = subscriptionEvent({ ws: "user_V", sub: "sub_attacker", status: "canceled", type: "subscription.canceled", at: at(2) });
+    expect(await applyEvent(db, cancel, 0, false)).toBe("stale");
+    expect((await activeEntitlement(db, "user_V"))?.subscription_id).toBe("sub_victim");
+    // a workspace with nothing on record isn't created by an unsigned event either
+    expect(await applyEvent(db, subscriptionEvent({ ws: "user_W", sub: "sub_x", at: at(1) }), 0, false)).toBe("stale");
+    expect(await activeEntitlement(db, "user_W")).toBeNull();
+    // the victim's own subscription from before the mark (unsigned) still renews
+    expect(
+      await applyEvent(db, subscriptionEvent({ ws: "user_V", sub: "sub_victim", type: "subscription.updated", at: at(3) }), 0, false),
+    ).toBe("applied");
+  });
+
+  test("the webhook takes only the relay's own mark as signed", async () => {
+    const e = subscriptionEvent({ ws: "user_A" });
+    expect(await signedWorkspace(keys.priv, await signed(e))).toBe(true);
+    expect(await signedWorkspace(keys.priv, e)).toBe(false);
+    expect(await signedWorkspace(keys.priv, { ...e, data: { ...e.data, custom_data: { workspace: "user_A", sig: "00" } } })).toBe(false);
+    const other = await signed(subscriptionEvent({ ws: "user_B" }));
+    expect(
+      await signedWorkspace(keys.priv, {
+        ...other,
+        data: { ...other.data, custom_data: { ...other.data.custom_data, workspace: "user_A" } },
+      }),
+    ).toBe(false);
   });
 });

@@ -1,8 +1,9 @@
 /**
  * Decision cards: a brief on each item that reaches you. Facts first, gathered without a model (the dashboard's state, the
- * ticket and its comments from the tracker, the lead's question and default); then ONE short read-only call on your own
- * agent account phrases what / why / the recommendation from those facts alone. Cached by the facts' hash, capped per day,
- * bounded in time, and the facts alone stand in whenever no call can be made. Nothing here writes to a tracker or a repo.
+ * ticket and its comments from the tracker, the lead's question and default), and that's the card. Only when you press
+ * Explain does ONE short read-only call on your own agent account phrase what / why / the recommendation from those
+ * facts alone. Cached by the facts' hash, capped per day, bounded in time, and the facts alone stand in whenever no call
+ * can be made. Nothing here writes to a tracker or a repo.
  */
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,11 +26,10 @@ import { cachedCheckup } from "./checkup";
 import { claude } from "./claude";
 import { redactSecrets } from "./corners";
 import { CLIENTS, OPS, today } from "./env";
-import { firstWinFirst } from "./firstwin";
 import { loadState, readJson, writeJsonAtomic } from "./state";
 import { tickets } from "./trackers/index";
 
-/** Briefs an agent phrases per day; past it, the facts alone stand in until tomorrow. */
+/** Briefs an agent phrases per day (each one an Explain you pressed); past it, the facts alone stand in until tomorrow. */
 const DAILY_CAP = 40;
 /** How long one phrasing may take before the facts stand in (it isn't asked again until the item changes). */
 const ITEM_TIMEOUT_MS = 90_000;
@@ -124,13 +124,11 @@ interface Store {
   /** Agent phrasings today. */
   used: number;
   briefs: Record<string, Brief>;
-  /** The facts' hash a phrasing failed or timed out on: not asked again until the item changes. */
-  failed: Record<string, string>;
   snoozed: Record<string, number>;
 }
 
 const FILE = () => join(OPS, "briefs.json");
-const blank = (): Store => ({ day: today(), used: 0, briefs: {}, failed: {}, snoozed: {} });
+const blank = (): Store => ({ day: today(), used: 0, briefs: {}, snoozed: {} });
 function load(): Store {
   const s = { ...blank(), ...readJson<Partial<Store>>(FILE(), {}) };
   return s.day === today() ? s : { ...s, day: today(), used: 0 };
@@ -185,15 +183,15 @@ export async function phrase(b: Brief, facts: string, agent: typeof claude = cla
 const inflight = new Map<string, Promise<void>>();
 
 /**
- * The brief on one item: the agent's phrasing when it's cached for these facts, else the facts at once while (when the
- * day's cap, the budget pause and an earlier failure allow) one phrasing starts in the background (`pending`). Null
- * when the item isn't there.
+ * The brief on one item: the agent's phrasing when it's cached for these facts, else the facts. With `explain` (you
+ * pressed Explain), and when the day's cap and the budget pause allow, one phrasing starts in the background
+ * (`pending`); one that fails leaves the facts, and Explain asks again. Null when the item isn't there.
  */
 export function briefFor(
   s: DashboardState,
   id: string,
   more: MoreFacts = {},
-  opts: { phrase?: Phrase; now?: number; timeoutMs?: number; cap?: number } = {},
+  opts: { explain?: boolean; phrase?: Phrase; now?: number; timeoutMs?: number; cap?: number } = {},
 ): { brief: Brief; done: Promise<void> } | null {
   const now = opts.now ?? Date.now();
   const facts = factsBrief(s, id, more, now);
@@ -206,9 +204,7 @@ export function briefFor(
   const base = { ...facts, hash };
   const running = inflight.get(id);
   if (running) return { brief: { ...base, pending: true }, done: running };
-  // no wording before the first win has its PR (firstWinFirst): the facts stand in
-  if (store.failed[id] === hash || store.used >= (opts.cap ?? DAILY_CAP) || s.paused || firstWinFirst())
-    return { brief: base, done: Promise.resolve() };
+  if (!opts.explain || store.used >= (opts.cap ?? DAILY_CAP) || s.paused) return { brief: base, done: Promise.resolve() };
   store.used += 1;
   save(store);
   const call = opts.phrase ?? phrase;
@@ -216,12 +212,12 @@ export function briefFor(
   const timeout = new Promise<null>((ok) => {
     timer = setTimeout(() => ok(null), opts.timeoutMs ?? ITEM_TIMEOUT_MS);
   });
-  // ponytail: a timed-out run is left to its CLI's own task timeout; the facts stand in and it isn't asked again
+  // ponytail: a timed-out run is left to its CLI's own task timeout; the facts stand in until Explain asks again
   const done = Promise.race([call(base, text).catch(() => null), timeout])
     .then((a) => {
+      if (!a) return;
       const st = load();
-      if (a) st.briefs[id] = { ...withAnswer(base, a), at: Date.now() };
-      else st.failed[id] = hash;
+      st.briefs[id] = { ...withAnswer(base, a), at: Date.now() };
       save(st);
     })
     .finally(() => {

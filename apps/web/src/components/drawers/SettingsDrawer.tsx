@@ -501,7 +501,8 @@ function ScheduleTab() {
   return (
     <>
       <FieldCard title="Schedule">
-        {num("Plan from hour", "schedule.planFromHour")}
+        <Field label={w.setPlanOn} path="schedule.plan" kind="bool" />
+        {num(w.setPlanFrom, "schedule.planFromHour")}
         {num("Night report at hour (-1 = off)", "schedule.briefAtHour")}
         <Field
           label="Seasons follow (hemisphere; auto = from the time zone)"
@@ -859,6 +860,7 @@ export function SettingsDrawer({ tab: opening = "projects", project }: { tab?: s
     folders: data.folders,
     store: data.secretStore,
     slackMcp: data.slackMcp,
+    local: data.local,
     set: (path, v) => {
       let next = setAt(draft, path, v);
       // the tracker kind decides which fields exist: Jira needs a site, GitHub a repo and no token

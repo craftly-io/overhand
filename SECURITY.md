@@ -19,6 +19,9 @@ are public.
 - Secrets are stored in the macOS Keychain or the Linux keyring, never in config files or logs. On a Linux server
   without a keyring, saving a secret fails unless you opt in to a file with `OVERHAND_SECRETS_FILE` (mode 0600).
 - The dashboard listens on 127.0.0.1 only and accepts actions only from its own origin and the addresses you add.
+  Every answer it sends forbids framing (`X-Frame-Options: DENY`, `frame-ancestors 'none'`): every 127.0.0.1 port
+  counts as one site, so without that a page on any local port, an agent's preview among them, could show the
+  dashboard in a frame and trick a click.
 - On the computer itself, every call needs the install's local key (a random key in Overhand's control folder, mode
   0600): the CLI reads the file, and a browser gets a cookie made from it (not the key itself; HttpOnly, SameSite=Lax so a sign-in elsewhere can send it back, while every action also needs the dashboard's own Origin) by opening the one-time
   link `overhand start` and `overhand open` open, which works once, for two minutes; neither gives a link inside a run
@@ -29,19 +32,21 @@ are public.
   Any other device (a phone through `tailscale serve`) is paired once with a one-time code from Settings → Phone and
   then carries a random session cookie (HttpOnly, SameSite=Strict, Secure over https); only its hash is stored, and Settings lists and removes devices. Without one, every page and API answers
   401. Answer buttons in a phone notification carry their own token, which allows only the replies it offered, once,
-  within 24 hours.
+  within 24 hours. A paired device, or the hosted page, can't change what the daemon runs as a command (a project's
+  preview command, cleanup's own commands and folders), the OS sandbox or the allowed addresses: the daemon refuses
+  such a save from it, and Settings there shows those fields read-only, to change on the computer itself.
 - New installs start every project on Draft pull requests, with a $10 daily budget cap on billed spend
   (and on accounts whose billing isn't known yet) unless the first account is a local model.
 - Agents work on branches and open pull requests, and are told never to merge, force-push, deploy or touch production
   data. A guard hook (`overhand guard`) is set up to enforce this on every tool call in every agent CLI that has hooks (Claude
-  Code, Codex, Gemini CLI, Cursor Agent, OpenCode), and also blocks reading secrets and credential files and changing
-  Overhand itself; Aider has no hooks, so it runs with no shell commands and the secret files ignored. The guard fails
+  Code, Codex, Gemini CLI, Cursor Agent, OpenCode), and also blocks reading secrets, credential files, browser profiles and shell history and changing
+  Overhand itself, judging each command as the shell would split it, so quoting hides nothing; Aider has no hooks, so it runs with no shell commands and the secret files ignored. The guard fails
   closed when it can't start. Its limit: it judges the command an agent asks for, not what a script that command runs
   does next, so give agent accounts credentials without admin or deploy rights all the same. Confirmed blocking in a real run: Claude Code, Codex and OpenCode. Aider has no pre-tool hook: it runs no shell commands (confirmed), and the OS sandbox, when on, holds its writes to the run's folder as it does every agent's. Set up to each agent's documented pre-tool hook, not yet confirmed in a real run: Cursor Agent and Gemini CLI. See the
   guard page in the docs (overhand.dev/docs/guard.html).
 - The OS sandbox (Settings, Agent accounts; off by default, or log only first): With the OS sandbox on, each agent run
-  Overhand starts, and each check Overhand itself runs in a project's own files (its package manager, lint script or
-  virtualenv), can write only its own folder, the git data its commits need, its own temp folder (gone when it ends),
+  Overhand starts, and each check Overhand itself runs in a project's own files (its package manager, lint script,
+  virtualenv or screenshot preview), can write only its own folder, the git data its commits need, its own temp folder (gone when it ends),
   its project's package caches and its agent's own state in a folder of Overhand's: never Overhand's files, another
   project, your own agent config, your shell startup files, LaunchAgents, git config, hooks and where git finds the
   repository, or the settings, hooks, plugins and extensions that steer an agent, however the command is spelled. It
@@ -112,7 +117,7 @@ flows browser ↔ daemon over WebRTC (DTLS), through Cloudflare TURN only when N
   use) and refuses an answer it didn't sign, showing a warning if the key changes. Over the channel, the daemon runs the
   dashboard's own request handler: a channel request is always remote (never "local"), needs a paired device's session
   exactly like a phone on your tailnet, and passes the same Origin check. Computer-only actions (adding devices, linking,
-  setup) refuse it. Weak point, stated plainly: first use without the pairing link trusts the key the relay reports;
+  setup, and the config fields above that only the computer changes) refuse it. Weak point, stated plainly: first use without the pairing link trusts the key the relay reports;
   compare the fingerprint in Settings → Phone if that matters to you.
 - **On the hosted page** the paired device's session token lives in localStorage on the hosted origin (a data channel
   carries no cookies), so an XSS on that origin could read it; the page loads no third-party script, and Paddle.js runs

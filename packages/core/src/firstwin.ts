@@ -292,9 +292,9 @@ const FIRST_MS = 90 * 60_000;
 
 /**
  * The first-win gate, the one place it's decided: while the first win is being looked for, waits or runs, Overhand
- * starts no other model run on its own. The daemon's loop skips the daily plan and the inbox, the work pass runs
- * nothing after the first win, Needs you shows facts without an agent's wording, and no usage probe runs. It lets go
- * once the first win opened its PR, failed or found nothing, and after FIRST_MS whatever happened.
+ * starts no other model run on its own: the daemon's loop skips the scheduled plan and inbox, and the work pass runs
+ * nothing after the first win. (Needs you's wording and usage readings only run when you ask.) What you ask for still
+ * runs. It lets go once the first win opened its PR, failed or found nothing, and after FIRST_MS whatever happened.
  */
 export function firstWinFirst(w: { state: StoredWin["state"]; at: number } | null = loadWin(), now = Date.now()): boolean {
   return Boolean(w && ["looking", "queued", "running"].includes(w.state) && now - w.at < FIRST_MS);
