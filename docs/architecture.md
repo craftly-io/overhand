@@ -88,7 +88,7 @@ workflow builds it on a Mac, for Apple silicon and Intel, into the Mac packages.
 `relay/`, one Cloudflare Worker on app.overhand.dev, deployed by hand with wrangler. It signs people in through WorkOS,
 links a daemon to an account, signals WebRTC through a Durable Object per workspace, hands out TURN credentials,
 issues entitlement tokens, runs Paddle billing and its webhooks, and hosts teams (a `TeamRoom` Durable Object per team,
-data in D1). The app's traffic never passes through it. The full flow, migrations and owner setup:
+data in D1), and runs hosted runs on Cloudflare Containers (behind a switch, staging only for now). The app's traffic never passes through it. The full flow, migrations and owner setup:
 [relay/README.md](../relay/README.md); teams: [docs/teams.md](teams.md); cost: [relay/COST.md](../relay/COST.md).
 
 ## The site and the installer

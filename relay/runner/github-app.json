@@ -1,0 +1,9 @@
+{
+  "name": "Overhand hosted runs (staging)",
+  "url": "https://overhand.dev",
+  "description": "Overhand runs a ticket on its own machines while your computer is off, and opens the pull request. A token for one repository, for one run.",
+  "redirect_url": "https://staging-app.overhand.dev/",
+  "public": true,
+  "default_permissions": { "contents": "write", "pull_requests": "write", "metadata": "read" },
+  "default_events": []
+}

@@ -23,6 +23,7 @@ import { gate, holders, readMachine } from "./governor";
 import { guardBlocks } from "./guard";
 import { guides, refreshGuides } from "./guide";
 import { identityOf, progression, routeSuggestions, scorecards } from "./history";
+import { hostedState } from "./hosted";
 import { inboxReadAt } from "./inbox";
 import { instructions, refreshInstructions } from "./instructions";
 import {
@@ -353,6 +354,7 @@ export async function dashboardState(): Promise<DashboardState> {
     slackSignIn: state.slackSignIn ?? null,
     sandboxRefuse: projectSandbox("").refuse ? projectSandbox("").why || "the OS sandbox can't run here" : "",
     menubar: menubarHelper() ? CFG.menubar : null,
+    hosted: hostedState(),
     look: CFG.look,
     dayOne: firstDay(),
     sessions,
@@ -364,6 +366,7 @@ export async function dashboardState(): Promise<DashboardState> {
       autonomy: c.autonomy,
       assignedAutonomy: c.assignedAutonomy,
       shipBlock: shipBlock(c),
+      hosted: Boolean(c.hosted),
       aliases: [...new Set([...c.aliases, basename(c.dir)])],
     })),
     godmode: CFG.godmode.map((g) => {

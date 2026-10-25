@@ -28,4 +28,5 @@ file per module, and run in a scratch `OVERHAND_HOME`.
 | `cleanup.ts`, `cleanup-sources.ts` | Disk cleanup and the caches it knows (printed to `docs/cleanup-sources.md`) |
 | `usage.ts` | Reading agent spend and usage limits from their output |
 | `relay.ts`, `team.ts` | The daemon's side of the hosted relay and of teams |
+| `hosted.ts`, `hosted-run.ts` | Hosted runs: handing queued tickets to the relay, taking results in, and the run inside the container |
 | `state.ts` | `state.json` and the JSON file helpers |

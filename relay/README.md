@@ -65,6 +65,89 @@ The whole design is in [docs/teams.md](../docs/teams.md).
 - **Unlink this computer** (Settings → Phone on that computer): the daemon sends a signed `POST /relay/unlink`. Its key goes into `revoked_links`, every daemon request checks that table, and its open socket is closed. Then the daemon drops its key, so linking again makes a new one. A WebRTC connection that is already open isn't torn down by either action. The daemon's own device pairing still guards it: remove the device in Settings → Phone.
 - **TURN budget:** each `/relay/ice` call counts one grant in `turn_grants` for the workspace and month. Past `TURN_MONTHLY_GRANTS` (default 300), the call returns STUN only (`turn: false`) and doesn't ask Cloudflare. Direct connections keep working; a connection that only TURN could make fails until the next month.
 
+## Hosted runs
+
+Issue #15: a project switched to "Run here when my computer is off" (Quick settings, per project, off by default) has
+its queued tickets run on Overhand's machines while your computer is away. **Built, and switched off everywhere**:
+the relay needs `HOSTED_RUNS: "1"` with the `RUNNER` binding and its container (commented out under `env.staging` in
+`wrangler.jsonc`), the daemon `OVERHAND_HOSTED_RUNS=1`. Until then every `/relay/hosted/` route answers 404 and
+neither the app nor billing shows anything of it. The code: `src/hosted.ts` (relay), `packages/core/src/hosted.ts` (daemon),
+`packages/core/src/hosted-run.ts` and `runner/Dockerfile` (the container), `packages/contract/src/hosted.ts` (shared).
+
+1. **Hand-off.** Each work pass, the daemon sends the tickets it would run on those projects (at most 5, each with the
+   API key its run uses: Claude Code on an Anthropic key or Codex on its key, never a sign-in) over one socket,
+   `/relay/hosted/ws`, to its workspace's `Runner` Durable Object. Only a computer with a paid plan and at least one
+   project switched on ever opens it. The socket hibernates, so an idle one costs no Durable Object time, and its
+   keep-alive pings are answered without waking the object. The list (without keys) goes into the object's storage,
+   and each key onto the socket's attachment. A ticket that starts on the computer is taken off the list first, and an
+   empty list closes the socket.
+2. **Away.** When the socket closes, the object takes the keys into memory and sets an alarm 2 minutes out; a
+   reconnect cancels it. The object stays awake through those 2 minutes (one short wait per close) so the keys are
+   still in memory when the alarm fires. It then runs the list one ticket at a time. If it was evicted anyway, the keys
+   are gone: those tickets are recorded as not started (a card on the computer) and the computer runs them when it's
+   back. That's the fail-safe choice: a key is never put in storage to survive eviction.
+3. **One run.** The plan is checked (`access`: Pro, or a seat on Team). The run reserves its longest length
+   (`HOSTED_RUN_MAX_MIN`, 60) from the month's allowance (`HOSTED_ALLOWANCE`: Pro 300, Team 1,000 per seated member),
+   then from bought minutes. Too few minutes means no start, recorded as `no-minutes`. Then the Overhand GitHub App mints
+   a token for that one repository (contents and pull requests). A fresh `standard-2` container starts and gets the job,
+   the key and the token on port 8080. Inside, `overhand hosted-run` clones the repo and works the ticket as
+   the computer's work pass does (`handleTicket`): the same guard, the same project mode. Overhand pushes the branch and
+   opens the PR with the token; the agent never has it. The container is destroyed, the token revoked, and the minutes
+   it ran (rounded up) charged; the rest goes back. One line per run goes to `hosted_runs`, with any key or token taken
+   out of it.
+4. **Back.** The daemon reads `GET /relay/hosted/runs` each pass. A PR goes into its own tracking (Review, fix rounds
+   here), and the ticket is commented and labelled as for a local run. A stop or a run that never started is a card in
+   Needs you: no minutes gives "Buy run minutes" (this billing page), a stop gives "Assign an agent" here. Then
+   `POST /relay/hosted/seen`.
+
+**Where keys and tokens live.** The API key goes from the daemon's secret store over the socket (TLS) onto that
+socket's attachment, which the runtime keeps in memory with the socket and drops with it. After a close it's in the
+Runner's memory until the run. Then it goes into the container's in-memory secrets file (`/dev/shm`) and the agent's environment, for that run only.
+The GitHub token lives in the Runner's memory and the container's `overhand` process environment, for one run: GitHub
+expires it within the hour, and the Runner revokes it when the run ends. Neither is written to D1 or any log. Known
+limit: inside the container the agent runs as the same user as Overhand. The token is out of its environment and out
+of the process's start-up environment, but not behind a user boundary yet.
+
+**Prepaid only.** Packs are one-time Paddle prices tagged `custom_data: {"pack": "minutes", "minutes": N}`, read from
+the catalog like plans. `transaction.completed` credits the balance once per event id. Bought minutes don't expire. Our
+cost and the floor price are in `src/cost.ts` (`RUN_COST_PER_MIN_USD`, `RUN_MARGIN`, `RUN_PACKS`): a test fails if a
+pack sells below cost × 2.5. The billing page shows minutes left, the packs and each run's minutes.
+
+### Owner steps (staging first)
+
+1. **GitHub App.** `bun relay/runner/github-app.ts craftly-io` opens a page with one button that creates the App from
+   [`runner/github-app.json`](runner/github-app.json): contents and pull requests write, metadata read, no webhooks.
+   GitHub then sends you to `https://staging-app.overhand.dev/?code=…`. Within an hour, run
+   `gh api -X POST /app-manifests/<code>/conversions`. It answers with `id` and `pem`.
+   - Keep `id` for `GITHUB_APP_ID` (step 5).
+   - Convert the key: `openssl pkcs8 -topk8 -nocrypt -in app.pem -out app-pkcs8.pem`.
+   - `bunx wrangler@4.151.1 secret put GITHUB_APP_PRIVATE_KEY --env staging < app-pkcs8.pem`, then delete both files.
+   - In the App's settings, set the git identity in `runner/Dockerfile` to the App's bot (`<id>+<slug>[bot]@users.noreply.github.com`).
+   - Install the App on the repos to try, under Install App.
+2. **D1.** `cd relay && bunx wrangler@4.151.1 d1 execute overhand-relay-staging --remote --env staging --file migrations/2026-10-25-hosted-runs.sql`.
+3. **Paddle sandbox.** Create a product "Overhand run minutes" (tax category standard digital goods). Give it two
+   one-time prices (no billing cycle), quantity 1–10:
+   - €6.00 with custom_data `{"pack": "minutes", "minutes": 1000}`
+   - €28.00 with custom_data `{"pack": "minutes", "minutes": 5000}`
+
+   Add `transaction.completed` to the notification destination's events. Any other price must keep
+   `keepsMargin` true (the floor is about €0.0051 a minute).
+4. **Container image.** Release a daemon version that has `overhand hosted-run` first: the image builds `FROM`
+   `ghcr.io/craftly-io/overhand`. Then pin `OVERHAND_IMAGE`, `CLAUDE_CODE_VERSION` and `CODEX_VERSION` in
+   `runner/Dockerfile`. Workers Paid is needed for Containers.
+5. **Deploy staging.** In `wrangler.jsonc` under `env.staging`, uncomment the `RUNNER` binding, `containers` and the
+   hosted vars (with the App's id in `GITHUB_APP_ID`). Then `cd relay && bunx wrangler@4.151.1 deploy --env staging`:
+   it builds the image (Docker needed), creates the `Runner` class (migration `v3`) and the container application.
+6. **Try it.** Run a daemon with `OVERHAND_HOSTED_RUNS=1 OVERHAND_RELAY_URL=https://staging-app.overhand.dev` and the
+   staging relay key, linked to a staging account with a sandbox plan, on a project with an API-key account. Switch the
+   project on in Quick settings, queue a ticket, and stop the daemon. Watch the Worker's logs. Check that the alarm
+   finds the keys after the 2-minute grace (a run starts, not a "not started" card). If it doesn't, start the container
+   at the close instead and let it wait out the grace, charging those minutes to the run.
+7. **Production**, when staging holds: the same steps without `--env staging` (`overhand-relay`, live Paddle). Then add
+   `RUNNER` and `containers` to the top level of `wrangler.jsonc` and set `HOSTED_RUNS: "1"`. Ship a daemon release
+   that turns `hostedRunsOn` on by default, and move the feature from the docs' What's next into the features list
+   and the pricing page.
+
 ## Migrations
 
 Every statement in [`schema.sql`](schema.sql) is `CREATE TABLE IF NOT EXISTS`, so re-running the whole file is the migration: `bunx wrangler@4.151.1 d1 execute overhand-relay --remote --file schema.sql`. Only additive changes go in; anything else needs its own script.
@@ -76,6 +159,9 @@ Every statement in [`schema.sql`](schema.sql) is `CREATE TABLE IF NOT EXISTS`, s
   [`migrations/2026-10-23-scheduled-change.sql`](migrations/2026-10-23-scheduled-change.sql): run once per database.
 - 2026-10-24: added `links` (computers linked to a workspace). Re-run `schema.sql` on staging and production; until
   then the home page treats every account as not linked yet, and entitlements work as before.
+- 2026-10-25: added `hosted_minutes` and `hosted_runs` (hosted runs), by
+  [`migrations/2026-10-25-hosted-runs.sql`](migrations/2026-10-25-hosted-runs.sql). Not applied anywhere yet; staging
+  first (Hosted runs, owner steps). The Worker's `migrations` gained `v3` for the `Runner` class.
 
 ## Why D1 and not KV for entitlements
 

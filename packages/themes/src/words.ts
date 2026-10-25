@@ -85,6 +85,15 @@ export const plainWords = {
   glanceHide: "Hide from the menu bar",
   glanceMore: "And {n} more in Needs you",
   quickProjects: "What agents do",
+  // a project's hosted runs switch (packages/core/src/hosted.ts): in Quick settings under its mode
+  hostedHere: "Run here when my computer is off",
+  hostedHereHint: "Its queued tickets run on Overhand's machines, on your own API key, from your run minutes.",
+  // the card for a hosted run that stopped or never started; the ticket is back in this computer's queue
+  alHostedNoMinutes: "{key} didn't run while your computer was off",
+  alHostedNoMinutesSub: "No run minutes were free. It runs here now; buy minutes for next time.",
+  alHostedStopped: "{key}'s hosted run stopped",
+  alHostedStoppedSub: "{why} It's back in this computer's queue.",
+  alHostedBuy: "Buy run minutes",
   quickAll: "All settings",
   /** Focus: outcomes only, the steps folded; a switch in Quick settings and the F key. */
   focus: "Focus",
@@ -1555,6 +1564,22 @@ export const plainWords = {
   billingMonthsFree: "{n} months free",
   billingSave: "save {amount}",
   // after "You're on Pro": when it renews, or the cancel or pause scheduled for the period's end and how to undo it
+  // /relay/billing, where hosted runs are on (relay/src/hosted.ts): the minutes left, the packs, each run's minutes
+  billingMinutes: "Run minutes",
+  billingMinutesLine:
+    "{total} run minutes: {left} of this month's {allowance} that come with your plan, and {bought} you bought. Bought minutes don't expire.",
+  billingMinutesNoPlan: "Hosted runs come with Pro and Team, and run on run minutes: {bought} bought so far.",
+  billingMinutesHow: "A hosted run starts only when {max} minutes are free, holds them while it runs, and gives back what it didn't use.",
+  billingBuyMinutes: "Buy {n} run minutes · {price}",
+  billingMinutesBought: "Payment received. Your minutes arrive in a few seconds…",
+  billingRuns: "Hosted runs",
+  billingRunsNone: "No hosted runs yet.",
+  billingRunRow: "{date} · {ticket} in {project} · {minutes} min · {status}",
+  hostedStatusDone: "PR opened",
+  hostedStatusReport: "report filed",
+  hostedStatusFailed: "stopped",
+  hostedStatusNoMinutes: "not started: no minutes",
+  hostedStatusNotStarted: "not started",
   billingRenewing: ", renewing {date}.",
   billingUntilCancel: " until {date}; it won't renew. To keep it, choose Manage billing.",
   billingUntilPause: " until {date}; then it pauses. To keep it going, choose Manage billing.",

@@ -420,6 +420,25 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       ...(canAssign(s, f.project) && !isAssigned(s, f.key) ? { assign: { project: f.project, id: f.id } } : {}),
       target: { kind: "held", id: f.id, key: f.key, post: Boolean(f.key && f.post) },
     });
+  // a hosted run that stopped or never started while this computer was away: the ticket runs here now; the fix for no
+  // minutes is buying some, for a stop it's handing the ticket to an agent here afresh
+  for (const r of s.hosted?.stopped ?? [])
+    a.push(
+      r.status === "no-minutes"
+        ? {
+            sev: 2,
+            title: fmt(w.alHostedNoMinutes, { key: r.key }),
+            sub: w.alHostedNoMinutesSub,
+            go: w.alHostedBuy,
+            target: { kind: "link", url: s.hosted?.billing ?? "" },
+          }
+        : {
+            sev: 2,
+            title: fmt(w.alHostedStopped, { key: r.key }),
+            sub: fmt(w.alHostedStoppedSub, { why: r.summary }),
+            target: { kind: "ticket", key: r.key },
+          },
+    );
   if (plan.notes.length) a.push({ sev: 1, title: w.alNotes, sub: plan.notes.join(" ").slice(0, 90), target: { kind: "notes" } });
   // the budget holds billed accounts (and ones not known yet) until tomorrow; Needs you is where you look for what's stopped
   if (s.budgetUsd > 0 && s.budgetSpent >= s.budgetUsd && budgetApplies(s))

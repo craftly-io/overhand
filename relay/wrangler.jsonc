@@ -2,7 +2,7 @@
   // The relay and hosted dashboard, one origin: app.overhand.dev. Static files are the dashboard build and never run the
   // Worker; only /relay/* and / do (/ signed out is a public page). Not deployed by CI: run `cd relay && bunx wrangler@4.151.1 deploy` after the one-time
   // setup in relay/README.md. Secrets (never in this file): SIGNING_KEY, WORKOS_API_KEY, TURN_KEY_API_TOKEN,
-  // PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET. app.overhand.dev is on live Paddle; `--env staging` is overhand-relay-staging on staging-app.overhand.dev: its own
+  // PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET, and on staging GITHUB_APP_PRIVATE_KEY (hosted runs). app.overhand.dev is on live Paddle; `--env staging` is overhand-relay-staging on staging-app.overhand.dev: its own
   // database, signing key and secrets, always on Paddle sandbox, so relay changes are tried there before app.overhand.dev.
   // Workers are named overhand-<part>[-staging]: overhand-site, overhand-site-staging, overhand-get, overhand-relay.
   "name": "overhand-relay",
@@ -29,10 +29,12 @@
       { "name": "TEAM", "class_name": "TeamRoom" }
     ]
   },
-  // SQLite-backed: the only kind on the Free plan, and required for new namespaces since 2026-07-09. v2: teams' rooms
+  // SQLite-backed: the only kind on the Free plan, and required for new namespaces since 2026-07-09. v2: teams' rooms;
+  // v3: hosted runs' Runner (unbound until the owner's setup: README.md, Hosted runs)
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Workspace"] },
-    { "tag": "v2", "new_sqlite_classes": ["TeamRoom"] }
+    { "tag": "v2", "new_sqlite_classes": ["TeamRoom"] },
+    { "tag": "v3", "new_sqlite_classes": ["Runner"] }
   ],
   "d1_databases": [{ "binding": "DB", "database_name": "overhand-relay", "database_id": "946dc716-089c-485a-8eea-e0beae896347" }],
   "vars": {
@@ -51,8 +53,20 @@
         "bindings": [
           { "name": "WORKSPACE", "class_name": "Workspace" },
           { "name": "TEAM", "class_name": "TeamRoom" }
+          // hosted runs (relay/src/hosted.ts), once the owner's steps in README.md (Hosted runs) are done: uncomment
+          // , { "name": "RUNNER", "class_name": "Runner" }
         ]
       },
+      // hosted runs: one container per run, started and destroyed by its workspace's Runner. Uncomment with the binding
+      // above and the vars below (a deploy then builds ./runner/Dockerfile, so it needs Docker)
+      // "containers": [
+      //   {
+      //     "class_name": "Runner",
+      //     "scheduling_policy": "durable_object",
+      //     "images": { "base": { "dockerfile": "./runner/Dockerfile" } },
+      //     "max_instances": 10
+      //   }
+      // ],
       "d1_databases": [
         { "binding": "DB", "database_name": "overhand-relay-staging", "database_id": "67c52b9a-25a4-4d27-8e7c-a9258da8329a" }
       ],
@@ -64,6 +78,8 @@
         "TURN_MONTHLY_GRANTS": "300",
         "SIGN_IN_PROVIDERS": "",
         "SITE_ORIGIN": "https://staging.overhand.dev"
+        // hosted runs on, with the container above; GITHUB_APP_ID is the App's id (relay/runner/github-app.ts)
+        // , "HOSTED_RUNS": "1", "HOSTED_RUN_MAX_MIN": "60", "GITHUB_APP_ID": "<the App's id>"
       }
     }
   }

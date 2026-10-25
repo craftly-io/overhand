@@ -179,3 +179,41 @@ export function monthlyCostWithTeams(u: Usage, t: TeamUsage) {
     (one.d1Reads / 1e6) * D1_PRICES.readsPerM;
   return { base, teams: v, workerRequests, doRequests, gbs, lines, usd, perTeam };
 }
+
+// ── Hosted runs: customers pay for them, with a margin on top ──
+
+/** The one container size hosted runs start (Cloudflare Containers' standard-2). */
+export const RUN_INSTANCE = { name: "standard-2", vcpu: 1, memGiB: 6, diskGB: 12 } as const;
+
+/** Cloudflare Containers' per-second rates, USD (developers.cloudflare.com/containers/pricing, checked 2026-10-25). */
+const CONTAINER_RATES = { memGiBs: 0.0000025, vcpuS: 0.00002, diskGBs: 0.00000007 } as const;
+
+/**
+ * Our cost of one run minute at full CPU, USD: 60 s × (6 GiB × $0.0000025 + 1 vCPU × $0.000020 + 12 GB × $0.00000007)
+ * = 60 × $0.00003584 ≈ $0.00215. CPU is billed only while active, so an idle minute costs about $0.00095; the margin is
+ * taken on the full-CPU figure. Egress past the included allowance ($0.025/GB) is a clone and a push per run: noise.
+ */
+export const RUN_COST_PER_MIN_USD =
+  60 *
+  (RUN_INSTANCE.memGiB * CONTAINER_RATES.memGiBs +
+    RUN_INSTANCE.vcpu * CONTAINER_RATES.vcpuS +
+    RUN_INSTANCE.diskGB * CONTAINER_RATES.diskGBs);
+
+/** The least a run minute may sell for: our cost times this (the owner's margin on everything hosted). */
+export const RUN_MARGIN = 2.5;
+
+/**
+ * The run minute packs to create in Paddle (one-time prices, custom_data `{pack: "minutes", minutes}`), in euros:
+ * €6 for 1,000 (€0.0060 a minute) and €28 for 5,000 (€0.0056). The floor is $0.00215 × 2.5 × €0.95/$ ≈ €0.0051, which
+ * the cost test checks for these and for whatever the catalog says.
+ */
+export const RUN_PACKS = [
+  { minutes: 1000, eur: 6 },
+  { minutes: 5000, eur: 28 },
+] as const;
+
+/** Whether a pack's price (minor units, EUR or USD) per minute keeps the margin over our cost; any other currency doesn't. */
+export const keepsMargin = (amount: number, currency: string, minutes: number): boolean => {
+  const perUsd = currency === "EUR" ? EUR_PER_USD : currency === "USD" ? 1 : 0;
+  return perUsd > 0 && amount / 100 / minutes >= RUN_COST_PER_MIN_USD * RUN_MARGIN * perUsd;
+};

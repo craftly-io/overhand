@@ -32,6 +32,7 @@ import { loadWin, type StoredWin, saveWin } from "./firstwin";
 import { protectedBranch } from "./guard";
 import { capReport, guideMerged, guideNext, guidePrompt, isGuideKey, loadGuides, type StoredGuide, saveGuide } from "./guide";
 import { recordOutcome } from "./history";
+import { handOff, hostedJobs, hostedTaken, takeBack, takeInHosted } from "./hosted";
 import { createPendingTickets } from "./inbox";
 import { adoptLeadPrs, leadShipStep } from "./lead-prs";
 import { learnFrom } from "./learn";
@@ -54,7 +55,7 @@ interface Worktree {
   base: string;
 }
 
-interface AgentResult {
+export interface AgentResult {
   status: "done" | "question" | "failed";
   pr_title: string;
   pr_body: string;
@@ -450,7 +451,11 @@ function fixPrompt(key: string, pr: TrackedPr, feedback: string, c: Client): str
     .trimEnd();
 }
 
-async function handleTicket(state: State, tk: Ticket): Promise<"ok" | "no-capacity"> {
+/**
+ * Works one ticket end to end: repo, worktree, the agent's run, then its PR, report, question or another attempt, as
+ * the project's autonomy allows. `told` hears the run's own one-line outcome (a hosted run's container reports it).
+ */
+export async function handleTicket(state: State, tk: Ticket, told?: (r: AgentResult) => void): Promise<"ok" | "no-capacity"> {
   // where Overhand may not post (watch, a task with no ticket) no label marks the ticket as waiting on you: one that
   // stops for you counts as tried out, so it isn't rerun every pass; assigning an agent to it starts it afresh
   const held = !mayPost(tk);
@@ -479,6 +484,7 @@ async function handleTicket(state: State, tk: Ticket): Promise<"ok" | "no-capaci
     return "no-capacity";
   }
   const r = run.out;
+  told?.(r);
   const tag = `${tk.key} (${run.account}, $${run.cost.toFixed(2)})`;
   if (r.status === "done" && policyOf(tk.client.autonomy).pr === "none") {
     // watch: the run was read-only; its report is held for you (dashboard: Post it, Assign an agent), never posted. A
@@ -777,6 +783,8 @@ export async function work(): Promise<boolean> {
       }
     }
     await createPendingTickets(state);
+    // what hosted runs did while this computer was away: their PRs are tracked from here like its own
+    await takeInHosted(state, CLIENTS).catch((e: unknown) => report(`⚠ hosted runs: ${errorText(e)}`));
     // the first win, right after setup: before anything else, and inside the daily budget like any run
     if (await runFirstWin(state)) budget--;
     // onboarding guides asked for from the dashboard: also inside the budget, and before the queue like the first win
@@ -910,6 +918,8 @@ export async function work(): Promise<boolean> {
       });
     for (const tk of queue) tk.client = runClient(tk.client, tk.key, assigned);
     const busy: string[] = [LABEL.working, LABEL.review, LABEL.blocked];
+    // projects that run hosted while this computer is away: the relay holds their queue until it is, or this pass runs it
+    await handOff(hostedJobs(queue, state, busy)).catch((e: unknown) => report(`⚠ hosted runs: ${errorText(e)}`));
     await runGrouped(
       queue,
       (tk) => tk.client.name,
@@ -917,8 +927,9 @@ export async function work(): Promise<boolean> {
       async (tk) => {
         if (budget <= 0) return false;
         if (tk.statusType === "completed" || tk.labels.some((l) => busy.includes(l)) || state.prs[tk.key]) return true;
-        if ((state.attempts[tk.key] ?? 0) >= CFG.limits.maxAttempts) return true;
+        if ((state.attempts[tk.key] ?? 0) >= CFG.limits.maxAttempts || hostedTaken(tk.key)) return true;
         budget--;
+        await takeBack(tk.key).catch(() => undefined); // running here now: never hosted as well
         const r = await handleTicket(state, tk).catch(async (e: unknown) => {
           report(`⚠ ${tk.key}: ${errorText(e)}`);
           await setLabels(tk, [], [LABEL.working]).catch(() => undefined);

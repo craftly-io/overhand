@@ -111,3 +111,23 @@ Inputs (`TEAM_TEN_K`), deliberately busy:
 One active team of five costs about **$0.015 a month** at list prices, before any allowance. The line that would grow
 is D1 writes: at 100 events per member per day the total is $86.36, still under the cap. Logging fewer kinds of events
 comes first, before anything else changes. The test in `test/team.test.ts` keeps both cases under the cap.
+
+## Hosted runs
+
+Hosted runs (README, Hosted runs) are the one hosted feature whose cost grows with use, so customers pay for it,
+with a margin: prepaid run minutes only, and no run starts without the minutes for its longest length. The numbers
+live in [`src/cost.ts`](src/cost.ts):
+
+- `RUN_INSTANCE`: one size, Cloudflare Containers' `standard-2` (1 vCPU, 6 GiB, 12 GB disk).
+- `RUN_COST_PER_MIN_USD`: 60 s × (6 GiB × $0.0000025 + 1 vCPU × $0.000020 + 12 GB × $0.00000007) ≈ **$0.00215** a
+  minute with the CPU busy the whole time. CPU is billed only while active, so a typical minute costs less.
+- `RUN_MARGIN` = 2.5 and `RUN_PACKS`: €6 for 1,000 minutes and €28 for 5,000. `test/hosted.test.ts` fails if a pack,
+  here or in the catalog, sells below cost × 2.5 (about €0.0051 a minute).
+- The allowance that comes with a plan (Pro 300 minutes a month, Team 1,000 per seat) costs us at most $0.65 and $2.15
+  a month per workspace.
+
+The `Runner` Durable Object's socket hibernates, so an idle one costs nothing. Its keep-alive pings are auto-answered
+and free, and only a computer with a paid plan and a project switched on opens one. What's billed is a few ms per
+hand-off message, plus one awake wait through the 2-minute grace each time the socket closes. At 0.125 GB × 125 s ≈
+16 GB-s per close and 6 closes a day, that's about 2,800 GB-s a month per daemon, $0.035 past the included 400,000.
+The Pro or Team plan every such computer is on covers it many times over.

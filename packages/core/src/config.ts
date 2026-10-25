@@ -285,6 +285,11 @@ const ClientSchema = z.object({
    * Swift packages and firebase-tools can't run inside it). `sandbox.required` still holds it. Left out: "inherit".
    */
   sandbox: z.enum(["inherit", "off"]).optional(),
+  /**
+   * "Run here when my computer is off" (hosted.ts): while this computer is away, its queued tickets run on Overhand's
+   * machines, on an API key of yours, from your run minutes. Off when left out; GitHub projects only.
+   */
+  hosted: z.boolean().optional(),
   /** This project's CI, deploy and error sources; whatever they return is shown under this project. GitHub Actions needs nothing here. */
   status: z
     .object({
@@ -779,6 +784,7 @@ export function parseConfig(raw: unknown): Config {
     const unknown = (x.accounts ?? []).filter((a) => !c.accounts.includes(a));
     if (unknown.length) problems.push(`project ${x.name} lists unknown accounts ${unknown.join(", ")}`);
     if (x.autonomy === "ship" && x.host !== "github") problems.push(`project ${x.name}: Ship needs GitHub's auto-merge`);
+    if (x.hosted && x.host !== "github") problems.push(`project ${x.name}: hosted runs are for GitHub projects`);
   }
   for (const g of c.groups)
     if (g.rules.autonomy === "ship") problems.push(`group ${g.name}: Ship is turned on per project, never for a group`);
@@ -835,7 +841,8 @@ export function withQuick(c: Config, q: QuickSetting): Config {
   if ("menubar" in q) return { ...c, menubar: q.menubar };
   if ("look" in q) return { ...c, look: q.look };
   if (!c.clients.some((x) => x.name === q.project)) throw new Error(`no project ${q.project}`);
-  return { ...c, clients: c.clients.map((x) => (x.name === q.project ? { ...x, autonomy: q.autonomy } : x)) };
+  const set = "hosted" in q ? { hosted: q.hosted } : { autonomy: q.autonomy };
+  return { ...c, clients: c.clients.map((x) => (x.name === q.project ? { ...x, ...set } : x)) };
 }
 
 /** Maps an older config's flat cleanup settings onto categories; its docker and simulator commands became categories. */

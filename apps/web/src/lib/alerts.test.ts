@@ -462,6 +462,25 @@ test("a Slack inbox signed out of Slack says for which projects, with Sign in to
   expect(computeAlerts(base, parsePlan([]), plainWords, NOW).some((a) => a.target.kind === "slack")).toBe(false);
 });
 
+test("alerts: a hosted run with no minutes offers buying them; one that stopped offers an agent here", () => {
+  const run = { project: "Online shop", pr: "", branch: "", draft: false, minutes: 0, at: NOW };
+  const s = state({
+    hosted: {
+      billing: "https://app.example/relay/billing",
+      stopped: [
+        { ...run, key: "SHOP-4", status: "no-minutes", summary: "Not started." },
+        { ...run, key: "SHOP-5", status: "failed", summary: "The repo was archived." },
+      ],
+    },
+  });
+  const a = computeAlerts(s, parsePlan([]), plainWords, NOW).filter((x) => x.title.startsWith("SHOP-"));
+  expect(a.map((x) => [x.title, x.go ?? "", x.target])).toEqual([
+    ["SHOP-4 didn't run while your computer was off", "Buy run minutes", { kind: "link", url: "https://app.example/relay/billing" }],
+    ["SHOP-5's hosted run stopped", "", { kind: "ticket", key: "SHOP-5" }],
+  ]);
+  expect(a[1]?.sub).toBe("The repo was archived. It's back in this computer's queue.");
+});
+
 test("each plugin alert comes with its fix: review it, open the page its finding names, or run it again", () => {
   const [on, waiting] = demoPlugins(NOW);
   if (!on || !waiting) throw new Error("the demo has two plugins");
