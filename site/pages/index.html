@@ -16,30 +16,34 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="{{url}}/og.png?v=2026-10-22c">
 <style>
-  /* The home page: the hook, the live product in one window, five pains each with a live piece, then the facts and the
-     two ways in. Sections are separated by space, never by cards on cards. Every value is a system token (system.css). */
+  /* The home page: the hook with its one command and what happens next, the live product in one window, five pains
+     each with a live piece, then the facts and the command again. Sections are separated by space, never by cards on cards. Every value is a system token (system.css). */
   /* the shared shape (.hero, .block, .facts, .enter) is site.css's; only what the home page does differently is here */
   .hero h1 { max-width: 12em; }
   .hero .works { margin-top: 16px; font-size: 14px; color: var(--ink-10); max-width: 48em; }
-  .hero .acts { align-items: center; margin-top: 8px; max-width: 100%; }
+  .hero .acts { align-items: center; margin-top: 8px; width: min(100%, 34em); }
   /* the home hero sits centred in one column, words and the one prompt, so no half of the screen stands empty */
   .hero { justify-items: center; text-align: center; padding-block: clamp(72px, 12vw, 160px) clamp(48px, 8vw, 96px); }
   .hero h1, .hero .lede { margin-inline: auto; }
   .hero .lede { max-width: 38em; }
   .hero .acts { justify-content: center; }
-  /* the three differentiators: a quiet row under the prompt, the facts' hairline and label, smaller; one column on a phone */
-  .hero .edge { grid-template-columns: repeat(3, minmax(0, 1fr)); width: min(100%, 60em); margin-top: clamp(16px, 3vw, 32px); text-align: start; }
-  .hero .edge li { padding: 14px 0; font-size: var(--t-small-size); }
-  .hero .edge a { color: inherit; text-underline-offset: .2em; }
-  @media (max-width: 760px) { .hero .edge { grid-template-columns: minmax(0, 1fr); margin-top: 16px; } .hero .edge li { padding: 10px 0; } }
-  .hero .ask { margin-inline: auto; text-align: start; }
-  /* the prompt you hand your agent, in full: read what you copy, and its steps one click away */
-  .ask { display: flex; align-items: center; gap: 16px; max-width: 46em; padding: 12px 8px 12px 20px; border-radius: var(--radius-inset);
-    background: var(--white); box-shadow: inset 0 0 0 1px var(--ink-6); }
-  .ask .prompt { flex: 1; min-width: 0; margin: 0; font-size: var(--t-small-size); line-height: 1.5; color: var(--ink-11); }
-  .ask .prompt a { color: var(--ink-12); text-underline-offset: .2em; }
-  .ask .pill { flex: none; }
-  @media (max-width: 520px) { .ask { flex-direction: column; align-items: stretch; padding: 16px; } }
+  .hero .acts > * { flex: 1 1 100%; }
+  .hero .cmd code { text-align: start; }
+  /* what it takes, in one small line under the command; smaller still, the other way in: the prompt for your agent */
+  .hero .needs { margin-top: -6px; font-size: var(--t-small-size); color: var(--ink-11); }
+  .hero .or { max-width: 40em; font-size: 13px; line-height: 1.5; color: var(--ink-10); }
+  .hero .or a { color: inherit; text-underline-offset: .2em; }
+  .hero .or button { all: unset; cursor: pointer; margin-left: 4px; color: var(--ink-12); text-decoration: underline; text-underline-offset: .2em; }
+  .hero .or button:focus-visible { outline: 2px solid var(--ink-12); outline-offset: 2px; }
+  /* a phone can't run the command: its main button is the sample, and the command waits under it */
+  .hero .sample { display: none; }
+  @media (max-width: 600px) { .hero .sample { display: inline-flex; } }
+  /* what happens next: three quiet steps under the command, the facts' hairline and label, smaller; one column on a phone */
+  .hero .next-h { margin-top: clamp(24px, 4vw, 48px); font: 600 var(--t-small-size)/1.3 var(--font-body); color: var(--ink-12); }
+  .hero .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); width: min(100%, 60em); margin-top: 0; text-align: start; }
+  .hero .steps li { padding: 14px 0; font-size: var(--t-small-size); }
+  .hero .where { max-width: 44em; font-size: var(--t-small-size); color: var(--ink-10); }
+  @media (max-width: 760px) { .hero .steps { grid-template-columns: minmax(0, 1fr); } .hero .steps li { padding: 10px 0; } }
 
   /* the install command: one line in its own box, it scrolls inside the box rather than widening the page */
   .cmd { display: flex; align-items: center; gap: 8px; max-width: 100%; min-height: 48px; padding: 4px 4px 4px 18px; border-radius: var(--radius-control);
@@ -85,7 +89,7 @@
 
   .plans, #install { padding-top: clamp(72px, 10vw, 144px); }
 
-  .plans .head { margin-bottom: 0; }
+  .plans .head, .also .head { margin-bottom: 0; }
   .tiers { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 clamp(24px, 4vw, 64px); margin-top: 28px; }
   .tiers li { display: grid; gap: 6px; align-content: start; padding: 18px 0; border-top: 1px solid var(--hair); }
   .tiers p { color: var(--ink-10); }
@@ -93,13 +97,8 @@
   .plans .fine { max-width: 34em; }
   @media (max-width: 760px) { .tiers { grid-template-columns: minmax(0, 1fr); } }
 
-  .ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
-  .way { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; padding: clamp(22px, 3vw, 32px); border-radius: var(--radius-site); background: var(--pane); box-shadow: var(--glass-lift), 0 0 0 1px var(--glass-edge); }
-  .way p { color: var(--ink-10); }
-  .way .prompt { padding: 14px 16px; border-radius: var(--radius-inset); background: var(--white); box-shadow: inset 0 0 0 1px var(--ink-6); color: var(--ink-12); font-size: var(--t-small-size); }
-  .way .copy { justify-self: start; }
+  #install .cmd { width: min(100%, 34em); margin-top: 28px; }
   .next { margin-top: 20px; font-size: clamp(17px, 1.4vw, 20px); color: var(--ink-11); }
-  @media (max-width: 760px) { .ways { grid-template-columns: minmax(0, 1fr); } }
 
 </style>
 </head>
@@ -110,18 +109,23 @@
   <section class="wrap hero" aria-labelledby="hook">
     <h1 id="hook">Stop babysitting your coding agents.</h1>
     <p class="lede">{{lede}}</p>
-    <!-- the prompt in full, so people see what they paste into their agent (and can read the steps it follows); the
-         command line is in #install, the header's Install -->
+    <!-- one way in: the command; on a phone, the sample first. The prompt for an agent is the small second way, in full,
+         so people read what they paste (and its steps are one click away) -->
     <div class="acts">
-      <div class="ask"><p class="prompt" id="prompt">{{setupPrompt}}</p><button type="button" class="pill dark" data-copy="prompt">Copy for your agent</button></div>
+      <a class="pill dark sample" href="{{root}}demo/?demo">Try it on sample data</a>
+      <div class="cmd"><code id="cmd">{{install}}</code><button type="button" data-copy="cmd">Copy</button></div>
     </div>
+    <p class="needs">macOS or Linux · free · needs GitHub and an AI plan you already have</p>
+    <p class="or">or paste this into your agent: <span class="prompt" id="prompt">{{setupPrompt}}</span> <button type="button" data-copy="prompt">Copy the prompt</button></p>
     <p class="works">Works with {{agents}}.</p>
-    <!-- what sets it apart, in one quiet row: each says more further down the page -->
-    <ul class="facts edge" aria-label="What sets {{name}} apart">
-      <li><b>Your agents, any model</b> <a href="{{root}}docs/agents.html#accounts">Local models too.</a></li>
-      <li><b>On your machine</b> Your code stays with you.</li>
-      <li><b>A pull request with proof</b> With the checks it ran and screenshots.</li>
-    </ul>
+    <!-- what happens once it's installed; no step names a time until install-to-first-win is measured (issue 112) -->
+    <h2 class="next-h" id="next-h">What happens next</h2>
+    <ol class="facts steps">
+      <li><b>In minutes</b> A check-up of your project. It only reads; it changes nothing.</li>
+      <li><b>Then</b> Your first pull request, a draft by the agent you already pay for, with the checks it ran.</li>
+      <li><b>Tomorrow morning</b> One report of what your agents did overnight.</li>
+    </ol>
+    <p class="where">No cloud environment to build: your agents work where your code already runs. {{name}} keeps your computer awake while agents work, so leave it plugged in.</p>
   </section>
 
   <section class="live" id="try" aria-label="Try it live">
@@ -185,7 +189,10 @@
   </div>
 
   <section class="wrap also enter" id="also" aria-labelledby="also-h">
-    <h2 id="also-h">Also in {{name}}.</h2>
+    <div class="head">
+      <h2 id="also-h">Also in {{name}}.</h2>
+      <a class="pill" href="{{root}}docs/everything.html">See everything <span class="arr" aria-hidden="true">→</span></a>
+    </div>
     {{also}}
   </section>
 
@@ -210,19 +217,8 @@
 
   <section class="wrap" id="install" aria-labelledby="get">
     <h2 id="get" class="enter">Get {{name}}.</h2>
-    <div class="ways">
-      <div class="way">
-        <h3>Run one command</h3>
-        <div class="cmd"><code id="cmd2">{{install}}</code><button type="button" data-copy="cmd2">Copy</button></div>
-        <p>macOS and Linux. It checks the download before it installs anything.</p>
-      </div>
-      <div class="way">
-        <h3>Let your agent set it up</h3>
-        <p>Paste the prompt at the top of this page into any coding agent. Every sign-in stays your click.</p>
-        <button type="button" class="copy" data-copy="prompt">Copy the prompt</button>
-      </div>
-    </div>
-    <p class="next">It opens {{name}} in your browser. It also runs <a href="{{root}}docs/server.html">on a server</a>, and <a href="{{root}}pricing.html">Pro</a> opens it from any device.</p>
+    <div class="cmd"><code id="cmd2">{{install}}</code><button type="button" data-copy="cmd2">Copy</button></div>
+    <p class="next">It checks the download before it installs anything, then opens {{name}} in your browser, where setup finishes.</p>
   </section>
 </main>
 {{> footer}}

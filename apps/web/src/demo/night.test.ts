@@ -1,9 +1,10 @@
 import { expect, test } from "bun:test";
 import { tierOf } from "@overhand/contract";
 import { plainWords, themeById, worldById } from "@overhand/themes";
+import { computeAlerts } from "@/lib/alerts";
 import { beats, restarts } from "@/lib/beats";
 import { briefing } from "@/lib/briefing";
-import { parsePlan } from "@/lib/plan";
+import { parseInbox, parsePlan } from "@/lib/plan";
 import { MOMENTS, minutesOf } from "./moments";
 import { clockAt, NIGHT_MINUTES, nightAt } from "./night";
 
@@ -58,11 +59,22 @@ test("Mobile app's first win runs as the night begins, ticking through its steps
   expect(done.prs.find((p) => p.key === "APP-0")?.proof?.checks.every((c) => c.ok)).toBe(true);
 });
 
-test("the sample month scores every project and suggests Codex on Company website", () => {
+test("the sample month scores every project, and Codex does best on Company website", () => {
   const s = nightAt(510);
   expect(s.scorecard.month.projects.map((p) => p.project)).toEqual(["Booking app", "Company website", "Mobile app", "Online shop"]);
   expect(s.scorecard.month.projects.find((p) => p.project === "Company website")?.best).toBe("codex/default");
-  expect(s.routing.suggestions).toEqual([expect.objectContaining({ project: "Company website", account: "Codex", to: "codex/default" })]);
+});
+
+test("the sample morning opens calm: three things in Needs you, in plain words", () => {
+  const s = nightAt(minutesOf(MOMENTS.morning));
+  const now = clockAt(minutesOf(MOMENTS.morning));
+  const alerts = computeAlerts(s, parsePlan(s.plan), plainWords, now);
+  expect(alerts.map((a) => a.item)).toEqual(["pr:BOOK-88", "lead:mobile", "pr:APP-0"]);
+  // nobody in the inbox waits on a reply or a veto (Needs you would list them beside the alerts)
+  const waiting = parseInbox(parsePlan(s.plan).inbox, s.pending, now).filter(
+    (x) => x.kind === "reply" || (x.kind === "new" && x.when !== "filed"),
+  );
+  expect(waiting).toEqual([]);
 });
 
 test("the four sample places remember different pasts, and the brief names the newest milestone", () => {

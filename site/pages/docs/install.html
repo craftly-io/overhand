@@ -10,14 +10,10 @@
 {{> dochero}}
   <div class="wrap">
     <section class="block hood" id="ways" aria-labelledby="h-ways">
-      <h2 id="h-ways">Three ways in. Pick one.</h2>
+      <h2 id="h-ways">One command.</h2>
       <ul class="facts">
-        <li><b>One command</b> Installs, starts {{name}} at every login and opens it in your browser.
+        <li><b>In a terminal, on macOS or Linux</b> Installs, starts {{name}} at every login and opens it in your browser.
           <pre><code>{{install}}</code></pre></li>
-        <li><b>Homebrew</b> The same package, checked against the same release sums.
-          <pre><code>brew install craftly-io/tap/overhand &amp;&amp; overhand start</code></pre></li>
-        <li><b>npx or bunx</b> The first run fetches this version's package once and keeps it in <code>~/.overhand/npm</code>.
-          <pre><code>npx overhand start    # or: bunx overhand start</code></pre></li>
       </ul>
     </section>
 
@@ -75,6 +71,17 @@ overhand uninstall</code></pre></li>
         <li><b>Also kept</b> Secrets in Keychain or the keyring, and the hooks <code>overhand connect</code> wrote into projects. Run <code>overhand disconnect</code> in each connected project before you uninstall.</li>
         <li><b>Homebrew</b> Run <code>overhand uninstall</code>, then <code>brew uninstall overhand</code>.</li>
         <li><b>npx or bunx</b> <code>npx overhand uninstall</code> removes the service and the copy in <code>~/.overhand/npm</code>.</li>
+      </ul>
+    </section>
+
+    <section class="block hood" id="other" aria-labelledby="h-other">
+      <h2 id="h-other">Other ways to install.</h2>
+      <ul class="facts">
+        <li><b>Homebrew</b> The same package, checked against the same release sums.
+          <pre><code>brew install craftly-io/tap/overhand &amp;&amp; overhand start</code></pre></li>
+        <li><b>npx or bunx</b> The first run fetches this version's package once and keeps it in <code>~/.overhand/npm</code>.
+          <pre><code>npx overhand start    # or: bunx overhand start</code></pre></li>
+        <li><b>Docker</b> For a server: see <a href="server.html#docker">In Docker</a>.</li>
       </ul>
     </section>
   </div>

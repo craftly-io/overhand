@@ -20,7 +20,7 @@ import { BOOK88_CORNERS, GUARD_BLOCKS } from "@overhand/contract/fixtures/trust"
 import { plainWords } from "@overhand/themes";
 import { GUIDES } from "./guides";
 import { ACCOUNTS, progressionAt, ROUTING, SCORECARD } from "./history";
-import { INSTRUCTIONS, RULES } from "./instructions";
+import { INSTRUCTIONS } from "./instructions";
 import { samplePr, sampleUrl } from "./links";
 import { MOMENTS } from "./moments";
 import { demoPlugins } from "./plugins";
@@ -186,9 +186,9 @@ const LEADS: Character[] = [
     says: [
       ["23:58", "→ Read: notes.md"],
       ["00:05", "→ Read: questions.md"],
-      ["00:20", "Two of the shop's PRs need rebasing after yesterday's merge."],
+      ["00:20", "Two of the shop's pull requests need rebasing after yesterday's merge."],
       ["01:15", "→ Bash: gh pr checks 305"],
-      ["02:00", "Rebased both PRs; CI is green on main again."],
+      ["02:00", "Rebased both pull requests; the checks pass on main again."],
     ],
     subagents: [["00:30", "02:10", "rebase-helper", "Rebases stale branches"]],
     // Sam's message before bed: the lead wasn't running, so Overhand started it to read it; its run's last words are the reply
@@ -197,7 +197,7 @@ const LEADS: Character[] = [
       [
         "02:52",
         "reply",
-        "Understood: I won't touch the payments module this week.\n\nTonight: two PRs fell behind after yesterday's merge. I rebased both, and CI is green on main again.",
+        "Understood: I won't touch the payments module this week.\n\nTonight: two pull requests fell behind after yesterday's merge. I rebased both, and the checks pass on main again.",
       ],
     ],
   },
@@ -350,7 +350,7 @@ function planAt(now: number): string[] {
     "# Plan for Tuesday 20 October",
     "## Top 3",
     "1. Answer the Mobile app lead about reminders",
-    "2. Review the three agent PRs",
+    "2. Review the three agent pull requests",
     "3. Demo the spreadsheet export to the Company website team at 11:00",
     "## Online shop",
     "### Agent",
@@ -371,19 +371,13 @@ function planAt(now: number): string[] {
     "### Agent",
     "- [x] WEB-31 Let staff download bookings as a spreadsheet — a CSV export, for the 11:00 demo (~50m)",
     "### You",
-    "- WEB-33 Staff sign in with their work Google accounts — too big for one PR; check the proposed split",
+    "- WEB-33 Staff sign in with their work Google accounts — too big for one pull request; check the proposed split",
     "## Mobile app",
     "### Agent",
     "- [x] APP-12 Don't lose my guest list when I get signed out — top complaint from friends testing it (~50m)",
     "- [ ] APP-15 Make the invite screen work with screen readers (~70m)",
     "## Inbox",
     ...(now >= at("07:40") ? ["- [x] new-g1ftc4rd Gift card balance doesn't show at checkout (Online shop #orders)"] : []),
-    "- ↩ Priya (the clinic's front desk) asked whether the slow booking page is fixed this week",
-    "  Suggested: Yes, the fix is in review and can go out today.",
-    "  https://example.com/slack/booking/p1",
-    "- 💬 The Company website team moved the spreadsheet demo to 11:00",
-    "## Notes",
-    "- The clinic opens flu-jab bookings this week; keep Booking app PRs small.",
   ];
 }
 
@@ -715,9 +709,10 @@ export function nightAt(minutes: number): DashboardState {
   const myPrs = [...agentPrs, ...HUMAN_PRS.map(human)];
   const reviews = REVIEW_ASKS.filter(([, , , , hm]) => at(hm) <= now).map(human);
 
-  // a Slack request waits out the veto window before it's filed as a ticket
+  // a Slack request waits out the veto window before it's filed as a ticket: by the morning it's filed, and Sam's own
+  // session is on it (SAM_FROM)
   const pending =
-    now >= at("07:40")
+    now >= at("07:40") && now < at("07:44")
       ? [
           {
             id: "new-g1ftc4rd",
@@ -726,8 +721,7 @@ export function nightAt(minutes: number): DashboardState {
             details: "A customer paid with a gift card and couldn't see what was left on it until the receipt came.",
             permalink: "https://example.com/slack/shop/c1",
             from: "Dana (the shop's front counter)",
-            createAfter: at("08:10"),
-            ...(now >= at("08:10") ? { created: "SHOP-158" } : {}),
+            createAfter: at("07:44"),
           },
         ]
       : [];
@@ -831,6 +825,16 @@ export function nightAt(minutes: number): DashboardState {
         : {},
     plan: planAt(now),
     findings: now >= at(STOPPED.hm) ? [{ ...STOPPED_FINDING, at: at(STOPPED.hm) }] : [],
+    // the sample morning opens calm: what can wait, Sam snoozed till noon from its card, so Needs you holds three calls
+    snoozed: Object.fromEntries(
+      [
+        "ticket:SHOP-151",
+        "pr:WEB-31",
+        `held:${STOPPED_FINDING.id}`,
+        `review:${samplePr("example/shop", 298)}`,
+        `review:${samplePr("example/booking-desk", 214)}`,
+      ].map((id) => [id, later("12:00")]),
+    ),
     reports,
     cost: spent,
     billed: spentBy("Bedrock"),
@@ -866,7 +870,7 @@ export function nightAt(minutes: number): DashboardState {
     },
     scorecard: SCORECARD,
     instructions: INSTRUCTIONS,
-    rules: RULES,
+    rules: [],
     guides: GUIDES,
     firstWin: {
       state: now < at(FIRST_WIN.from) ? "queued" : now < at(FIRST_WIN.to) ? "running" : "pr",

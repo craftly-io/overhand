@@ -1,16 +1,13 @@
 /**
- * The sample accounts and their last 30 days of runs, for the demo's scorecard and its routing suggestion. Made up and
+ * The sample accounts and their last 30 days of runs, for the demo's scorecard. Made up and
  * deterministic: every visit sees the same month.
  */
 import {
   type Billing,
-  clearlyBetter,
-  comboOf,
   type DashboardState,
   type HistoryRun,
   type Progression,
   progressionOf,
-  type RouteSuggestion,
   type Scorecard,
   scorecard,
   seasonOf,
@@ -166,20 +163,5 @@ export function progressionAt(now: number): Progression {
   return progressionOf(MEMORY, projects, {}, now, seasonOf(new Date(now), "north"));
 }
 
-const combo = (account: string) => {
-  const a = ACCOUNTS[account];
-  return a ? comboOf(a.runtime, a.provider, a.model) : "";
-};
-
-/** Suggest mode on the sample month: Company website's local model against Codex. */
-export const ROUTING: DashboardState["routing"] = {
-  mode: "suggest",
-  suggestions: projects.flatMap((project): RouteSuggestion[] => {
-    const rows = SCORECARD.month.projects.find((p) => p.project === project)?.rows ?? [];
-    const better = clearlyBetter(rows, combo(PINNED[project] ?? "Sam"), Object.keys(ACCOUNTS).map(combo));
-    const account = better && Object.keys(ACCOUNTS).find((a) => combo(a) === better.to.combo);
-    return better && account
-      ? [{ project, account, from: better.from.combo, to: better.to.combo, fromRate: better.from.mergeRate, toRate: better.to.mergeRate }]
-      : [];
-  }),
-};
+/** Suggest mode on the sample month, with nothing to suggest at load: the sample night opens calm. */
+export const ROUTING: DashboardState["routing"] = { mode: "suggest", suggestions: [] };

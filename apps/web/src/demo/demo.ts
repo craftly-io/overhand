@@ -24,6 +24,7 @@ import {
   NameSchema,
   NO_PROJECT,
   planPoints,
+  SITE_ORIGINS,
   sectionHeading,
   templateKey,
   termHits,
@@ -37,6 +38,10 @@ import { demoReviewPost, demoReviewRound } from "./review";
 import { demoSignInPost } from "./signin";
 import { stressed } from "./stress";
 
+// on the site the dashboard is only ever the demo: /demo/ as typed or shared, without ?demo, opens the sample too (as
+// the design catalog does), never a "Can't reach Overhand"; a daemon's own page never matches
+if (typeof location !== "undefined" && SITE_ORIGINS.includes(location.origin) && !new URLSearchParams(location.search).has("demo"))
+  history.replaceState(null, "", `?demo${location.hash}`);
 export const DEMO = typeof location !== "undefined" && new URLSearchParams(location.search).has("demo");
 /** `?demo=stress`: the stress night (stress.ts), the sample night at the edges real data reaches, for the sweep. */
 const STRESS = DEMO && new URLSearchParams(location.search).get("demo") === "stress";

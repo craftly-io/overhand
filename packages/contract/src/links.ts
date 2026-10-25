@@ -10,6 +10,8 @@ export const REPO = "craftly-io/overhand";
 export const REPO_URL = `https://github.com/${REPO}`;
 /** The public site and demo. */
 export const SITE = "https://overhand.dev";
+/** Every origin that serves the public site; there the dashboard (under /demo/) only ever runs as the demo. */
+export const SITE_ORIGINS = [SITE, "https://www.overhand.dev", "https://staging.overhand.dev"];
 /**
  * Browser features no Overhand page uses, turned off on the site and the relay (payment stays: Paddle's checkout may
  * use it). The relay's static files carry the same line in relay/wrangler.jsonc's _headers (a test keeps them equal).

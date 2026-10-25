@@ -73,7 +73,7 @@ export const MADE_FOR = [
  * its row of the others, and /llms.txt read these (site/build.ts). `next` is the one page that names what isn't built.
  */
 export const DOCS = [
-  { slug: "install", title: "Install", line: "On macOS or Linux: one command, Homebrew, or npx and bunx." },
+  { slug: "install", title: "Install", line: "One command on macOS or Linux." },
   { slug: "server", title: "Run Overhand on a server", line: "Linux or Docker, reached through an SSH tunnel or your tailnet." },
   { slug: "first-project", title: "First project and first win", line: "From setup to your first draft pull request." },
   { slug: "agents", title: "Agents and accounts", line: "Sign-ins, API keys, how each account is paid for, and the daily cap." },
@@ -94,6 +94,7 @@ export const DOCS = [
     title: "Day to day",
     line: "Focus, the menu bar item, the night report, share cards, updates, feedback and what's new.",
   },
+  { slug: "everything", title: "Everything Overhand does", line: "Every built feature in one list, each with where it's explained." },
   { slug: "privacy", title: "Privacy and what leaves your machine", line: "What stays on your computer, and the little that doesn't." },
   { slug: "troubleshooting", title: "Troubleshooting", line: "What to run, and what the messages mean." },
   { slug: "cli", title: "Command reference", line: "Every overhand command, from its own help." },
