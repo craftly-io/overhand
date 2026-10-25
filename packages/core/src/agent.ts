@@ -30,8 +30,8 @@ import { claude } from "./claude";
 import { gitRepos } from "./cleanup";
 import type { Client } from "./config";
 import { inspectCorners } from "./corners";
-import { CFG, CLIENTS, CODE, clientOf, http, LABEL, MIN, OPS, sh, shAsync } from "./env";
-import { loadWin, type StoredWin, saveWin, winToRun } from "./firstwin";
+import { CFG, CLIENTS, CODE, clientOf, http, LABEL, MIN, OPS, repoActive, sh, shAsync } from "./env";
+import { firstWinFirst, loadWin, type StoredWin, saveWin, winToRun } from "./firstwin";
 import { protectedBranch } from "./guard";
 import { capReport, guideMerged, guideNext, guidePrompt, isGuideKey, loadGuides, type StoredGuide, saveGuide } from "./guide";
 import { recordOutcome } from "./history";
@@ -260,11 +260,9 @@ export async function openPr(
 
 // ---------- repos and worktrees ----------
 
-/** Git repos under a client folder with a commit within limits.dormantDays (worktrees and node_modules skipped). */
+/** Git repos under a client folder that are active (`repoActive`; worktrees and node_modules skipped). */
 export function activeRepos(c: Client): string[] {
-  return gitRepos(join(CODE, c.dir)).filter(
-    (repo) => Date.now() - Number(sh(["git", "log", "-1", "--format=%ct"], repo).out) * 1000 < CFG.limits.dormantDays * 24 * 60 * MIN,
-  );
+  return gitRepos(join(CODE, c.dir)).filter((repo) => repoActive(repo, Number(sh(["git", "log", "-1", "--format=%ct"], repo).out) * 1000));
 }
 
 /** Picks the repo a ticket belongs to: the only active one, or a quick Haiku call over each repo's recent history. */
@@ -503,6 +501,22 @@ function fixPrompt(key: string, pr: TrackedPr, feedback: string, c: Client): str
 }
 
 /**
+ * Books whether a ticket's run stopped at its account's usage limit (`limited`). Waiting for capacity uses no attempt, but
+ * every second stop in a row does: a task that fills the window each time (or a limit misread) can't rerun and bench its
+ * account forever. A run that ended any other way starts the count again.
+ */
+export function limitStop(state: State, key: string, limited: boolean): void {
+  state.limited ??= {};
+  const hits = state.limited;
+  if (!limited) {
+    delete hits[key];
+    return;
+  }
+  if (hits[key]) state.attempts[key] = (state.attempts[key] ?? 0) + 1;
+  hits[key] = !hits[key];
+}
+
+/**
  * Works one ticket end to end: repo, worktree, the agent's run, then its PR, report, question or another attempt, as
  * the project's autonomy allows. `told` hears the run's own one-line outcome (a hosted run's container reports it).
  */
@@ -529,7 +543,14 @@ export async function handleTicket(state: State, tk: Ticket, told?: (r: AgentRes
     return "ok";
   }
   const wt = await prepareWorktree(repo, tk.key);
-  const run = await claude<AgentResult>(state, taskPrompt(tk, wt), wt.path, RESULT_SCHEMA, tk.key, { client: tk.client });
+  let limited = false;
+  const run = await claude<AgentResult>(state, taskPrompt(tk, wt), wt.path, RESULT_SCHEMA, tk.key, {
+    client: tk.client,
+    onLimit: () => {
+      limited = true;
+    },
+  });
+  if (run || limited) limitStop(state, tk.key, !run); // a pass that couldn't start it at all changes nothing
   if (!run) {
     await setLabels(tk, [], [LABEL.working]);
     return "no-capacity";
@@ -877,6 +898,8 @@ export async function work(): Promise<boolean> {
     await takeInHosted(state, CLIENTS).catch((e: unknown) => report(`⚠ hosted runs: ${errorText(e)}`));
     // the first win, right after setup: before anything else, and inside the daily budget like any run
     if (await runFirstWin(state)) budget--;
+    // until it has its PR, nothing else runs (firstWinFirst)
+    if (firstWinFirst()) return false;
     // onboarding guides asked for from the dashboard: also inside the budget, and before the queue like the first win
     budget -= await runGuides(state, budget);
     saveState(state);

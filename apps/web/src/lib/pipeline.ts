@@ -38,9 +38,10 @@ export function pipeline(s: DashboardState, plan: Plan): Record<Stage, Card[]> {
       const id = a.key || `line-${a.i}`;
       cards.set(id, { id, key: a.key, title: a.title, client, stage: a.on ? "queued" : "planned", line: a.i, on: a.on, why: a.why });
     }
-  // what you assigned an agent to on a watch or propose project starts on the next pass, armed in the plan or not
+  // what you assigned an agent to on a watch or propose project starts on the next pass, armed in the plan or not; one
+  // whose attempts are used up won't, so it waits in Needs you instead of Queued
   for (const a of s.assigned)
-    if (!cards.has(a.key))
+    if (!cards.has(a.key) && !a.stopped)
       cards.set(a.key, { id: a.key, key: a.key, title: titleOf(a.key) || a.title, client: a.project, stage: "queued" });
   for (const r of s.running) {
     const key = r.name.match(KEY)?.[1];
@@ -63,6 +64,15 @@ export function pipeline(s: DashboardState, plan: Plan): Record<Stage, Card[]> {
   const out: Record<Stage, Card[]> = { planned: [], queued: [], running: [], review: [], merged: [] };
   for (const c of cards.values()) out[c.stage].push(c);
   return out;
+}
+
+/**
+ * When work resumes while every account is at its usage limit (the soonest one back), else 0: nothing runs until then,
+ * so the dashboard says so instead of calling the agents idle.
+ */
+export function resumesAt(s: DashboardState): number {
+  const back = s.accounts.map((a) => a.coolUntil);
+  return back.length && back.every((t) => t > s.now) ? Math.min(...back) : 0;
 }
 
 /** What the planner left for you, with the client each item is for. */

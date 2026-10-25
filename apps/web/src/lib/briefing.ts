@@ -1,7 +1,8 @@
 import { type DashboardState, type MilestoneId, newMilestones } from "@overhand/contract";
 import type { Words } from "@overhand/themes";
 import { type Alert, brokenCount } from "./alerts";
-import { fmt, pick, spokenNum } from "./format";
+import { fmt, hm, pick, spokenNum } from "./format";
+import { resumesAt } from "./pipeline";
 import { armedCount, type Plan } from "./plan";
 
 /** Ticket keys and PR numbers read badly aloud; this drops them and spells out "PR". */
@@ -46,7 +47,8 @@ export function briefing(
   if (cur) {
     const client = s.clients.find((c) => cur.name.startsWith(`${c.prefix}-`))?.name ?? w.briefSomeTicket;
     parts.push(say(w.brWorking, { client }));
-  } else parts.push(say(s.paused ? w.brPaused : w.brIdle));
+  } else if (!s.paused && resumesAt(s)) parts.push(say(w.brWaitLimit, { t: hm(resumesAt(s)) }));
+  else parts.push(say(s.paused ? w.brPaused : w.brIdle));
   const armed = armedCount(plan, s);
   if (armed && !s.paused) parts.push(say(w.brArmed, { n: spokenNum(armed) }));
   const reviews = s.status.reviews.length + s.prs.length;

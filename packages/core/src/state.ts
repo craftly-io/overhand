@@ -49,6 +49,8 @@ type PendingTicket = Omit<WirePendingTicket, "id">;
 
 export interface State {
   attempts: Record<string, number>;
+  /** Tickets whose last run stopped at its account's usage limit (agent.ts handleTicket): the second in a row is an attempt. */
+  limited?: Record<string, boolean>;
   prs: Record<string, TrackedPr>;
   nextAccount: number;
   slackCursor: number;

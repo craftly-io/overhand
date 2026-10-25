@@ -25,7 +25,7 @@ import {
 import { policyOf, ticketRules } from "./autonomy";
 import { gitReposAsync } from "./cleanup";
 import type { Client } from "./config";
-import { CFG, CLIENTS, CODE, MIN, OPS, shAsync } from "./env";
+import { CLIENTS, CODE, MIN, OPS, repoActive, shAsync } from "./env";
 import { fileUrl } from "./instructions";
 import { report } from "./notify";
 import { loadState, readJson, type TrackedPr, writeJsonAtomic } from "./state";
@@ -57,12 +57,12 @@ export function saveGuide(project: string, g: StoredGuide): void {
 /** Whether a local key is a guide run's (its PR is then a guide PR). */
 export const isGuideKey = (key: string): boolean => /^[A-Z][A-Z0-9]*-ONBOARDING-[A-Z0-9]+$/.test(key);
 
-/** The project's main repo: its most recently committed active one (a commit within limits.dormantDays). */
+/** The project's main repo: its most recently committed active one (`repoActive`). */
 async function mainRepo(c: Client, now: number): Promise<string | null> {
   let best: { r: string; t: number } | null = null;
   for (const r of await gitReposAsync(join(CODE, c.dir))) {
     const t = Number((await git(["log", "-1", "--format=%ct"], r)).out) * 1000 || 0;
-    if (now - t < CFG.limits.dormantDays * 24 * 60 * MIN && (!best || t > best.t)) best = { r, t };
+    if (repoActive(r, t, now) && (!best || t > best.t)) best = { r, t };
   }
   return best?.r ?? null;
 }

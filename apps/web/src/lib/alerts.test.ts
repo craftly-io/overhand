@@ -383,7 +383,7 @@ test("a stopped run is its own red card: its reason's plain sentence and fix, ne
 });
 
 test("an account the sandbox keeps off your own sign-in gets a Sign in card: amber while others carry its work, red alone", () => {
-  const acc = (name: string, waitsSignIn: boolean) => ({
+  const acc = (name: string, waitsSignIn: boolean, signedOut = false) => ({
     name,
     coolUntil: 0,
     usage: null,
@@ -393,6 +393,7 @@ test("an account the sandbox keeps off your own sign-in gets a Sign in card: amb
     billing: "plan" as const,
     billingSure: true,
     waitsSignIn,
+    signedOut,
   });
   const signIns = (accounts: ReturnType<typeof acc>[]) =>
     computeAlerts(state({ accounts }), parsePlan([]), plainWords, NOW).filter((a) => a.target.kind === "signin");
@@ -401,6 +402,12 @@ test("an account the sandbox keeps off your own sign-in gets a Sign in card: amb
   expect(one[0]?.target).toEqual({ kind: "signin", account: "claude", tool: "Claude Code" });
   expect(signIns([acc("claude", true)]).map((a) => [a.sev, a.broken])).toEqual([[3, true]]);
   expect(signIns([acc("work", false)])).toEqual([]);
+  // an account whose sign-in expired gets the same card and button, in words that say so
+  const expired = signIns([acc("work", true, true)]);
+  expect(expired.map((a) => [a.title, a.sub, a.sev])).toEqual([
+    ["work is signed out", "Its agents wait until you sign in to Claude Code again.", 3],
+  ]);
+  expect(expired[0]?.target).toEqual({ kind: "signin", account: "work", tool: "Claude Code" });
 });
 
 test("every problem's card carries its fix: restart when offline, start a crashed lead, raise a spent budget, reconnect a tracker", () => {

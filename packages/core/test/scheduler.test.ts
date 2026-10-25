@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { runGrouped } from "../src/agent";
+import { limitStop, runGrouped } from "../src/agent";
 import { OPS } from "../src/env";
-import { currentRuns, saveCurrentRuns } from "../src/state";
+import { currentRuns, loadState, saveCurrentRuns } from "../src/state";
 
 /** Runs jobs that each take `ms`, recording when they start and end and how many overlap. */
 function recorder(ms = 20) {
@@ -85,4 +85,17 @@ test("currentRuns reads the old single-run file and drops runs whose process is 
   saveCurrentRuns([run, { ...run, name: "BETA-2", pid: 2 ** 22 + 1 }]); // above macOS and Linux pid limits
   expect(currentRuns()).toEqual([run]);
   saveCurrentRuns([]);
+});
+
+test("a task stopped by its account's limit waits for free, but every second stop in a row uses an attempt", () => {
+  const state = loadState();
+  limitStop(state, "AC-1", true);
+  expect(state.attempts["AC-1"]).toBeUndefined(); // the first: it only waits
+  limitStop(state, "AC-1", true);
+  expect(state.attempts["AC-1"]).toBe(1); // the same task at the limit again: it can't loop forever
+  limitStop(state, "AC-1", true);
+  expect(state.attempts["AC-1"]).toBe(1);
+  limitStop(state, "AC-1", false); // a run that ended another way starts the count again
+  limitStop(state, "AC-1", true);
+  expect(state.attempts["AC-1"]).toBe(1);
 });

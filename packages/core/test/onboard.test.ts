@@ -44,9 +44,12 @@ test("proposeProjects makes one project per GitHub owner, in the folder most of 
   ]);
   expect(ps.map((p) => [p.name, p.dir, p.prefix, p.trackerRepo, p.repos.length])).toEqual([
     ["Honeycrust", "honeycrust", "HONEY", "honeycrust/web", 3],
-    ["Sam", "blog", "SAM", "sam/blog", 1],
+    ["blog", "blog", "BLOG", "sam/blog", 1], // one repo: named after it, not its owner
   ]);
   expect(ps[0]?.trackerRepos).toEqual(["honeycrust/web", "Honeycrust/api", "honeycrust/tools"]); // the choices for its issues
+  // the one repo a newcomer picked was "Octocat" with key OCTOC; it's the repo's own name
+  const [one] = proposeProjects([{ path: "octocat/Hello-World", host: "github", owner: "octocat", name: "Hello-World" }]);
+  expect([one?.name, one?.prefix]).toEqual(["Hello-World", "HELLO"]);
 });
 
 test("scanRepos finds repos one and two levels down and skips folders without an origin", () => {

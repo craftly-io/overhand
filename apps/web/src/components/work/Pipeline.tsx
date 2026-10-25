@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { canAssign, isAssigned } from "@/lib/assign";
 import { explainPr, explainRun } from "@/lib/explain";
 import { fmt } from "@/lib/format";
-import { type Card, pipeline, STAGES, type Stage, yours } from "@/lib/pipeline";
+import { type Card, pipeline, resumesAt, STAGES, type Stage, yours } from "@/lib/pipeline";
 import { cn } from "@/lib/utils";
 import { AssignButton } from "../AssignButton";
 import { PreviewLink } from "../drawers/ReviewDrawer";
@@ -227,7 +227,7 @@ export function Pipeline({ m }: { m: Model }) {
                     {st === "planned" ? <Term k="emptyQueue" /> : st === "review" ? <Term k="emptyAgentPrs" /> : w.emptyStage}
                   </Muted>
                 )}
-                {st === "queued" && queued && !m.s.paused ? (
+                {st === "queued" && queued && !m.s.paused && !resumesAt(m.s) ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button className="justify-self-start" onClick={() => void run({ name: "work" })}>

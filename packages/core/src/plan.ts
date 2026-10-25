@@ -6,6 +6,7 @@ import type { Client } from "./config";
 import { CLIENTS, http, LABEL, OPS, OWNER, sh, today } from "./env";
 import { notify, report } from "./notify";
 import { loadState, saveState } from "./state";
+import { projectScope } from "./status/github";
 import { bitbucket, bitbucketAuth } from "./trackers/bitbucket";
 import { myAndQueued } from "./trackers/index";
 
@@ -209,20 +210,19 @@ export async function plan(): Promise<void> {
       data[c.name] = `ERROR fetching tickets: ${String(e)}`;
     }
   }
-  const myPrs = sh(["gh", "search", "prs", "--author=@me", "--state=open", "--json", "repository,number,title,url", "--limit", "50"]).out;
-  const reviews = sh([
-    "gh",
-    "search",
-    "prs",
-    "--review-requested=@me",
-    "--state=open",
-    "--json",
-    "repository,number,title,url",
-    "--limit",
-    "50",
-  ]).out;
+  // your projects' PRs only, as Needs you has them (gh searches your whole account)
+  const inProjects = projectScope();
+  const prs = (who: string): string => {
+    const out = sh(["gh", "search", "prs", `--${who}=@me`, "--state=open", "--json", "repository,number,title,url", "--limit", "50"]).out;
+    try {
+      const all = JSON.parse(out) as { repository: { nameWithOwner: string } }[];
+      return JSON.stringify(all.filter((p) => inProjects(p.repository.nameWithOwner) !== null));
+    } catch {
+      return out;
+    }
+  };
   const bb = usesBitbucket(CLIENTS) ? { bitbucket: await bitbucketPrs() } : {};
-  const prompt = planPrompt(OWNER, data, { myPrs, reviews, ...bb });
+  const prompt = planPrompt(OWNER, data, { myPrs: prs("author"), reviews: prs("review-requested"), ...bb });
 
   const run = await claude<Plan>(state, prompt, OPS, PLAN_SCHEMA, "plan");
   saveState(state);

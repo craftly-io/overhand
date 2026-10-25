@@ -481,7 +481,7 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       say: w.alBudgetSay,
       target: { kind: "raise", usd: s.budgetUsd * 2 },
     });
-  // an account the OS sandbox keeps off your own sign-in: red when no other account can carry its work
+  // an account the OS sandbox keeps off your own sign-in, or whose sign-in expired: red when no other account can carry its work
   const waiting = s.accounts.filter((x) => x.waitsSignIn);
   for (const acc of waiting) {
     const tool = RUNTIME_NAMES[acc.runtime] ?? acc.runtime;
@@ -489,9 +489,9 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
     a.push({
       sev: others ? 2 : 3,
       ...(others ? {} : { broken: true as const }),
-      title: fmt(w.alSignIn, { account: acc.name }),
-      sub: fmt(others ? w.alSignInSubOthers : w.alSignInSub, { tool }),
-      say: fmt(w.alSignInSay, { account: acc.name }),
+      title: fmt(acc.signedOut ? w.alSignedOut : w.alSignIn, { account: acc.name }),
+      sub: fmt(others ? w.alSignInSubOthers : acc.signedOut ? w.alSignedOutSub : w.alSignInSub, { tool }),
+      say: fmt(acc.signedOut ? w.alSignedOut : w.alSignInSay, { account: acc.name }),
       target: { kind: "signin", account: acc.name, tool },
     });
   }

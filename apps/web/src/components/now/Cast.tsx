@@ -7,8 +7,9 @@ import { Term, useTheme, useWords } from "@/app/theme";
 import { useUi } from "@/app/ui";
 import { Button } from "@/components/ui/button";
 import { beats, restarts } from "@/lib/beats";
-import { ago, clock, fmt, money, uptime } from "@/lib/format";
+import { ago, clock, fmt, hm, money, uptime } from "@/lib/format";
 import { placeName, prFor } from "@/lib/leads";
+import { resumesAt } from "@/lib/pipeline";
 import { leadCost, leadName, leadNamed, leadState, listedLeads, runKind, runsOn, saying, sessionTitle } from "@/lib/sessions";
 import { cn } from "@/lib/utils";
 import { leadsIn } from "@/lib/world";
@@ -260,7 +261,8 @@ export function Cast({ m, glance = false, project, max }: { m: Model; glance?: b
           </ul>
         ) : (
           <Muted>
-            <Term k="noAgentRun" /> {m.s.paused ? w.noAgentRunPaused : w.noAgentRunNext}
+            <Term k="noAgentRun" />{" "}
+            {m.s.paused ? w.noAgentRunPaused : resumesAt(m.s) ? fmt(w.brWaitLimit, { t: hm(resumesAt(m.s)) }) : w.noAgentRunNext}
           </Muted>
         )}
         {leads.length ? (

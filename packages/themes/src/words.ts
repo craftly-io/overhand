@@ -17,6 +17,7 @@ export const plainWords = {
   stateLeadWorking: "Lead working",
   stateLeadsWorking: "Leads working",
   stateIdle: "Online and idle",
+  stateWaitLimit: "Waiting for the usage limit until {t}",
   stateUnreachable: "Can't reach Overhand",
   // money: billed (pay-per-use and cloud accounts, an estimate), included in a plan, or what it would cost at API prices
   billedToday: "Billed today",
@@ -175,7 +176,7 @@ export const plainWords = {
   setupGhBody:
     "Agents read issues and open pull requests through GitHub's command tool, and it isn't signed in yet. The button opens GitHub's own sign-in in your browser; this step updates by itself.",
   setupGhSignIn: "Sign in to GitHub",
-  setupNoProjects: "None yet. You can start without one and add a project later in Overhand.",
+  setupNoProjects: "None yet. Pick one below: it's where your first agent works.",
   setupTrackerRepo: "Issues from",
   setupToolMissing: "{tool} isn't installed",
   setupFinish: "Start Overhand",
@@ -240,7 +241,7 @@ export const plainWords = {
   setupSlotAgent: "Agent",
   setupSlotModel: "Model",
   setupSlotProjects: "Projects",
-  setupSlotNone: "None yet",
+  setupSlotPick: "Pick one",
   setupSlotSignIn: "Sign in",
   setupSlotInstall: "Install one",
   setupGhInstall: "Install GitHub's app for Overhand",
@@ -995,6 +996,8 @@ export const plainWords = {
   alSignInSub: "Its agents wait for one {tool} sign-in of its own.",
   alSignInSubOthers: "Your other accounts carry its work until then.",
   alSignInSay: "{account} needs one sign-in before its agents can run",
+  alSignedOut: "{account} is signed out",
+  alSignedOutSub: "Its agents wait until you sign in to {tool} again.",
   /** The Slack inbox's own Slack sign-in expired (Claude Code's, per Slack server): one click opens it in Claude Code. */
   alSlackSignIn: "Slack needs signing in again for {clients}",
   alSlackSignInSub: "The Slack inbox can't read Slack until then. It opens Claude Code: type /mcp and sign in to Slack.",
@@ -1035,6 +1038,7 @@ export const plainWords = {
   brBroken: "Red in Health: {n}, builds or new errors, for when you want a look. | Red in Health: {n}; none of them is waiting on you.",
   brWorking: "The agent is heads-down in {client}.",
   brIdle: "Agents are idle and slightly bored. | Agents are standing by.",
+  brWaitLimit: "Every agent account is at its usage limit; work resumes at {t}.",
   brPaused: "Agents are paused.",
   brArmed: "Tasks queued for them: {n}.",
   brReviews: "Pull requests that want your eyes: {n}.",

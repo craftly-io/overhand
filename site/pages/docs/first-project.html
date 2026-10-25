@@ -13,7 +13,8 @@
       <h2 id="h-setup">Setup is one screen.</h2>
       <ul class="facts">
         <li><b>What it found</b> {{name}} looks at your computer first and shows, in order: GitHub (through <code>gh</code>), your projects, your agent, its model. Change any of it, then press Start {{name}}.</li>
-        <li><b>Projects</b> Pick projects from your GitHub and your organisations (searchable, grouped by owner), or paste a URL. Untick any you don't want. <em>{{w.setupPickLocal}}</em> scans one folder you choose instead.</li>
+        <li><b>Projects</b> Pick projects from your GitHub and your organisations (searchable, grouped by owner), or paste a URL. Untick any you don't want. <em>{{w.setupPickLocal}}</em> scans one folder you choose instead. Start opens once at least one is picked.</li>
+        <li><b>Project names</b> A project with one repo takes the repo's name, and its ticket keys follow it (<code>Hello-World</code>, <code>HELLO-12</code>). Several repos from one owner share one project, named after the owner.</li>
         <li><b>Your agent</b> Setup asks which AI you already pay for and picks the agent that comes with it.</li>
         <li><b>Which one</b> Claude Pro or Max: Claude Code. ChatGPT Plus or Pro: Codex. Gemini: Gemini CLI on a Gemini API key (free from <a href="https://aistudio.google.com/app/apikey">Google AI Studio</a>, kept in your keychain, passed as <code>GEMINI_API_KEY</code>). None of these: Claude Code on an Anthropic API key.</li>
         <li><b>Missing one?</b> <em>{{w.setupAgentConnect}}</em> shows the vendor's own install command and runs it in a terminal you can watch. Then it opens that agent's own sign-in.</li>
@@ -35,7 +36,10 @@
       <h2 id="h-win">Your first win, right away.</h2>
       <ul class="facts">
         <li><b>One small, safe task</b> Straight after setup, {{name}} searches your projects on your computer, read-only and in under 30 seconds, for a check your own scripts report failing, a patch-level dependency upgrade, a README with no way to run the project, or a test for an untested pure function.</li>
+        <li><b>Old repos count</b> A repo you just added is searched however long ago its last commit was.</li>
         <li><b>An agent starts on it</b> Now shows Your first win until its draft pull request is ready for you.</li>
+        <li><b>Nothing else first</b> Until that pull request opens, or the task fails, {{name}} starts no other agent run on its own: no plan of the day, no Slack inbox, no other work. What you ask for still runs.</li>
+        <li><b>Only what you added</b> Needs you and the plan show pull requests from your projects, not the rest of your GitHub account.</li>
         <li><b>Nothing in your tracker</b> The first win never adds a ticket anywhere.</li>
       </ul>
     </section>

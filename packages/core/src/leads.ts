@@ -26,7 +26,7 @@ import { ACCOUNTS, CFG, CLIENTS, CODE, clientOf, LABEL, MIN, OPS, OWNER, provide
 import { autonomyFor, groupOf, leadAccounts } from "./groups";
 import { GUARD_LOG } from "./guard";
 import { identityOf } from "./history";
-import { backAt, bench, benchedUntil, outOfUsage } from "./limits";
+import { backAt, bench, benchedUntil, markSignedOut, outOfUsage, signedOut, signedOutAccounts } from "./limits";
 import { diskLow, enforceBudget, errorText, notify, report } from "./notify";
 import { keepAwakeWhile, readSecret } from "./platform";
 import { branchesPushed, prsOpened } from "./proof";
@@ -644,11 +644,12 @@ export function leadHeldWhy(free: Record<string, number>, capUntil: (account: st
 /** When each account a lead may use (in its order) is free again: out of usage on any run (limits.ts), a used-up week, the daily budget. */
 export function leadFreeAt(g: Godmode): Record<string, number> {
   const usage = loadUsage(OPS);
+  const out = signedOutAccounts();
   return Object.fromEntries(
     accountsFor(ACCOUNTS, leadAccounts(CFG, g), g.fallbackToAll, 0).map((a) => [
       a,
-      // one waiting for its sign-in is free once it's signed in: not at a time
-      waitsForSignIn(a, g.project)
+      // one waiting for its sign-in (a first one, or again after it expired) is free once it's signed in: not at a time
+      waitsForSignIn(a, g.project) || a in out
         ? Number.POSITIVE_INFINITY
         : Math.max(benchedUntil(a), exhaustedUntil(usage[a], Date.now(), CFG.limits.paceWeekly), budgetUntil(a)),
     ]),
@@ -793,9 +794,16 @@ export function recordLeadExit(g: Godmode, st: LeadState, box: ReturnType<typeof
   };
   if (cost) appendFileSync(join(OPS, "runs", `${today()}.jsonl`), `${JSON.stringify(run)}\n`);
   // the log is the run's stdout and stderr; its tail is where a CLI's last error lands
-  const until = code !== 0 && !st.stopped ? outOfUsage(whole.slice(-4000), parsed.usage) : 0;
-  const limited = until > 0;
-  if (limited && st.account) {
+  // only the CLI's own result or error says so: never the transcript, where a project's tests can print "429"
+  const signedOff = code !== 0 && !st.stopped && signedOut(parsed.text);
+  if (signedOff && st.account) {
+    markSignedOut(st.account, true);
+    st.lastExit = 0;
+    report(`🔑 ${leadName(g)} stopped: ${st.account} is signed out; sign it in again`);
+  }
+  const until = code !== 0 && !st.stopped && !signedOff ? outOfUsage(parsed.text, parsed.usage) : 0;
+  const limited = until > 0 || signedOff;
+  if (until && st.account) {
     // out of capacity isn't a crash: bench that account for every run; the lead waits for it (local code may offer another)
     bench(st.account, until);
     st.lastExit = 0;

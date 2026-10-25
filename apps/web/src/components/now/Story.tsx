@@ -9,6 +9,7 @@ import { post } from "@/lib/api";
 import { beats, restarts } from "@/lib/beats";
 import { fmt, hm, money, pick } from "@/lib/format";
 import { nth, useCountUp } from "@/lib/motion";
+import { resumesAt } from "@/lib/pipeline";
 import { leadName, leadNamed, withNames } from "@/lib/sessions";
 import { spendKind } from "@/lib/spend";
 import { leadsIn, newestBeat } from "@/lib/world";
@@ -110,6 +111,7 @@ export function Prologue({ m, greeting = true }: { m: Model; greeting?: boolean 
           : w.briefSomeTicket,
       }),
     );
+  else if (!s.paused && resumesAt(s)) sentences.push(fmt(w.brWaitLimit, { t: hm(resumesAt(s)) }));
   else sentences.push(first(s.paused ? w.brPaused : w.brIdle));
 
   const need = needs(m);
