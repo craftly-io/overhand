@@ -557,3 +557,24 @@ test("one daemon per state folder: a second sees the first while it lives, and t
   // another state folder is another Overhand's (a checkout's and a worktree's daemons side by side)
   expect(claimHome(scratch(), 4319, 3, started)).toBeNull();
 });
+
+// on the night the clocks change a day has 25 or 23 hours: a fixed 24 h ended an all-day hold at 23:00 (2026-10-25)
+test("house-rule windows and times follow the calendar across a clock change", () => {
+  const src = join(import.meta.dir, "..", "src", "control.ts");
+  const script = `
+    const { windowUntil, nextAt } = await import(${JSON.stringify(src)});
+    const all = [{ from: "00:00", to: "00:00", kinds: [] }];
+    const night = [{ from: "22:00", to: "07:00", kinds: [] }];
+    console.log(JSON.stringify({
+      autumn: windowUntil(all, null, Date.parse("2026-10-25T21:30:00Z")),
+      spring: windowUntil(all, null, Date.parse("2026-03-29T20:30:00Z")),
+      overnight: windowUntil(night, null, Date.parse("2026-10-25T21:30:00Z")),
+      next: nextAt("08:00", Date.parse("2026-10-25T21:30:00Z")),
+    }));`;
+  const r = Bun.spawnSync(["bun", "-e", script], { env: { ...process.env, TZ: "Europe/Helsinki" } });
+  const got = JSON.parse(r.stdout.toString());
+  expect(got.autumn).toBe(Date.parse("2026-10-25T22:00:00Z")); // 00:00 on the 26th, EET
+  expect(got.spring).toBe(Date.parse("2026-03-29T21:00:00Z")); // 00:00 on the 30th, EEST
+  expect(got.overnight).toBe(Date.parse("2026-10-26T05:00:00Z")); // 07:00 on the 26th, EET
+  expect(got.next).toBe(Date.parse("2026-10-26T06:00:00Z")); // 08:00 on the 26th
+});

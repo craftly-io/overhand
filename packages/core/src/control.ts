@@ -73,10 +73,14 @@ function readParsed<T>(file: string, schema: z.ZodType<T>, fallback: T): T {
 /** "HH:MM" local time. */
 export const clock = (ms: number): string => new Date(ms).toTimeString().slice(0, 5);
 
-/** "HH:MM" on `now`'s day, in ms. */
-function todayAt(hm: string, now: number): number {
+/**
+ * "HH:MM" on `now`'s day, or `days` calendar days from it, in ms. By the calendar, not `± DAY`: on the day the clocks
+ * change a day has 23 or 25 hours, and a fixed 24 h landed an hour off (an all-day hold ended at 23:00 that night).
+ */
+function todayAt(hm: string, now: number, days = 0): number {
   const [h = 0, m = 0] = hm.split(":").map(Number);
   const d = new Date(now);
+  d.setDate(d.getDate() + days);
   d.setHours(h, m, 0, 0);
   return d.getTime();
 }
@@ -85,7 +89,7 @@ function todayAt(hm: string, now: number): number {
 export function nextAt(hm: string, now = Date.now()): number | null {
   if (!/^\d{1,2}:\d{2}$/.test(hm)) return null;
   const t = todayAt(hm.padStart(5, "0"), now);
-  return t > now ? t : t + DAY;
+  return t > now ? t : todayAt(hm.padStart(5, "0"), now, 1);
 }
 
 // ---------- house rules ----------
@@ -102,8 +106,8 @@ export function windowUntil(windows: Control["windows"], kind: Heavy | null, now
     let from = todayAt(w.from, now);
     let to = todayAt(w.to, now);
     if (to <= from) {
-      if (now >= from) to += DAY;
-      else from -= DAY;
+      if (now >= from) to = todayAt(w.to, now, 1);
+      else from = todayAt(w.from, now, -1);
     }
     if (now >= from && now < to) end = Math.max(end, to);
   }
