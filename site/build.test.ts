@@ -384,6 +384,10 @@ test("no link to a page of the site ends in .html: each would cost a redirect to
   for (const [rel, html] of built)
     for (const [, href = ""] of html.matchAll(/href="([^"]+)"/g))
       if (!/^(https?:|mailto:|\/\/)/.test(href)) expect(href.split(/[#?]/)[0], `${rel} → ${href}`).not.toMatch(/\.html$/);
+  // the site's own full addresses too: each page's canonical link, and the links agents read in llms.txt
+  const own = new RegExp(`${SITE.url.replace(/[.]/g, "\\.")}/[^"\\s)]*\\.html\\b`);
+  for (const [rel, html] of built) expect(html.match(own)?.[0], rel).toBeUndefined();
+  expect(llmsTxt().match(own)?.[0]).toBeUndefined();
 });
 
 test("a code block that scrolls sideways can be reached and scrolled by keyboard", () => {

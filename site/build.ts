@@ -271,8 +271,8 @@ export function llmsTxt(): string {
     "",
     "## Optional",
     "",
-    `- [Under the hood](${SITE.url}/under-the-hood.html): where it runs, what the relay sees, the guard and Ship's rules`,
-    `- [Privacy](${SITE.url}/privacy.html): what the hosted services keep`,
+    `- [Under the hood](${SITE.url}/under-the-hood): where it runs, what the relay sees, the guard and Ship's rules`,
+    `- [Privacy](${SITE.url}/privacy): what the hosted services keep`,
     "",
   ].join("\n");
 }
