@@ -287,6 +287,19 @@ const STARTED = Date.now();
 export const winToRun = (w: { state: StoredWin["state"]; at: number } | null, started = STARTED): boolean =>
   w?.state === "queued" || (w?.state === "running" && w.at < started);
 
+/** Longest the first win holds everything else back: past a run's own timeout, something went wrong, and it lets go. */
+const FIRST_MS = 90 * 60_000;
+
+/**
+ * The first-win gate, the one place it's decided: while the first win is being looked for, waits or runs, Overhand
+ * starts no other model run on its own: the daemon's loop skips the scheduled plan and inbox, and the work pass runs
+ * nothing after the first win. (Needs you's wording and usage readings only run when you ask.) What you ask for still
+ * runs. It lets go once the first win opened its PR, failed or found nothing, and after FIRST_MS whatever happened.
+ */
+export function firstWinFirst(w: { state: StoredWin["state"]; at: number } | null = loadWin(), now = Date.now()): boolean {
+  return Boolean(w && ["looking", "queued", "running"].includes(w.state) && now - w.at < FIRST_MS);
+}
+
 /** How long a finished first win stays on Now. */
 const SHOW_MS = 3 * 864e5;
 

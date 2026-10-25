@@ -12,7 +12,7 @@ import {
   type RepoInput,
 } from "@overhand/contract";
 import { gitReposAsync } from "./cleanup";
-import { ACCOUNTS, CFG, CLIENTS, CODE, MIN, runtimeOf, shAsync } from "./env";
+import { ACCOUNTS, CLIENTS, CODE, MIN, repoActive, runtimeOf, shAsync } from "./env";
 import { parseRemote } from "./onboard";
 
 /** Files bigger than this are listed but not parsed: no one writes 256 KB of instructions by hand. */
@@ -105,15 +105,11 @@ export async function refreshInstructions(now = Date.now()): Promise<void> {
     const accounts = c.accounts.length ? c.accounts : ACCOUNTS.slice(0, 1);
     const runtimes = [...new Set(accounts.map((a) => runtimeOf(a).kind))];
     const repos: RepoInput[] = [];
-    for (const r of await gitReposAsync(join(CODE, c.dir))) repos.push(await repoInput(r, now));
-    list.push(
-      projectInstructions(
-        c.name,
-        runtimes,
-        repos.filter((r) => now - r.lastCommit < CFG.limits.dormantDays * 24 * 60 * MIN),
-        now,
-      ),
-    );
+    for (const r of await gitReposAsync(join(CODE, c.dir))) {
+      const input = await repoInput(r, now);
+      if (repoActive(r, input.lastCommit, now)) repos.push(input);
+    }
+    list.push(projectInstructions(c.name, runtimes, repos, now));
   }
   cached = { at: now, list };
 }

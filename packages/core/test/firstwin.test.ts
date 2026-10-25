@@ -8,6 +8,7 @@ import {
   checkScripts,
   findFirstWin,
   findTask,
+  firstWinFirst,
   firstWinState,
   packageManager,
   patchUpgrade,
@@ -164,4 +165,12 @@ test("a first win left running by an Overhand that restarted runs again; one run
   expect(winToRun({ state: "running", at: 2_000 }, started)).toBe(false);
   expect(winToRun({ state: "pr", at: 500 }, started)).toBe(false);
   expect(winToRun(null, started)).toBe(false);
+});
+
+test("the first-win gate holds everything else back while it's looked for, waits or runs, and lets go after", () => {
+  const now = 10 * 3_600_000;
+  for (const state of ["looking", "queued", "running"] as const) expect(firstWinFirst({ state, at: now - 60_000 }, now)).toBe(true);
+  for (const state of ["pr", "failed", "none", "report"] as const) expect(firstWinFirst({ state, at: now - 60_000 }, now)).toBe(false);
+  expect(firstWinFirst(null, now)).toBe(false); // no first win: an install from before them
+  expect(firstWinFirst({ state: "running", at: now - 2 * 3_600_000 }, now)).toBe(false); // stuck: it lets go
 });

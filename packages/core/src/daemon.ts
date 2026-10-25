@@ -37,6 +37,7 @@ import {
   today,
   UI_PORT,
 } from "./env";
+import { firstWinFirst } from "./firstwin";
 import {
   HEAVY,
   holders,
@@ -210,7 +211,18 @@ export async function daemon(): Promise<void> {
       const planned = existsSync(join(OPS, "plans", `${today()}.md`));
       const asked = takeRequest(".request-plan");
       const sinceTryMin = (Date.now() - lastPlanTry) / MIN;
-      if (planDue({ on: CFG.schedule.plan, asked, planned, paused, hour, fromHour: CFG.schedule.planFromHour, sinceTryMin })) {
+      // nothing of Overhand's own starts before the first win's PR (firstWinFirst); what you ask for still runs
+      const first = firstWinFirst();
+      const due = {
+        on: CFG.schedule.plan,
+        asked,
+        planned,
+        paused: paused || first,
+        hour,
+        fromHour: CFG.schedule.planFromHour,
+        sinceTryMin,
+      };
+      if (planDue(due)) {
         lastPlanTry = Date.now();
         await plan();
       }
@@ -221,7 +233,8 @@ export async function daemon(): Promise<void> {
         hour >= CFG.schedule.inboxFromHour &&
         hour < CFG.schedule.inboxToHour &&
         Date.now() - lastInbox > CFG.schedule.inboxEveryMin * MIN &&
-        !paused;
+        !paused &&
+        !first;
       if ((inboxAsked || inboxDue) && existsSync(SLACK_MCP)) {
         lastInbox = Date.now();
         const state = loadState();
