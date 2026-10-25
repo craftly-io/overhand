@@ -3,6 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { totalmem } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
+import { brotliCompressSync, constants as zlib } from "node:zlib";
 import {
   askGate,
   CleanupCategorySchema,
@@ -243,6 +244,44 @@ export function webFile(pathname: string, dist = WEB_DIST): string | null {
     return null; // malformed %-encoding
   }
   return file.startsWith(`${dist}/`) && existsSync(file) && statSync(file).isFile() ? file : null;
+}
+
+/** What compresses: text. Images and fonts are compressed already. */
+const PACKS = /\.(?:js|mjs|css|html|svg|json|txt|webmanifest)$/;
+/** Each dashboard file compressed once, as brotli and gzip, kept while the file on disk is the same one. */
+const packed = new Map<string, { stamp: string; br?: Uint8Array<ArrayBuffer>; gz?: Uint8Array<ArrayBuffer> }>();
+
+/**
+ * A dashboard file as an answer: compressed when the browser takes it (brotli, else gzip), and the hashed files under
+ * `assets/` cached for good, since a new build gives them new names. Everything else (index.html, the fonts, the icons)
+ * is asked after again each load, a 304 while it's unchanged, so a new build shows at once.
+ */
+export function webResponse(req: Request, file: string, init: ResponseInit = {}, dist = WEB_DIST): Response {
+  const headers = new Headers(init.headers);
+  const blob = Bun.file(file);
+  const st = statSync(file);
+  const stamp = `W/"${st.mtimeMs.toString(36)}-${st.size.toString(36)}"`;
+  headers.set("content-type", blob.type);
+  headers.set("etag", stamp);
+  if (!headers.has("cache-control"))
+    headers.set("cache-control", file.startsWith(join(dist, "assets/")) ? "public, max-age=31536000, immutable" : "no-cache");
+  const packs = PACKS.test(file);
+  if (packs) headers.set("vary", "accept-encoding");
+  if (!init.status && req.headers.get("if-none-match") === stamp) return new Response(null, { status: 304, headers });
+  const accepts = req.headers.get("accept-encoding") ?? "";
+  const enc = !packs ? null : /\bbr\b/.test(accepts) ? "br" : /\bgzip\b/.test(accepts) ? "gz" : null;
+  if (!enc) return new Response(blob, { ...init, headers });
+  let p = packed.get(file);
+  if (!p || p.stamp !== stamp) {
+    p = { stamp };
+    packed.set(file, p);
+  }
+  p[enc] ??=
+    enc === "br"
+      ? brotliCompressSync(readFileSync(file), { params: { [zlib.BROTLI_PARAM_QUALITY]: 9 } })
+      : Bun.gzipSync(readFileSync(file), { level: 9 });
+  headers.set("content-encoding", enc === "br" ? "br" : "gzip");
+  return new Response(p[enc], { ...init, headers });
 }
 
 const encoder = new TextEncoder();
@@ -662,9 +701,9 @@ const uiHosts = (): Set<string> => new Set([...uiOrigins()].map((o) => URL.parse
  */
 function unpaired(req: Request, url: URL): Response {
   const file = req.method === "GET" ? webFile(url.pathname) : null;
-  if (file && url.pathname !== "/") return new Response(Bun.file(file));
+  if (file && url.pathname !== "/") return webResponse(req, file);
   const index = req.method === "GET" && url.pathname === "/" ? webFile("/") : null;
-  if (index) return new Response(Bun.file(index), { status: 401, headers: { "cache-control": "no-store" } });
+  if (index) return webResponse(req, index, { status: 401, headers: { "cache-control": "no-store" } });
   return json({ error: "pair this device" }, 401);
 }
 
@@ -730,7 +769,7 @@ async function route(req: Request): Promise<Response> {
   if (!local && !device && !open && !asRun) return unpaired(req, url);
   if (req.method === "GET") {
     const page = webFile(url.pathname);
-    if (page) return new Response(Bun.file(page));
+    if (page) return webResponse(req, page);
   }
   if (req.method === "GET" && url.pathname === "/api/state") return json(await dashboardState());
   if (req.method === "GET" && url.pathname === "/api/brief") {

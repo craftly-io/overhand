@@ -180,8 +180,23 @@ function guide(frame: HTMLIFrameElement, buttons: HTMLButtonElement[], reduced: 
   };
 }
 
+/**
+ * The button that takes the keyboard into the live demo, which Tab otherwise passes by: focus goes to the demo's first
+ * control (the frame itself while it's still loading), and Tab carries on inside it, then back out to the page.
+ */
+export function enterDemo(button: HTMLElement, frame: HTMLIFrameElement): void {
+  button.addEventListener("click", () => {
+    const first = frame.contentDocument?.querySelector<HTMLElement>("a[href], button:not(:disabled), input, select, textarea");
+    frame.contentWindow?.focus();
+    if (first) first.focus();
+    else frame.focus();
+  });
+}
+
 const frame = document.getElementById("demo");
 const loading = document.getElementById("loading");
+const enter = document.getElementById("enter-demo");
+if (frame instanceof HTMLIFrameElement && enter) enterDemo(enter, frame);
 const win = document.getElementById("window");
 if (frame instanceof HTMLIFrameElement && loading && win) {
   const refit = fit(win, frame);

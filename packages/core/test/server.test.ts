@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { brotliDecompressSync } from "node:zlib";
 import { UpdateChannelSchema } from "@overhand/contract";
 import { loadConfig, saveConfig } from "../src/config";
 import { applyConfig, CFG, OPS, SLACK_MCP, UI_PORT } from "../src/env";
-import { handle, markCleanup, stateKey, withoutBrowser } from "../src/server";
+import { handle, markCleanup, stateKey, webResponse, withoutBrowser } from "../src/server";
 import { localRequest } from "./local";
 
 const origin = `http://127.0.0.1:${UI_PORT}`;
@@ -219,4 +220,41 @@ test("Restore puts the last overhand.config.json that loaded back and runs on it
   } finally {
     applyConfig(saveConfig(OPS, before));
   }
+});
+
+test("the dashboard's files go compressed; the hashed ones are cached for good, the page and the API never", async () => {
+  const dist = mkdtempSync(join(tmpdir(), "overhand-dist-"));
+  const app = join(dist, "assets", "app-1a2b.js");
+  writeFileSync(join(dist, "index.html"), `<!doctype html>${"<p>night</p>".repeat(200)}`);
+  mkdirSync(join(dist, "assets"));
+  writeFileSync(app, `console.log("${"overhand ".repeat(500)}");`);
+  writeFileSync(join(dist, "icon.png"), "png");
+  const get = (path: string, headers: Record<string, string> = {}) =>
+    webResponse(new Request(`${origin}${path}`, { headers }), join(dist, path.slice(1)), {}, dist);
+  const js = readFileSync(app, "utf8");
+
+  const br = get("/assets/app-1a2b.js", { "accept-encoding": "gzip, deflate, br" });
+  expect(br.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+  expect(br.headers.get("content-encoding")).toBe("br");
+  expect(br.headers.get("vary")).toBe("accept-encoding");
+  expect(brotliDecompressSync(Buffer.from(await br.arrayBuffer())).toString()).toBe(js);
+  const gz = get("/assets/app-1a2b.js", { "accept-encoding": "gzip" });
+  expect(gz.headers.get("content-encoding")).toBe("gzip");
+  expect(new TextDecoder().decode(Bun.gunzipSync(new Uint8Array(await gz.arrayBuffer())))).toBe(js);
+  const plain = get("/assets/app-1a2b.js");
+  expect(plain.headers.get("content-encoding")).toBeNull();
+  expect(await plain.text()).toBe(js);
+
+  // the page is asked after on each load, so a new build shows at once; unchanged, it costs a 304
+  const index = get("/index.html", { "accept-encoding": "br" });
+  expect(index.headers.get("cache-control")).toBe("no-cache");
+  expect(index.headers.get("content-type")).toContain("text/html");
+  expect(get("/index.html", { "if-none-match": index.headers.get("etag") ?? "" }).status).toBe(304);
+  // an image is compressed already
+  expect(get("/icon.png", { "accept-encoding": "br" }).headers.get("content-encoding")).toBeNull();
+
+  // an API answer is never cached
+  const api = await handle(localRequest(`${origin}/api/devices`, { headers: { "accept-encoding": "br" } }));
+  expect(api.headers.get("cache-control")).toBeNull();
+  expect(api.headers.get("etag")).toBeNull();
 });

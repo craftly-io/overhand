@@ -315,7 +315,7 @@ export function docMarkdown(html: string, url: string): string {
     if (level && heading !== undefined) out.push("", `${"#".repeat(Number(level))} ${inline(heading)}`, "");
     else if (item !== undefined) {
       // a fact may carry a code block, and text after it: the fact, the block, then the rest
-      const [first = "", ...rest] = item.split(/<pre><code>([\s\S]*?)<\/code><\/pre>/);
+      const [first = "", ...rest] = item.split(/<pre[^>]*><code>([\s\S]*?)<\/code><\/pre>/);
       out.push(`- ${inline(first)}`);
       rest.forEach((part, i) => {
         if (i % 2 === 0) out.push(fence(part));
@@ -406,7 +406,17 @@ export function render(src: string, root: string, self: string, prices: PriceTab
   // mark the current page in the site header (every docs page marks Docs), unless it's marked already
   const current = self === "index.html" ? "" : self.startsWith("docs/") ? "docs/" : self;
   const link = new RegExp(`href="${`${root}${current}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"(?! aria-current)`);
-  return out.replace(/<header[\s\S]*?<\/header>/, (h) => h.replace(link, (m) => `${m} aria-current="page"`));
+  return (
+    out
+      .replace(/<header[\s\S]*?<\/header>/, (h) => h.replace(link, (m) => `${m} aria-current="page"`))
+      // a page's own address has no .html (the site answers one with a redirect, a round trip on every click)
+      .replace(
+        /href="(?![a-z]+:|\/\/)([^"#?]*)\.html([#?][^"]*)?"/g,
+        (_, path: string, rest = "") => `href="${path.replace(/(^|\/)index$/, "$1") || "./"}${rest}"`,
+      )
+      // a code block wider than the page scrolls by keyboard too
+      .replaceAll("<pre>", `<pre tabindex="0" role="region" aria-label="Code">`)
+  );
 }
 
 /**

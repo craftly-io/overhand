@@ -104,7 +104,7 @@ export function NewsDrawer() {
             <span className="text-muted-foreground">{f.line}</span>
             <a
               className="justify-self-start text-xs text-primary underline-offset-2 hover:underline"
-              href={`${SITE}/${f.docs}`}
+              href={`${SITE}/${f.docs.replace(".html", "")}`}
               target="_blank"
               rel="noreferrer"
             >

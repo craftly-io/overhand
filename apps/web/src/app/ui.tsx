@@ -98,6 +98,25 @@ export function drawerParam(v: string | null): Drawer | null {
   }
 }
 
+/** The control the open drawer came from: the Sheet has no trigger of its own, so closing it hands focus back here. */
+let opener: HTMLElement | null = null;
+
+/** Notes where focus is as a drawer opens; a drawer opened from inside another keeps the first one's opener. */
+export function noteOpener(): void {
+  const at = document.activeElement;
+  if (at instanceof HTMLElement && at.closest('[data-slot="sheet-content"]')) return;
+  opener = at instanceof HTMLElement && at !== document.body ? at : null;
+}
+
+/** Puts focus back on the control the closing drawer opened from, while it's still on the page; true when it did. */
+export function returnFocus(): boolean {
+  const to = opener;
+  opener = null;
+  if (!to?.isConnected) return false;
+  to.focus();
+  return true;
+}
+
 interface UiContext {
   drawer: Drawer | null;
   /** Opens a drawer; on a phone a place (Work, Crew, Health, Settings) becomes the open tab instead. */
@@ -136,7 +155,10 @@ export function UiProvider({ children }: { children: ReactNode }) {
         });
         setDrawer(null);
         scrollTo({ top: 0 });
-      } else setDrawer(d);
+      } else {
+        noteOpener();
+        setDrawer(d);
+      }
     },
     [phone],
   );
@@ -146,7 +168,10 @@ export function UiProvider({ children }: { children: ReactNode }) {
         setPhonePlace({ kind: p });
         setDrawer(null);
         scrollTo({ top: 0 });
-      } else setDrawer(p === "now" ? null : { kind: p });
+      } else {
+        if (p !== "now") noteOpener();
+        setDrawer(p === "now" ? null : { kind: p });
+      }
     },
     [phone],
   );

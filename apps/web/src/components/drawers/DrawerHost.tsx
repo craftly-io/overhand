@@ -2,7 +2,7 @@ import { plainWords, type WordKey } from "@overhand/themes";
 import { createContext, lazy, type ReactNode, Suspense, use } from "react";
 import type { Model } from "@/app/data";
 import { useWords } from "@/app/theme";
-import { type PhonePlace, useDock, usePhone, useUi } from "@/app/ui";
+import { type PhonePlace, returnFocus, useDock, usePhone, useUi } from "@/app/ui";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useTeamViewing } from "../team/viewing";
@@ -118,6 +118,10 @@ export function DrawerHost({ m }: { m: Model | undefined }) {
         onInteractOutside={dock ? (e) => e.preventDefault() : undefined}
         // docked, it's part of the room: it's there, without sliding in over the bridge
         style={dock ? { width: dock, maxWidth: dock, animation: "none" } : undefined}
+        // no trigger to return to: closing hands focus back to the control it opened from, not to the page
+        onCloseAutoFocus={(e) => {
+          if (returnFocus()) e.preventDefault();
+        }}
         // a full view opens to read, not to act: focus the drawer itself, not its first button (and that button's tooltip)
         onOpenAutoFocus={(e) => {
           if (

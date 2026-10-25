@@ -70,6 +70,7 @@
     }
   }
   @keyframes zoom-in { to { transform: scale(var(--m-zoom)); } }
+  #enter-demo { border: 0; font: inherit; font-weight: 600; cursor: pointer; }
   .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-10); font-size: var(--t-small-size); transition: opacity var(--m-base) var(--m-leave); }
   .loading.gone { opacity: 0; }
   @media (max-width: 819px) { #window { height: min(78svh, 760px); } #window iframe { width: 100%; height: 100%; transform: none; } }
@@ -124,9 +125,12 @@
   </section>
 
   <section class="live" id="try" aria-label="Try it live">
+    <!-- the live demo is a whole dashboard, dozens of Tab stops: Tab passes it by (tabindex -1, clicks still work), and
+         this button, shown on focus, takes the keyboard in; past its last control Tab comes back out to the page -->
     <div id="window">
+      <button type="button" class="skip" id="enter-demo">Use the live demo</button>
       <p class="loading" id="loading">Loading {{name}} on sample data…</p>
-      <div class="zoom"><iframe id="demo" data-src="{{root}}demo/?demo" title="{{name}}, live on sample data"></iframe></div>
+      <div class="zoom"><iframe id="demo" tabindex="-1" data-src="{{root}}demo/?demo" title="{{name}}, live on sample data"></iframe></div>
     </div>
     <div class="tried">
       <ul class="try" aria-label="Things to try in {{name}} above">
