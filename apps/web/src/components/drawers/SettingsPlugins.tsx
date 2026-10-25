@@ -87,7 +87,7 @@ export function PluginsTab() {
     <>
       <p className="text-sm text-muted-foreground">
         {PLUGIN_REVIEW}{" "}
-        <a className="underline" href={`${SITE}/docs/plugins.html`} target="_blank" rel="noopener noreferrer">
+        <a className="underline" href={`${SITE}/docs/plugins`} target="_blank" rel="noopener noreferrer">
           {w.plHowTo}
         </a>
       </p>

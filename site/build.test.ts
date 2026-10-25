@@ -152,7 +152,7 @@ test("the daily cap is told as it works: it stops billed accounts only, and plan
   expect(hood.includes(claim), claim).toBe(true);
   // the home page says it short and points at the whole of it
   expect(home).toContain("Pay-per-use and cloud agents stop at about the amount you set for the day.");
-  expect(home).toContain('href="./under-the-hood.html#cap"');
+  expect(home).toContain('href="./under-the-hood#cap"');
   for (const page of [home, hood]) expect(/daily cap pauses agents/i.test(page)).toBe(false);
 });
 
@@ -249,8 +249,8 @@ test("each made-for page opens with a live piece, and every page's footer reache
   }
   for (const [rel, html] of built) {
     const foot = html.slice(html.indexOf("<footer"));
-    for (const m of MADE_FOR) expect(new RegExp(`for/${m.slug}\\.html"[^>]*>${m.name}<`).test(foot), `${rel}: ${m.slug}`).toBe(true);
-    expect(foot.includes("under-the-hood.html"), rel).toBe(true);
+    for (const m of MADE_FOR) expect(new RegExp(`for/${m.slug}"[^>]*>${m.name}<`).test(foot), `${rel}: ${m.slug}`).toBe(true);
+    expect(foot.includes('under-the-hood"'), rel).toBe(true);
   }
 });
 
@@ -265,7 +265,7 @@ test("the home page adds 'Also in Overhand': the registry's placed features by w
   for (const [i, g] of groups.entries()) {
     const want = FEATURES.filter((f) => f.place === Object.keys(HOME_GROUPS)[i]);
     expect([...g.matchAll(/<li><b>([^<]+)<\/b> ([^<]+) <a class="how" href="\.\/([^"]+)"/g)].map((m) => [m[1], m[2], m[3]])).toEqual(
-      want.map((f) => [f.name, f.line, f.docs]),
+      want.map((f) => [f.name, f.line, f.docs.replace(".html", "")]),
     );
   }
 });
@@ -322,7 +322,7 @@ test("the company is named once on the face of the site, in the footer; the lega
 test("the no-merge claim is one sentence, true as stated, wherever a page makes it", () => {
   // the home page says what the guard blocks, in which CLIs, and links to the whole of it on Under the hood
   for (const rel of ["for/teams.html", "under-the-hood.html"]) expect(built.find(([r]) => r === rel)?.[1], rel).toContain(CLAIMS.noMerge);
-  expect(built.find(([r]) => r === "index.html")?.[1]).toContain('href="./under-the-hood.html#guard"');
+  expect(built.find(([r]) => r === "index.html")?.[1]).toContain('href="./under-the-hood#guard"');
   expect(built.find(([r]) => r === "under-the-hood.html")?.[1]).toContain(CLAIMS.guardReach);
   expect(built.find(([r]) => r === "index.html")?.[1]).toContain(CLAIMS.guardBlocks);
   for (const rel of ["index.html", "for/solo.html"]) expect(built.find(([r]) => r === rel)?.[1], rel).toContain(CLAIMS.quietMode);
@@ -380,6 +380,18 @@ test("the docs are one page per DOCS entry, plus the index, each with its own ti
   }
 });
 
+test("no link to a page of the site ends in .html: each would cost a redirect to its address", () => {
+  for (const [rel, html] of built)
+    for (const [, href = ""] of html.matchAll(/href="([^"]+)"/g))
+      if (!/^(https?:|mailto:|\/\/)/.test(href)) expect(href.split(/[#?]/)[0], `${rel} → ${href}`).not.toMatch(/\.html$/);
+});
+
+test("a code block that scrolls sideways can be reached and scrolled by keyboard", () => {
+  const server = docs.find(([rel]) => rel === "docs/server.html")?.[1] ?? "";
+  expect(server).toContain('<pre tabindex="0" role="region" aria-label="Code">');
+  expect(server).not.toContain("<pre>");
+});
+
 test("every link on a docs page reaches a page (and an anchor) that exists", () => {
   for (const [rel, html] of docs)
     for (const [, href = ""] of html.matchAll(/href="([^"]+)"/g)) {
@@ -390,6 +402,8 @@ test("every link on a docs page reaches a page (and an anchor) that exists", () 
         ? normalize(join(dirname(rel), path))
             .replace(/(^|\/)$/, "$1index.html")
             .replace(/^\.\/?$/, "index.html")
+            // a page's address: its file without .html
+            .replace(/(^|\/)([\w-]+)$/, "$1$2.html")
         : rel;
       const page = built.find(([r]) => r === target)?.[1];
       const exists =

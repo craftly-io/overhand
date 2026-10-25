@@ -363,3 +363,21 @@ test("each review piece's frame title names what the short review shows: why it 
     for (const gone of ["diff", "summary"]) expect(title, `${page}: ${gone}`).not.toContain(gone);
   }
 });
+
+test("Tab passes the live demo by, and its button takes the keyboard in, to the demo's first control", async () => {
+  const html = await Bun.file(new URL("./pages/index.html", import.meta.url)).text();
+  expect(html).toMatch(/<iframe id="demo" tabindex="-1"/);
+  expect(html.indexOf('id="enter-demo"')).toBeLessThan(html.indexOf('id="demo"'));
+  const frame = document.createElement("iframe");
+  const button = document.createElement("button");
+  document.body.append(button, frame);
+  // the demo's own page (happy-dom loads no frames)
+  const demo = document.implementation.createHTMLDocument("demo");
+  demo.body.innerHTML = '<p>Night report</p><button disabled>Off</button><a href="#main">Skip to content</a>';
+  Object.defineProperty(frame, "contentDocument", { get: () => demo });
+  let focused = "";
+  for (const el of demo.querySelectorAll<HTMLElement>("a, button")) el.focus = () => (focused = el.textContent ?? "");
+  home.enterDemo(button, frame);
+  button.click();
+  expect(focused).toBe("Skip to content");
+});

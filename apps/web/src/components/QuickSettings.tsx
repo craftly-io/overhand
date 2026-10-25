@@ -170,7 +170,7 @@ export function QuickSettings({ m }: { m: Model }) {
         </TooltipTrigger>
         <TooltipContent>{w.quickSettings}</TooltipContent>
       </Tooltip>
-      <PopoverContent align="end" className="grid max-h-[80dvh] w-80 gap-3 overflow-y-auto">
+      <PopoverContent align="end" aria-label={w.quickSettings} className="grid max-h-[80dvh] w-80 gap-3 overflow-y-auto">
         <b data-heading="" className="font-display text-sm">
           {w.quickSettings}
         </b>
