@@ -96,6 +96,8 @@ export const AccountSchema = z.object({
   billingSure: z.boolean().default(true),
   /** Still on your own agent config where the OS sandbox is enforced: its runs wait for one sign-in in its own folder. */
   waitsSignIn: z.boolean().default(false),
+  /** Its sign-in expired (a run said so): its runs wait until it's signed in again; `waitsSignIn` is true with it. */
+  signedOut: z.boolean().optional(),
 });
 
 export const TicketSchema = z.object({
@@ -788,7 +790,14 @@ export const DashboardStateSchema = z.object({
   /** Decisions Needs you showed in the last 7 days and the 7 before, each counted once (calls.ts). Zero for older daemons. */
   calls: z.object({ week: z.number(), last: z.number() }).default({ week: 0, last: 0 }),
   /** Tickets you assigned an agent to on watch and propose projects. Empty for older daemons. */
-  assigned: z.array(AssignmentSchema).default([]),
+  assigned: z
+    .array(
+      AssignmentSchema.extend({
+        /** Its attempts are used up: it runs again only when you assign it again (its card in Needs you). */
+        stopped: z.boolean().optional(),
+      }),
+    )
+    .default([]),
   /** Your team (docs/teams.md): the roster and the live metadata feed. Null with no team, and for older daemons. */
   team: TeamStateSchema.nullable().default(null),
   /** Names you gave leads and work (`leadId`, `workId`): they win over every name Overhand makes. Empty for older daemons. */

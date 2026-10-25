@@ -12,7 +12,7 @@ import { ACCOUNTS, CFG, claudeEnv, MIN, OPS, providerOf, runtimeOf, today, until
 import { GUARD_LOG } from "./guard";
 import { comboOfAccount, identityOf, nameParts, projectOf, projectRows } from "./history";
 import { allowSubscriptionTokens } from "./legacy-token";
-import { backAt, bench, benchedUntil, outOfUsage } from "./limits";
+import { backAt, bench, benchedUntil, markSignedOut, outOfUsage, signedOut, signedOutAccounts } from "./limits";
 import { report } from "./notify";
 import { readSecret } from "./platform";
 import { routeOrder } from "./routing";
@@ -104,8 +104,8 @@ export async function loadLocalCode(ops = OPS): Promise<string | null> {
 
 /**
  * Runs one headless session on the first account with capacity (the client's own accounts when it lists any); null when all
- * are cooling down. The account's runtime decides the CLI; one that can't enforce `schema` is asked for JSON in the prompt,
- * validated, and retried once.
+ * are cooling down or signed out. The account's runtime decides the CLI; one that can't enforce `schema` is asked for JSON
+ * in the prompt, validated, and retried once. `onLimit` hears that a run started and its account hit its limit.
  */
 export async function claude<T>(
   state: State,
@@ -113,7 +113,7 @@ export async function claude<T>(
   cwd: string,
   schema: string,
   logName: string,
-  opts: { model?: string; args?: string[]; client?: Client; autonomy?: Autonomy; inbox?: boolean } = {},
+  opts: { model?: string; args?: string[]; client?: Client; autonomy?: Autonomy; inbox?: boolean; onLimit?: () => void } = {},
 ): Promise<{ out: T; account: string; cost: number; transcript: string } | null> {
   const busy = new Set(currentRuns().map((r) => r.account));
   const { kind, key } = nameParts(logName);
@@ -135,8 +135,10 @@ export async function claude<T>(
   const pool = routed === today ? today.sort((a, b) => Number(busy.has(a)) - Number(busy.has(b))) : routed;
   // a new ticket's run reads its accounts' usage first when the last reading is old, so a used-up week is skipped
   if (kind === "ticket") await refreshUsage(BEFORE_RUN_MIN, pool);
+  const signedOutNow = signedOutAccounts();
   for (const account of pool) {
     if (
+      account in signedOutNow ||
       benchedUntil(account) > Date.now() ||
       exhaustedUntil(loadUsage(OPS)[account], Date.now(), CFG.limits.paceWeekly) > Date.now() ||
       budgetUntil(account) > Date.now() || // a billed account past today's budget; plan accounts never are
@@ -169,10 +171,17 @@ export async function claude<T>(
     let run = await runOnce(rt, input, cwd, logName, meta);
     let cost = run.out.cost;
     let transcript = run.stdout;
+    // an expired sign-in isn't the task's failure: the account waits for you to sign it in again (Needs you: Sign in)
+    if (!run.out.ok && signedOut(runOutput(run))) {
+      markSignedOut(account, true);
+      report(`🔑 account ${account} is signed out: sign it in again`);
+      continue;
+    }
     const until = run.out.ok ? 0 : outOfUsage(runOutput(run), run.out.usage);
     if (until) {
       bench(account, until); // for every run, lead and test, not just this pass
       report(`⏸ account ${account} hit its limit, back at ${backAt(until)}`);
+      opts.onLimit?.();
       continue;
     }
     state.nextAccount = (state.nextAccount + 1) % Math.max(ACCOUNTS.length, 1); // spread load across runs
@@ -197,9 +206,11 @@ export async function claude<T>(
   return null;
 }
 
-/** A finished run's whole output, as its log has it: its answer, stdout's tail (where a CLI's last error lands) and stderr. */
-const runOutput = (run: { out: RunOutput; stdout: string; stderr: string }): string =>
-  [run.out.text, run.stdout.slice(-4000), run.stderr].join("\n");
+/**
+ * What a finished run's CLI itself said: its result or error (the runtime's parse) and stderr, never the transcript, where
+ * a project's own output (a test printing "429") would read as the CLI's.
+ */
+const runOutput = (run: { out: RunOutput; stderr: string }): string => [run.out.text, run.stderr].join("\n");
 
 /**
  * Readies a run's config folder before it starts, every time, so an update's instructions and guard reach the next
@@ -326,7 +337,11 @@ export async function testAccount(account: string): Promise<{ ok: boolean; messa
     const input = { ...runInput(account, cwd, prompt, schema, alias, []), autonomy: "watch" as const, run: `test-${account}` };
     const run = await runOnce(rt, input, cwd, `test-${account}`, { kind: "other", key: "", project: "" });
     const { out, stderr } = run;
-    if (out.ok && checked(rt, schema, out).value !== undefined) return { ok: true, message: "" };
+    if (out.ok && checked(rt, schema, out).value !== undefined) {
+      markSignedOut(account, false); // a test that answers is signed in: its runs go on
+      return { ok: true, message: "" };
+    }
+    if (!out.ok && signedOut(runOutput(run))) markSignedOut(account, true);
     const until = outOfUsage(runOutput(run), out.usage);
     if (until) bench(account, until); // a test that finds it out of usage benches it like a run would
     return { ok: false, message: (out.text || stderr).trim().slice(-300) || "no answer" };

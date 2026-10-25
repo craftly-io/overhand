@@ -450,6 +450,22 @@ function fixPrompt(key: string, pr: TrackedPr, feedback: string, c: Client): str
 }
 
 /**
+ * Books whether a ticket's run stopped at its account's usage limit (`limited`). Waiting for capacity uses no attempt, but
+ * every second stop in a row does: a task that fills the window each time (or a limit misread) can't rerun and bench its
+ * account forever. A run that ended any other way starts the count again.
+ */
+export function limitStop(state: State, key: string, limited: boolean): void {
+  state.limited ??= {};
+  const hits = state.limited;
+  if (!limited) {
+    delete hits[key];
+    return;
+  }
+  if (hits[key]) state.attempts[key] = (state.attempts[key] ?? 0) + 1;
+  hits[key] = !hits[key];
+}
+
+/**
  * Works one ticket end to end: repo, worktree, the agent's run, then its PR, report, question or another attempt, as
  * the project's autonomy allows. `told` hears the run's own one-line outcome (a hosted run's container reports it).
  */
@@ -476,7 +492,14 @@ export async function handleTicket(state: State, tk: Ticket, told?: (r: AgentRes
     return "ok";
   }
   const wt = await prepareWorktree(repo, tk.key);
-  const run = await claude<AgentResult>(state, taskPrompt(tk, wt), wt.path, RESULT_SCHEMA, tk.key, { client: tk.client });
+  let limited = false;
+  const run = await claude<AgentResult>(state, taskPrompt(tk, wt), wt.path, RESULT_SCHEMA, tk.key, {
+    client: tk.client,
+    onLimit: () => {
+      limited = true;
+    },
+  });
+  if (run || limited) limitStop(state, tk.key, !run); // a pass that couldn't start it at all changes nothing
   if (!run) {
     await setLabels(tk, [], [LABEL.working]);
     return "no-capacity";

@@ -17,6 +17,7 @@ export const plainWords = {
   stateLeadWorking: "Lead working",
   stateLeadsWorking: "Leads working",
   stateIdle: "Online and idle",
+  stateWaitLimit: "Waiting for the usage limit until {t}",
   stateUnreachable: "Can't reach Overhand",
   // money: billed (pay-per-use and cloud accounts, an estimate), included in a plan, or what it would cost at API prices
   billedToday: "Billed today",
@@ -995,6 +996,8 @@ export const plainWords = {
   alSignInSub: "Its agents wait for one {tool} sign-in of its own.",
   alSignInSubOthers: "Your other accounts carry its work until then.",
   alSignInSay: "{account} needs one sign-in before its agents can run",
+  alSignedOut: "{account} is signed out",
+  alSignedOutSub: "Its agents wait until you sign in to {tool} again.",
   /** The Slack inbox's own Slack sign-in expired (Claude Code's, per Slack server): one click opens it in Claude Code. */
   alSlackSignIn: "Slack needs signing in again for {clients}",
   alSlackSignInSub: "The Slack inbox can't read Slack until then. It opens Claude Code: type /mcp and sign in to Slack.",
@@ -1035,6 +1038,7 @@ export const plainWords = {
   brBroken: "Red in Health: {n}, builds or new errors, for when you want a look. | Red in Health: {n}; none of them is waiting on you.",
   brWorking: "The agent is heads-down in {client}.",
   brIdle: "Agents are idle and slightly bored. | Agents are standing by.",
+  brWaitLimit: "Every agent account is at its usage limit; work resumes at {t}.",
   brPaused: "Agents are paused.",
   brArmed: "Tasks queued for them: {n}.",
   brReviews: "Pull requests that want your eyes: {n}.",
