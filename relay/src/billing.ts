@@ -420,6 +420,8 @@ const checkoutHeaders = (nonce: string): Record<string, string> => ({
     "connect-src 'self' https://*.paddle.com",
     "img-src 'self' data: https:",
     "style-src 'self' 'unsafe-inline' https://*.paddle.com",
+    "object-src 'none'",
+    "base-uri 'none'",
     "frame-ancestors 'none'",
   ].join("; "),
 });

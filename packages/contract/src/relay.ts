@@ -7,8 +7,11 @@
 /** A browser's sign-in, as the relay's session cookie. `ws` is the workspace: today, the WorkOS user id.
  * `iat` lets "Sign out everywhere" void every session issued before it. */
 export type SessionClaim = { typ: "session"; ws: string; email: string; iat: number; exp: number };
-/** A daemon's key bound to a workspace, issued when you link the daemon from a signed-in browser. */
-export type LinkClaim = { typ: "link"; ws: string; email: string; pub: string; name: string; iat: number };
+/**
+ * A daemon's key bound to a workspace, issued when you link the daemon from a signed-in browser and renewed with each
+ * entitlement refresh. `exp` is absent only on certificates from before expiry existed; the next refresh replaces them.
+ */
+export type LinkClaim = { typ: "link"; ws: string; email: string; pub: string; name: string; iat: number; exp?: number };
 /** What a workspace pays for, given to its daemon. Short-lived; the daemon keeps using it for GRACE_MS once it lapses. */
 export type EntitlementClaim = { typ: "ent"; ws: string; plan: Plan; seats: number; iat: number; exp: number };
 export type Claim = SessionClaim | LinkClaim | EntitlementClaim;
@@ -23,6 +26,8 @@ export type Cycle = (typeof CYCLES)[number];
 export const ENTITLEMENT_TTL_MS = 24 * 60 * 60_000;
 /** How long hosted features keep working on an expired token while the relay can't be reached. */
 export const GRACE_MS = 7 * 24 * 60 * 60_000;
+/** A link certificate's life: a computer that hasn't reached the relay for this long links again. */
+export const LINK_TTL_MS = 90 * 24 * 60 * 60_000;
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -99,7 +104,7 @@ function isClaim<T extends Claim["typ"]>(v: unknown, typ: T): v is Extract<Claim
   const o: Record<string, unknown> = { ...v };
   if (!str(o, "ws")) return false;
   if (typ === "session") return str(o, "email") && num(o, "iat") && num(o, "exp");
-  if (typ === "link") return str(o, "email") && str(o, "pub") && str(o, "name") && num(o, "iat");
+  if (typ === "link") return str(o, "email") && str(o, "pub") && str(o, "name") && num(o, "iat") && (o.exp === undefined || num(o, "exp"));
   return PLANS.some((p) => p === o.plan) && num(o, "seats") && num(o, "iat") && num(o, "exp");
 }
 
@@ -113,7 +118,10 @@ export function entitlementState(claim: EntitlementClaim | null, now: number): "
   return now < claim.exp + GRACE_MS ? "grace" : "none";
 }
 
-/** The text a daemon signs to prove it holds its key for one request: replayable only for that path, briefly. */
+/**
+ * The text a daemon signs to prove it holds its key for one request: good for that method and path, for
+ * PROOF_WINDOW_MS, once (the relay refuses a signature it has seen; the daemon never signs one timestamp twice).
+ */
 export const daemonProof = (method: string, path: string, ts: number): string => `${method} ${path} ${ts}`;
 /** How old a daemon's signed request may be. */
 export const PROOF_WINDOW_MS = 2 * 60_000;

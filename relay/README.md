@@ -17,10 +17,12 @@ Dashboard traffic never passes through here. It flows browser ↔ daemon over We
 
 1. **Link.** In Settings → Phone → Access from anywhere → *Set it up*, the daemon makes an Ed25519 device key (`.relay.json`, 0600). It opens `/relay/link?pub&name&port&nonce` in your browser.
    - You sign in, then confirm the computer's name and key fingerprint.
-   - The relay signs a **link certificate** `{ws, email, pub}` and sends the browser back to `http://127.0.0.1:<port>/api/relay/linked` with it.
+   - The relay signs a **link certificate** `{ws, email, pub}`, good for 90 days (`LINK_TTL_MS`), and sends the browser back to `http://127.0.0.1:<port>/api/relay/linked` with it.
    - The daemon accepts the certificate only with its own single-use nonce, and only for its own key.
    - Signed in without a plan, `/` sends you to `/relay/home` (`src/home.ts`). With no computer linked it shows the install line and the prompt for your agent (both from `packages/contract/src/links.ts`, as the site shows them), how to link, and a line that polls `/relay/me` (`linked`) until it says Linked. Once linked, it offers Pro and Team.
 2. **Entitlement.** The daemon POSTs `/relay/entitlement`, signed with its device key over method, path and timestamp, and carrying the certificate.
+   - Each signature is taken once (`spent`, kept while its 2-minute window lasts), so a captured request can't be sent again; the daemon never signs one millisecond twice.
+   - Every answer, plan or not, carries a renewed certificate, which the daemon keeps when it's for its own key. Certificates from before expiry existed have no `exp` and are replaced by the first renewal.
    - Its key goes into `links` for the workspace, plan or not, so the hosted home knows a computer is linked (an unlinked key is in `revoked_links` too, and doesn't count).
    - With an active subscription, it gets a 24-hour Ed25519 token.
    - It refreshes every 6 hours. If the relay can't be reached, the last token keeps hosted features on for a 7-day grace period.
@@ -62,6 +64,7 @@ The whole design is in [docs/teams.md](../docs/teams.md).
 ## Revocation and the TURN budget
 
 - **Sign out everywhere** (the billing page, under Security): `POST /relay/signout-all` sets the workspace's `session_epochs.not_before`. Every session cookie carries `iat`, and one issued before that is refused on every request. The workspace's open browser sockets are closed (code 4001), and the hosted page reloads to the sign-in card.
+- **Sign out** (`POST /relay/logout`): that one session's token goes into `spent` until it would have expired, so a copy of the cookie stops working too; the account's other browsers stay signed in.
 - **Unlink this computer** (Settings → Phone on that computer): the daemon sends a signed `POST /relay/unlink`. Its key goes into `revoked_links`, every daemon request checks that table, and its open socket is closed. Then the daemon drops its key, so linking again makes a new one. A WebRTC connection that is already open isn't torn down by either action. The daemon's own device pairing still guards it: remove the device in Settings → Phone.
 - **TURN budget:** each `/relay/ice` call counts one grant in `turn_grants` for the workspace and month. Past `TURN_MONTHLY_GRANTS` (default 300), the call returns STUN only (`turn: false`) and doesn't ask Cloudflare. Direct connections keep working; a connection that only TURN could make fails until the next month.
 
@@ -162,6 +165,10 @@ Every statement in [`schema.sql`](schema.sql) is `CREATE TABLE IF NOT EXISTS`, s
 - 2026-10-25: added `hosted_minutes` and `hosted_runs` (hosted runs), by
   [`migrations/2026-10-25-hosted-runs.sql`](migrations/2026-10-25-hosted-runs.sql). Not applied anywhere yet; staging
   first (Hosted runs, owner steps). The Worker's `migrations` gained `v3` for the `Runner` class.
+- 2026-10-25: added `sign_in_accounts` (addresses that have signed in, hashed) and `spent` (daemon signatures taken
+  once, signed-out sessions), by [`migrations/2026-10-25-sign-in-and-replay.sql`](migrations/2026-10-25-sign-in-and-replay.sql).
+  Apply to each database **before** deploying the Worker that reads them: without `spent`, every signed-in request and
+  every daemon request fails.
 
 ## Why D1 and not KV for entitlements
 

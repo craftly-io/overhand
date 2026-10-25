@@ -103,12 +103,21 @@ flows browser ↔ daemon over WebRTC (DTLS), through Cloudflare TURN only when N
 - **Accounts:** WorkOS AuthKit sign-in; the relay's own session cookie (Ed25519-signed, 7 days, HttpOnly, Secure,
   SameSite=Lax). Every state-changing browser request and every browser WebSocket must come from the hosted origin
   (Origin checked), which stops CSRF and cross-site WebSocket hijacking. Sign-in returns only to a path on the site.
+  An email is trusted only when WorkOS has verified it, or it's the address an email code was just entered for.
+  Signing out ends that session on the relay too, so a copied cookie stops working with it.
   `/relay/dev-login` exists only with `DEV_LOGIN=1` and only on localhost.
+- **Email codes can't be used to shut anyone out.** Sends and wrong codes are counted per address and per network (an
+  IPv6 address by its /48). What's counted per address alone is only a cool-down of 15 minutes; the day caps count per
+  address and network, so strangers' tries never use up yours. All sends together are capped only for addresses that
+  have never signed in: a flood of made-up addresses can hold up new accounts for 15 minutes, never an existing one
+  (past their marks, those totals raise an alert in the relay's log instead). Guessing a code is bounded by WorkOS: a
+  code lasts 10 minutes and WorkOS voids it after its own failed tries.
 - **Your computer's identity:** an Ed25519 device key made on your computer (`.relay.json`, 0600; the private half never
   leaves it). Linking needs a signed-in browser, an explicit confirmation showing the computer's name and key
   fingerprint, and a single-use nonce the daemon made; the relay's certificate comes back only to `127.0.0.1`, and the
-  daemon accepts it only for its own key. A certificate is useless without the device key. Every daemon request to the
-  relay is signed over method, path and a timestamp (2-minute window).
+  daemon accepts it only for its own key. A certificate is useless without the device key, lasts 90 days, and is
+  renewed each time the daemon asks for its entitlement. Every daemon request to the relay is signed over method, path
+  and a timestamp (2-minute window), and the relay takes each signature once, so a captured request can't be replayed.
 - **Pairing only within a workspace:** the Worker authenticates each socket (daemon by key and certificate, browser by
   session), checks the workspace has a paid plan, and routes it to that workspace's Durable Object by name. The object
   only ever forwards between sockets it holds, accepts only offers and candidates from browsers and answers and
@@ -121,8 +130,10 @@ flows browser ↔ daemon over WebRTC (DTLS), through Cloudflare TURN only when N
   setup, and the config fields above that only the computer changes) refuse it. Weak point, stated plainly: first use without the pairing link trusts the key the relay reports;
   compare the fingerprint in Settings → Phone if that matters to you.
 - **On the hosted page** the paired device's session token lives in localStorage on the hosted origin (a data channel
-  carries no cookies), so an XSS on that origin could read it; the page loads no third-party script, and Paddle.js runs
-  only on the separate `/relay/billing` page (strict CSP with a nonce, never cross-origin isolated).
+  carries no cookies), so an XSS on that origin could read it. The page's Content-Security-Policy runs only the origin's
+  own script files (no inline script, no eval, nothing third-party), allows no plugins or `<base>`, and forbids
+  framing. Paddle.js runs only on the separate `/relay/billing` page (strict CSP with a nonce, never cross-origin
+  isolated).
 - **Entitlements:** Paddle webhooks are accepted only from the addresses Paddle publishes for the environment (its
   `/ips` endpoint, re-read hourly; the last good list if that fails, and 503 so Paddle retries if there has never been
   one), then verified with the `Paddle-Signature` HMAC-SHA256 over the raw body, within 5

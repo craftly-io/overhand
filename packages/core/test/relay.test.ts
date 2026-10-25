@@ -128,6 +128,32 @@ describe("gating: payment gates hosted features only", () => {
     expect((await handle(localRequest(`${LOCAL}/api/devices`))).status).toBe(200);
     process.env.OVERHAND_RELAY_URL = APP;
   });
+
+  test("each refresh keeps the relay's renewed certificate when it's for this key, and never signs one timestamp twice", async () => {
+    const dk = await newKeyPair();
+    const k = await signingKey(relayKeys.priv);
+    const link = (pub: string, iat: number) => signToken(k, { typ: "link", ws: "w", email: "e", pub, name: "Mac", iat, exp: iat + 1 });
+    const answers = [await link(dk.pub, 1), await link((await newKeyPair()).pub, 2)];
+    const ts: string[] = [];
+    const stand = Bun.serve({
+      port: 0,
+      fetch(req) {
+        ts.push(req.headers.get("x-overhand-ts") ?? "");
+        return Response.json({ error: "no paid plan", cert: answers[ts.length - 1] }, { status: 402 });
+      },
+    });
+    process.env.OVERHAND_RELAY_URL = `http://127.0.0.1:${stand.port}`;
+    try {
+      writeFileSync(join(OPS, ".relay.json"), JSON.stringify({ enabled: false, cert: "old", ent: "", ...dk }));
+      await Promise.all([refreshEntitlement(), refreshEntitlement()]);
+      expect(new Set(ts).size).toBe(2);
+      // one answer renewed this key's certificate, the other was for a key that isn't this one and was ignored
+      expect(((await Bun.file(join(OPS, ".relay.json")).json()) as { cert: string }).cert).toBe(answers[0] ?? "");
+    } finally {
+      stand.stop(true);
+      process.env.OVERHAND_RELAY_URL = APP;
+    }
+  });
 });
 
 describe("linking", () => {

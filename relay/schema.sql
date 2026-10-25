@@ -100,6 +100,18 @@ CREATE TABLE IF NOT EXISTS sign_in_limits (
   PRIMARY KEY (key, win)
 );
 CREATE INDEX IF NOT EXISTS sign_in_limits_win ON sign_in_limits (win);
+-- Addresses that have signed in, by a SHA-256 of the address (never the address): their code sends never share the
+-- pool made-up addresses can fill. And what's been used once, until `until` (ms): daemons' request signatures, so one
+-- can't be replayed, and signed-out sessions. (An existing database: migrations/2026-10-25-sign-in-and-replay.sql)
+CREATE TABLE IF NOT EXISTS sign_in_accounts (
+  key TEXT PRIMARY KEY,
+  at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS spent (
+  key TEXT PRIMARY KEY,
+  until INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS spent_until ON spent (until);
 -- Hosted runs (issue #15, relay/src/hosted.ts): a workspace's prepaid run minutes (packs bought, never expiring) and
 -- the plan's monthly allowance used in `month` (YYYY-MM); and each run's record: what the daemon reads back and the
 -- billing page lists. Nothing here holds a key, a token or a run's log. (An existing database:

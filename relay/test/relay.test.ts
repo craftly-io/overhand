@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -6,10 +6,12 @@ import {
   ENTITLEMENT_TTL_MS,
   entitlementState,
   GRACE_MS,
+  LINK_TTL_MS,
   newKeyPair,
   PLAN_COPY,
   PLAN_TAX,
   PLANS,
+  PROOF_WINDOW_MS,
   readToken,
   type Signal,
   sign,
@@ -38,8 +40,8 @@ import {
   workspaceSig,
 } from "../src/paddle";
 import { MAX_PEERS, type Who, Workspace } from "../src/signal";
-import worker, { type Env, relayKeys, route, safeNext, TURN_GRANTS } from "../src/worker";
-import { fakeD1, socket as newSocket, fakeState as newState } from "./fakes";
+import worker, { APP_CSP, APP_HEADERS, type Env, headersFile, relayKeys, route, safeNext, TURN_GRANTS } from "../src/worker";
+import { fakeD1, socket as newSocket, fakeState as newState, proofTs } from "./fakes";
 
 // ── fakes ──
 
@@ -201,7 +203,7 @@ async function sessionCookie(ws: string): Promise<string> {
 async function linkedDaemon(ws: string) {
   const dk = await newKeyPair();
   const cert = await signToken((await relayKeys(env())).sign, { typ: "link", ws, email: "e", pub: dk.pub, name: "Mac", iat: Date.now() });
-  const headers = async (method: string, path: string, ts = Date.now()) => ({
+  const headers = async (method: string, path: string, ts = proofTs()) => ({
     "x-overhand-cert": cert,
     "x-overhand-ts": String(ts),
     "x-overhand-sig": await sign(await signingKey(dk.priv), daemonProof(method, path, ts)),
@@ -326,6 +328,93 @@ describe("auth and pairing within a workspace", () => {
       iat: 0,
     });
     expect((await ws({ ...(await d.headers("GET", "/relay/ws")), "x-overhand-cert": forged })).status).toBe(401);
+  });
+
+  test("a daemon's signed request is taken once: a captured one sent again inside the window is refused", async () => {
+    const d = await linkedDaemon("user_A");
+    const h = await d.headers("POST", "/relay/entitlement");
+    const ent = () => route(new Request(`${APP}/relay/entitlement`, { method: "POST", headers: h }), env());
+    expect((await ent()).status).toBe(402);
+    expect((await ent()).status).toBe(401);
+    // a fresh signature from the same daemon is fine; the spent ones are pruned once their window has passed
+    const next = route(
+      new Request(`${APP}/relay/entitlement`, { method: "POST", headers: await d.headers("POST", "/relay/entitlement") }),
+      env(),
+    );
+    expect((await next).status).toBe(402);
+    const later = Date.now() + PROOF_WINDOW_MS + 60_000;
+    const always = spyOn(Math, "random").mockReturnValue(0);
+    await route(
+      new Request(`${APP}/relay/entitlement`, { method: "POST", headers: await d.headers("POST", "/relay/entitlement", later) }),
+      env(),
+      later,
+    );
+    always.mockRestore();
+    expect(await db.prepare("SELECT COUNT(*) AS n FROM spent").first()).toEqual({ n: 1 });
+  });
+
+  test("link certificates expire, and every entitlement answer renews one for the same key", async () => {
+    const d = await linkedDaemon("user_A");
+    const k = await relayKeys(env());
+    const ent = async (cert: string, now = Date.now()) =>
+      route(
+        new Request(`${APP}/relay/entitlement`, {
+          method: "POST",
+          headers: { ...(await d.headers("POST", "/relay/entitlement", now)), "x-overhand-cert": cert },
+        }),
+        env(),
+        now,
+      );
+    // a certificate from before expiry (no exp) still works, and comes back renewed with one
+    const old = await ent(d.cert);
+    expect(old.status).toBe(402);
+    const renewed = await readToken(k.verify, ((await old.json()) as { cert: string }).cert, "link");
+    expect(renewed).toMatchObject({ ws: "user_A", pub: d.dk.pub, name: "Mac" });
+    expect((renewed?.exp ?? 0) - (renewed?.iat ?? 0)).toBe(LINK_TTL_MS);
+    const lapsed = await signToken(k.sign, {
+      typ: "link",
+      ws: "user_A",
+      email: "e",
+      pub: d.dk.pub,
+      name: "Mac",
+      iat: 0,
+      exp: Date.now() - 1,
+    });
+    expect((await ent(lapsed)).status).toBe(401);
+    // the link page's certificate carries the expiry from the start
+    const q = new URLSearchParams({ pub: d.dk.pub, name: "Mac", port: "4317", nonce: "n".repeat(22) });
+    const linked = await route(
+      new Request(`${APP}/relay/link`, { method: "POST", headers: { origin: APP, cookie: await sessionCookie("user_A") }, body: q }),
+      env(),
+    );
+    const cert = await readToken(k.verify, new URL(linked.headers.get("location") ?? "").searchParams.get("cert") ?? "", "link");
+    expect((cert?.exp ?? 0) - (cert?.iat ?? 0)).toBe(LINK_TTL_MS);
+  });
+
+  test("signing out ends the session on the server: a copy of the cookie stops working", async () => {
+    const cookie = await sessionCookie("user_A");
+    const me = async () =>
+      ((await (await route(new Request(`${APP}/relay/me`, { headers: { cookie } }), env())).json()) as { signedIn: boolean }).signedIn;
+    expect(await me()).toBe(true);
+    expect(
+      (await route(new Request(`${APP}/relay/logout`, { method: "POST", headers: { cookie, origin: "https://evil.example" } }), env()))
+        .status,
+    ).toBe(403);
+    expect(await me()).toBe(true);
+    const out = await route(new Request(`${APP}/relay/logout`, { method: "POST", headers: { cookie, origin: APP } }), env());
+    expect(out.headers.get("set-cookie")).toContain("hl_session=;");
+    expect(await me()).toBe(false);
+    // only that session: another browser of the same account stays signed in
+    const other = await signToken((await relayKeys(env())).sign, {
+      typ: "session",
+      ws: "user_A",
+      email: "e",
+      iat: Date.now() + 1,
+      exp: Date.now() + 60_000,
+    });
+    expect(await (await route(new Request(`${APP}/relay/me`, { headers: { cookie: `hl_session=${other}` } }), env())).json()).toMatchObject(
+      { signedIn: true },
+    );
   });
 
   test("a session token can't stand in for a link certificate, nor the reverse", async () => {
@@ -1299,7 +1388,36 @@ describe("what a security scanner sees", () => {
   });
   test("every relay page and every static file turns off the same unused browser features", async () => {
     expect((await route(new Request(`${APP}/relay/login`), env())).headers.get("permissions-policy")).toBe(PERMISSIONS);
-    expect(readFileSync(join(import.meta.dir, "..", "wrangler.jsonc"), "utf8")).toContain(`Permissions-Policy: ${PERMISSIONS}`);
+    expect(headersFile()).toContain(`  Permissions-Policy: ${PERMISSIONS}\n`);
+    expect(readFileSync(join(import.meta.dir, "..", "wrangler.jsonc"), "utf8")).toContain("headersFile())' > relay/public/_headers");
+  });
+
+  test("the dashboard runs only its own script files, can't be framed, and keeps no base or plugin", async () => {
+    const csp = Object.fromEntries(APP_CSP.split("; ").map((d) => [d.split(" ")[0], d.split(" ").slice(1).join(" ")]));
+    expect(csp).toMatchObject({
+      "script-src": "'self'",
+      "object-src": "'none'",
+      "base-uri": "'none'",
+      "frame-ancestors": "'none'",
+      "connect-src": "'self'",
+    });
+    expect(APP_CSP).not.toContain("unsafe-eval");
+    expect(csp["script-src"]).not.toContain("unsafe-inline");
+    // every static file gets it from _headers; the page the Worker serves at / gets the same from the Worker
+    expect(headersFile()).toStartWith(`/*\n  Content-Security-Policy: ${APP_CSP}\n`);
+    const page = { fetch: async () => new Response("<!doctype html>", { headers: { "content-type": "text/html" } }) };
+    await applyEvent(db, subscriptionEvent({ ws: "user_P" }), 0, true);
+    const r = await worker.fetch(new Request(`${APP}/`, { headers: { cookie: await sessionCookie("user_P") } }), {
+      ...env(),
+      ASSETS: page,
+    });
+    expect(await r.text()).toBe("<!doctype html>");
+    for (const [k, v] of Object.entries(APP_HEADERS)) expect(r.headers.get(k)).toBe(v);
+    // the app's page has no inline script (its first paint is a file), so 'self' is all it needs
+    const html = readFileSync(join(import.meta.dir, "..", "..", "apps", "web", "index.html"), "utf8");
+    expect([...html.matchAll(/<script\b[^>]*>/g)].every((m) => /\ssrc=/.test(m[0]))).toBe(true);
+    // and the relay's own pages never take a <base> either
+    expect((await route(new Request(`${APP}/relay/login`), env())).headers.get("content-security-policy")).toContain("base-uri 'none'");
   });
 });
 

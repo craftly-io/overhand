@@ -17,7 +17,7 @@ import type { D1 } from "../src/paddle";
 import { RATE_PER_MINUTE, ROOM_CHECK_MS, TeamRoom } from "../src/room";
 import { access } from "../src/team";
 import { type Env, relayKeys, route } from "../src/worker";
-import { type FakeSocket, fakeD1, fakeRoomState, socket } from "./fakes";
+import { type FakeSocket, fakeD1, fakeRoomState, proofTs, socket } from "./fakes";
 
 const keys = await newKeyPair();
 const APP = "https://app.example";
@@ -101,7 +101,7 @@ async function person(user: string, email = `${user}@x.dev`) {
     );
   /** A request from their daemon, signed with its device key. */
   const daemon = async (method: string, path: string, body?: unknown, extra: Record<string, string> = {}) => {
-    const ts = Date.now();
+    const ts = proofTs();
     const url = new URL(`${APP}${path}`);
     return route(
       new Request(url, {

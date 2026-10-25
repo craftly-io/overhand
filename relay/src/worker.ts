@@ -10,6 +10,7 @@ import {
   EMAIL,
   ENTITLEMENT_TTL_MS,
   fingerprint,
+  LINK_TTL_MS,
   type LinkClaim,
   PERMISSIONS,
   PROOF_WINDOW_MS,
@@ -40,7 +41,7 @@ import {
   verifyPaddleSignature,
 } from "./paddle";
 import { signedIn, signInRoute } from "./signin";
-import { access, teamRoute, tellRoom } from "./team";
+import { access, sha256, teamRoute, tellRoom } from "./team";
 
 export { Runner } from "./hosted";
 export { TeamRoom } from "./room";
@@ -134,9 +135,27 @@ export async function sessionOf(req: Request, env: Env, now = Date.now()): Promi
   if (!token) return null;
   const s = await readToken((await relayKeys(env)).verify, token, "session");
   if (!s || s.exp <= now) return null;
-  // "Sign out everywhere" voids every session issued before it: one D1 read per signed-in request
-  const epoch = await env.DB.prepare("SELECT not_before FROM session_epochs WHERE workspace = ?").bind(s.ws).first();
-  return s.iat >= Number(epoch?.not_before ?? 0) ? s : null;
+  // "Sign out everywhere" voids every session issued before it, signing out voids this one: one D1 read per request
+  const row = await env.DB.prepare(
+    "SELECT (SELECT not_before FROM session_epochs WHERE workspace = ?) AS not_before, (SELECT 1 FROM spent WHERE key = ?) AS gone",
+  )
+    .bind(s.ws, await sessionKey(token))
+    .first();
+  return s.iat >= Number(row?.not_before ?? 0) && !row?.gone ? s : null;
+}
+
+/** What a signed-out session is remembered by in `spent`: a hash of its token. */
+const sessionKey = async (token: string) => `session:${await sha256(token)}`;
+
+/**
+ * Marks something used, remembered until `until` (ms): a daemon's signature, a signed-out session. False when it was
+ * spent already. Rows past their time go now and then.
+ */
+async function spend(env: Env, key: string, until: number, now: number): Promise<boolean> {
+  // ponytail: prune on ~1 in 50 calls, as sign-in's limits do; the until index keeps it cheap
+  if (Math.random() < 0.02) await env.DB.prepare("DELETE FROM spent WHERE until < ?").bind(now).run();
+  const r = await env.DB.prepare("INSERT OR IGNORE INTO spent (key, until) VALUES (?, ?)").bind(key, until).run();
+  return r.meta.changes > 0;
 }
 
 /** Closes sockets in a workspace's signalling room: every browser ("peers"), or the daemon with one key ("daemon:<pub>"). */
@@ -147,8 +166,9 @@ async function kick(env: Env, ws: string, who: string): Promise<void> {
 }
 
 /**
- * The daemon a request comes from: a link certificate this relay issued (x-overhand-cert) plus the daemon's own
- * signature, with the key in that certificate, over the method, path and a fresh timestamp. Null for anything else.
+ * The daemon a request comes from: a link certificate this relay issued (x-overhand-cert) and that hasn't expired,
+ * plus the daemon's own signature, with the key in that certificate, over the method, path and a fresh timestamp,
+ * used once: a captured request can't be sent again. Null for anything else.
  */
 export async function daemonOf(req: Request, env: Env, now = Date.now()): Promise<LinkClaim | null> {
   // headers, or the query for a WebSocket upgrade (the standard WebSocket constructor can't set headers)
@@ -158,17 +178,23 @@ export async function daemonOf(req: Request, env: Env, now = Date.now()): Promis
   const sig = req.headers.get("x-overhand-sig") ?? q.get("sig") ?? "";
   if (!cert || !sig || !Number.isFinite(ts) || Math.abs(now - ts) > PROOF_WINDOW_MS) return null;
   const link = await readToken((await relayKeys(env)).verify, cert, "link");
-  if (!link) return null;
+  if (!link || (link.exp !== undefined && link.exp <= now)) return null;
   try {
     const ok = await verify(await verifyingKey(link.pub), daemonProof(req.method, new URL(req.url).pathname, ts), sig);
     if (!ok) return null;
   } catch {
     return null;
   }
-  // an unlinked computer's certificate stays signed forever; the relay just stops honouring its key
+  // an unlinked computer's certificate stays signed until it expires; the relay just stops honouring its key
   const revoked = await env.DB.prepare("SELECT 1 AS x FROM revoked_links WHERE pub = ?").bind(link.pub).first();
-  return revoked ? null : link;
+  if (revoked) return null;
+  // each signature once, remembered while its timestamp is still fresh (a replay later fails the window anyway)
+  return (await spend(env, `proof:${sig}`, ts + PROOF_WINDOW_MS, now)) ? link : null;
 }
+
+/** A link certificate for a daemon's key, good for LINK_TTL_MS: issued on linking, renewed on each entitlement ask. */
+const linkCert = async (env: Env, c: Omit<LinkClaim, "typ" | "iat" | "exp">, now: number) =>
+  signToken((await relayKeys(env)).sign, { typ: "link", ...c, iat: now, exp: now + LINK_TTL_MS });
 
 /** A same-origin browser request: the only kind allowed to change anything with a session cookie. */
 export const sameOrigin = (req: Request, url: URL) => req.headers.get("origin") === url.origin;
@@ -243,8 +269,43 @@ export const pageHeaders = (nonce = ""): Record<string, string> => ({
   "referrer-policy": "same-origin",
   "permissions-policy": PERMISSIONS,
   // the fonts and their stylesheet come from this origin (the hosted app's /fonts)
-  "content-security-policy": `default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; ${nonce ? `script-src 'nonce-${nonce}'; connect-src 'self'; ` : ""}form-action 'self' http://127.0.0.1:*; frame-ancestors 'none'`,
+  "content-security-policy": `default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; ${nonce ? `script-src 'nonce-${nonce}'; connect-src 'self'; ` : ""}form-action 'self' http://127.0.0.1:*; base-uri 'none'; frame-ancestors 'none'`,
 });
+
+/**
+ * The hosted dashboard's policy: scripts only its own files (no inline script, no eval, nothing third-party), so one
+ * injected string can't read the paired computers' sessions it keeps. Styles may be inline (React and the drawers set
+ * them); images and the preview's frame may be any https page, which can't script this one.
+ */
+export const APP_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "frame-src https:",
+  "worker-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+/** The headers on every file of the hosted dashboard: the Worker adds them to what it serves, `_headers` to the rest. */
+export const APP_HEADERS: Record<string, string> = {
+  "Content-Security-Policy": APP_CSP,
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "same-origin",
+  "X-Content-Type-Options": "nosniff",
+  "Permissions-Policy": PERMISSIONS,
+};
+
+/** Workers static assets' `_headers` file with APP_HEADERS, written into the build by wrangler.jsonc's build command. */
+export const headersFile = (): string =>
+  `/*\n${Object.entries(APP_HEADERS)
+    .map(([k, v]) => `  ${k}: ${v}`)
+    .join("\n")}\n`;
 
 /** A relay page: the title as its heading unless the body brings its own. No script, nothing third-party. */
 export const html = (title: string, body: string, status = 200, brand = true, description = "") =>
@@ -282,6 +343,10 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
   }
   if (req.method === "POST" && p === "/relay/logout") {
     if (!sameOrigin(req, url)) return json({ error: "forbidden" }, 403);
+    // this session ends on the server too: a copy of the cookie stops working with it
+    const token = cookie(req, SESSION);
+    const s = await sessionOf(req, env, now);
+    if (s) await spend(env, await sessionKey(token), s.exp, now);
     return json({ ok: true }, 200, { "set-cookie": setCookie(SESSION, "", 0) });
   }
   if (req.method === "POST" && p === "/relay/signout-all") {
@@ -334,9 +399,11 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
     if (!d) return json({ error: "unknown daemon" }, 401);
     // a daemon holding its certificate asks here first thing after linking: app.overhand.dev then knows it's linked
     await recordLink(env.DB, d.ws, d.pub, now);
+    // the certificate renewed, plan or not, so a computer that keeps in touch never links again
+    const cert = await linkCert(env, { ws: d.ws, email: d.email, pub: d.pub, name: d.name }, now);
     // their own plan, or a seat on a team with an active Team plan
     const e = await access(env.DB, d.ws, now);
-    if (!e) return json({ error: "no paid plan", plan: null }, 402);
+    if (!e) return json({ error: "no paid plan", plan: null, cert }, 402);
     const token = await signToken((await relayKeys(env)).sign, {
       typ: "ent",
       ws: d.ws,
@@ -345,7 +412,7 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
       iat: now,
       exp: now + ENTITLEMENT_TTL_MS,
     });
-    return json({ token });
+    return json({ token, cert });
   }
   if (req.method === "POST" && p === "/relay/unlink") {
     // "Unlink this computer", from its own Settings: its key is refused from now on, and its socket closes
@@ -397,14 +464,7 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
     if (!s || !sameOrigin(req, url)) return html("Not linked", "<p>Sign in on this page first.</p>", 403);
     const q = LinkQuery.safeParse(Object.fromEntries(await req.formData().then((f) => [...f.entries()].map(([k, v]) => [k, String(v)]))));
     if (!q.success) return html("Not linked", "<p>That link is malformed. Start again from Overhand's settings.</p>", 400);
-    const cert = await signToken((await relayKeys(env)).sign, {
-      typ: "link",
-      ws: s.ws,
-      email: s.email,
-      pub: q.data.pub,
-      name: q.data.name,
-      iat: now,
-    });
+    const cert = await linkCert(env, { ws: s.ws, email: s.email, pub: q.data.pub, name: q.data.name }, now);
     // back to the daemon on this computer, with the nonce it made: only that daemon, for that one link, takes it
     const back = new URL(`http://127.0.0.1:${q.data.port}/api/relay/linked`);
     back.search = new URLSearchParams({ nonce: q.data.nonce, cert }).toString();
@@ -500,6 +560,11 @@ export default {
       if (s && !(await access(env.DB, s.ws, Date.now()).catch(() => true)))
         return new Response(null, { status: 302, headers: { location: "/relay/home" } });
     }
-    return env.ASSETS ? env.ASSETS.fetch(req) : json({ error: "not found" }, 404);
+    if (!env.ASSETS) return json({ error: "not found" }, 404);
+    // `_headers` only reaches files served without the Worker: the dashboard's page at / gets them here
+    const res = await env.ASSETS.fetch(req);
+    const out = new Response(res.body, res);
+    for (const [k, v] of Object.entries(APP_HEADERS)) out.headers.set(k, v);
+    return out;
   },
 };
