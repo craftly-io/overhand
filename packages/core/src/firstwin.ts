@@ -7,7 +7,7 @@
  */
 import { type Dirent, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
-import { FIRST_WIN_KINDS, type FirstWin, type FirstWinKind, type TaskKind } from "@overhand/contract";
+import { type CheckupFinding, type CurrentRun, FIRST_WIN_KINDS, type FirstWin, type FirstWinKind, type TaskKind } from "@overhand/contract";
 import { activeRepos } from "./agent";
 import { assign } from "./assign";
 import type { Client } from "./config";
@@ -313,6 +313,25 @@ export function firstWinState(now = Date.now()): FirstWin | null {
 }
 
 /**
+ * The runs in progress, with the first win among them while it runs: between its agent's start and its PR (the work
+ * pass getting to it, the PR opening, a run whose process is already gone) there may be no live process, and no screen
+ * may say "idle" next to "An agent is on it". It has no process of its own there (pid 0).
+ */
+export function withWinRun(runs: CurrentRun[], w: FirstWin | null): CurrentRun[] {
+  if (w?.state !== "running" || runs.some((r) => r.name === w.key)) return runs;
+  return [...runs, { name: w.key, account: "", cwd: "", startedAt: w.since || w.at, pid: 0 }];
+}
+
+/**
+ * A check-up report without the task the first win took: once it's queued, running or done, the check-up doesn't offer
+ * it again (the repo's main branch still lacks the fix until its PR merges).
+ */
+export function withoutWinTask<T extends { repo: string; findings: CheckupFinding[] }>(r: T, w: FirstWin | null = loadWin()): T {
+  if (!w?.title || w.repo !== r.repo || !["queued", "running", "pr", "report"].includes(w.state)) return r;
+  return { ...r, findings: r.findings.filter((f) => f.task?.title !== w.title) };
+}
+
+/**
  * Runs once, right after setup: searches the projects' active repos (most recently committed first, five at most) for
  * a first win and queues it for the next work pass, which starts it at once. Never throws.
  */
@@ -328,6 +347,8 @@ export async function startFirstWin(now = Date.now()): Promise<void> {
     url: "",
     message: "",
     at: now,
+    since: 0,
+    cost: 0,
     repoPath: "",
     brief: "",
   };
@@ -369,6 +390,8 @@ function queueWin(c: Client, repoPath: string, task: WinTask): void {
     url: "",
     message: "",
     at: Date.now(),
+    since: 0,
+    cost: 0,
     repoPath,
     brief: task.brief,
   });

@@ -33,6 +33,9 @@ export function ago(ms: number, now: number = Date.now()): string {
   return m < 60 ? `${m} min ago` : m < 48 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
 }
 
+/** "a, b and c": the house's words are English. */
+export const and = (xs: string[]): string => new Intl.ListFormat("en", { type: "conjunction" }).format(xs);
+
 /** $3.50; from $1,000 grouped and without cents ($12,346), so a big figure stays short enough to read at a glance. */
 export function money(n: number): string {
   return n >= 1000 ? `$${Math.round(n).toLocaleString("en-US")}` : `$${n.toFixed(2)}`;

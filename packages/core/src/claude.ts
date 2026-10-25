@@ -2,7 +2,7 @@
 import { appendFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Autonomy, FailureReason, RunKind } from "@overhand/contract";
+import type { Autonomy, FailureReason, RunKind, WinStep } from "@overhand/contract";
 import { z } from "zod";
 import { AGENT_HOME, AGENT_HOMES, guardHooks, INSTRUCTIONS_FILE, inboxHome, runHome, runMcpServers, writeAgentHome } from "./agent-home";
 import { budgetUntil, recordedBilling } from "./billing";
@@ -19,7 +19,16 @@ import { routeOrder } from "./routing";
 import { RUNTIMES } from "./runtimes";
 import { writeRunFiles } from "./runtimes/claude-code";
 import { repoRefusal } from "./runtimes/repo-config";
-import { type AgentRuntime, dropNulls, extractJson, gitCommonDir, type RunInput, type RunOutput, readOnly } from "./runtimes/runtime";
+import {
+  type AgentRuntime,
+  dropNulls,
+  extractJson,
+  gitCommonDir,
+  type RunInput,
+  type RunOutput,
+  readOnly,
+  stepReader,
+} from "./runtimes/runtime";
 import { projectSandbox, sandboxSpawn, waitsForSignIn } from "./sandbox";
 import { answers } from "./setup";
 import { currentRuns, type State, saveCurrentRuns } from "./state";
@@ -106,7 +115,8 @@ export async function loadLocalCode(ops = OPS): Promise<string | null> {
  * Runs one headless session on the first account with capacity (the client's own accounts when it lists any); null when all
  * are cooling down or signed out. The account's runtime decides the CLI; one that can't enforce `schema` is asked for JSON
  * in the prompt, validated, and retried once. `onLimit` hears that a run started and its account hit its limit. A run
- * that failed says why in `failure` (its `out.message` keeps the CLI's own words).
+ * that failed says why in `failure` (its `out.message` keeps the CLI's own words). `onStep` hears each later step the run
+ * reaches, read from its output as it arrives (stepReader).
  */
 export async function claude<T>(
   state: State,
@@ -114,7 +124,15 @@ export async function claude<T>(
   cwd: string,
   schema: string,
   logName: string,
-  opts: { model?: string; args?: string[]; client?: Client; autonomy?: Autonomy; inbox?: boolean; onLimit?: () => void } = {},
+  opts: {
+    model?: string;
+    args?: string[];
+    client?: Client;
+    autonomy?: Autonomy;
+    inbox?: boolean;
+    onLimit?: () => void;
+    onStep?: (step: WinStep) => void;
+  } = {},
 ): Promise<{ out: T; account: string; cost: number; transcript: string; failure?: FailureReason } | null> {
   const busy = new Set(currentRuns().map((r) => r.account));
   const { kind, key } = nameParts(logName);
@@ -169,7 +187,7 @@ export async function claude<T>(
       run: logName,
       project: meta.project,
     };
-    let run = await runOnce(rt, input, cwd, logName, meta);
+    let run = await runOnce(rt, input, cwd, logName, meta, opts.onStep && stepReader(opts.onStep));
     let cost = run.out.cost;
     let transcript = run.stdout;
     // an expired sign-in isn't the task's failure: the account waits for you to sign it in again (Needs you: Sign in)
@@ -285,6 +303,7 @@ async function runOnce(
   cwd: string,
   logName: string,
   meta: { kind: RunKind; key: string; project: string },
+  onText?: (chunk: string) => void,
 ): Promise<{ out: RunOutput; stderr: string; stdout: string; code: number; timedOut: boolean }> {
   readyHome(rt.id, input.configDir);
   // the OS sandbox (sandbox.ts): one sandbox, ours, so the CLI's own is off under it
@@ -315,7 +334,7 @@ async function runOnce(
   const {
     texts: [stdout = "", stderr = ""],
     code,
-  } = await untilExit(proc.exited, [proc.stdout, proc.stderr]);
+  } = await untilExit(proc.exited, [proc.stdout, proc.stderr], undefined, onText);
   clearTimeout(timer);
   boxed.done(startedAt);
   if (boxed.sandboxed) ingestOutboxes(OPS, GUARD_LOG);

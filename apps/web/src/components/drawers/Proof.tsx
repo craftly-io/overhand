@@ -2,6 +2,7 @@ import type { Proof as ProofData } from "@overhand/contract";
 import { useEffect, useState } from "react";
 import { useWords } from "@/app/theme";
 import { apiFetch } from "@/lib/api";
+import { changedText, proofLine } from "@/lib/firstwin";
 import { fmt } from "@/lib/format";
 import { Dot } from "../Pane";
 
@@ -59,6 +60,8 @@ export function Proof({ prKey, proof, ci }: { prKey: string; proof: ProofData | 
     <section className="mt-4 rounded-lg border border-border bg-background/40 p-3" aria-label={w.proofTitle}>
       <h3 className="text-sm font-semibold">{w.proofTitle}</h3>
       <p className="mt-1 text-xs text-muted-foreground">{w.proofIntro}</p>
+      {/* the proof in one sentence a newcomer reads, before the commands that back it */}
+      {proofLine(proof, w) ? <p className="mt-2 text-sm font-medium">{proofLine(proof, w)}</p> : null}
       <dl className="mt-3 grid gap-3 text-sm">
         <div>
           <dt className={SECTION}>{w.proofChecks}</dt>
@@ -87,7 +90,7 @@ export function Proof({ prKey, proof, ci }: { prKey: string; proof: ProofData | 
         <div>
           <dt className={SECTION}>{w.proofChanged}</dt>
           <dd className="mt-1">
-            {fmt(w.proofChangedText, { n: proof.files, add: proof.added, del: proof.removed })}
+            {changedText(proof, w)}
             {proof.areas.length ? (
               <span data-data className="ml-2 font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">
                 {proof.areas.join(" · ")}

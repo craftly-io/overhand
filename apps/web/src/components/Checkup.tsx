@@ -21,6 +21,20 @@ const DOT: Record<CheckupFinding["tone"], string> = {
   ok: "var(--ok)",
 };
 
+/** The check-up's reports: one repo (`repo`, relative to `codeRoot`), else the projects' repos. */
+export function useCheckup(repo?: string, codeRoot = "") {
+  const q = new URLSearchParams(repo === undefined ? {} : { repo, codeRoot });
+  return useQuery({
+    queryKey: ["checkup", repo ?? "", codeRoot],
+    queryFn: () => get(`/api/checkup${repo === undefined ? "" : `?${q}`}`, ReportsSchema),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+/** Hands a check-up finding to an agent: the first win, a ticket, or (watch) a task with no ticket. */
+export const pickFinding = (path: string, id: string, codeRoot = "") => post("/api/checkup/pick", { path, id, codeRoot }, PickSchema);
+
 /** One finding: what Overhand saw, and, when an agent can fix it, the one click that hands it over. */
 function Finding({ f, path, codeRoot, i }: { f: CheckupFinding; path: string; codeRoot: string; i: number }) {
   const w = useWords();
@@ -31,7 +45,7 @@ function Finding({ f, path, codeRoot, i }: { f: CheckupFinding; path: string; co
     setBusy(true);
     setError("");
     try {
-      const r = await post("/api/checkup/pick", { path, id: f.id, codeRoot }, PickSchema);
+      const r = await pickFinding(path, f.id, codeRoot);
       setDone(
         r.state === "picked"
           ? w.checkupPicked
@@ -95,13 +109,7 @@ export function Checkup({
   limit?: number;
 }) {
   const w = useWords();
-  const q = new URLSearchParams(repo === undefined ? {} : { repo, codeRoot });
-  const checked = useQuery({
-    queryKey: ["checkup", repo ?? "", codeRoot],
-    queryFn: () => get(`/api/checkup${repo === undefined ? "" : `?${q}`}`, ReportsSchema),
-    staleTime: 5 * 60_000,
-    retry: false,
-  });
+  const checked = useCheckup(repo, codeRoot);
   const name = repo?.split("/").at(-1) ?? only ?? "";
   if (checked.isPending)
     return (

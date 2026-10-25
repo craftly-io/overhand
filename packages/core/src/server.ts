@@ -87,7 +87,7 @@ import {
   WEB_DIST,
 } from "./env";
 import { previewFeedback, sendFeedback } from "./feedback";
-import { pickTask, startFirstWin } from "./firstwin";
+import { pickTask, startFirstWin, withoutWinTask } from "./firstwin";
 import { setQuiet } from "./governor";
 import { effectiveClients } from "./groups";
 import { requestGuide } from "./guide";
@@ -456,7 +456,8 @@ function checkable(path: string, local: boolean, scanned = ""): string | null {
 }
 
 /** A check-up as the page sees it: without the briefs the agent would be given. */
-const shown = ({ tasks: _, ...r }: Checked) => r;
+/** A check-up as the dashboard shows it: without the tasks agents are told, nor the one the first win took. */
+const shown = ({ tasks: _, ...r }: Checked) => withoutWinTask(r);
 
 /** What an agent install can use on this machine. */
 const installHost = (): InstallHost => ({ os: process.platform, brew: Bun.which("brew") !== null, npm: Bun.which("npm") !== null });

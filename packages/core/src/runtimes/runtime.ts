@@ -2,7 +2,7 @@
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve, sep } from "node:path";
-import type { Autonomy } from "@overhand/contract";
+import { type Autonomy, WIN_STEPS, type WinStep } from "@overhand/contract";
 import type { Provider, Runtime, RuntimeId } from "../config";
 import type { AccountUsage } from "../usage";
 
@@ -280,6 +280,48 @@ export function jsonLines(raw: string): Record<string, unknown>[] {
       return [];
     }
   });
+}
+
+/** An edit tool's call (Claude Code, Gemini, OpenCode, Cursor) or a file change event (Codex), in one line of a CLI's stream. */
+const EDITS =
+  /"name"\s*:\s*"(?:Edit|MultiEdit|Write|NotebookEdit|edit|write|write_file|edit_file|replace|apply_patch)"|"type"\s*:\s*"(?:file_change|patch_apply\w*)"/;
+/** A check a repo runs: its package manager's test, lint, type or build script, or a known checker run directly. */
+const CHECKS =
+  /\b(?:(?:npm|pnpm|yarn|bun|npx|bunx)\s+(?:run\s+)?(?:test|lint|check|typecheck|type-check|tsc|build)\b|pytest|vitest|jest|mocha|rspec|tsc\b|eslint|biome\s+(?:check|lint|ci)|ruff|mypy|cargo\s+(?:test|check|clippy)|go\s+(?:test|vet)|make\s+(?:test|check|lint)|node\s+--test)/;
+/** The commands a line of a CLI's stream asks to run: each `"command"` field's text, a string or an argv. */
+const commandsIn = (line: string): string =>
+  [...line.matchAll(/"command"\s*:\s*("(?:[^"\\]|\\.)*"|\[[^\]]*\])/g)].map((m) => m[1] ?? "").join(" ");
+
+/**
+ * The step one line of a run's output shows it at: changing files, or running the repo's checks; null for anything
+ * else (reading, thinking, talking). Reads tool calls by name and the commands they run, never their results, so a
+ * test's output can't move it. Agent-agnostic by shape: each CLI's JSON events name tools and commands this way.
+ */
+export function stepOf(line: string): WinStep | null {
+  const cmd = commandsIn(line);
+  if (CHECKS.test(cmd)) return "checks";
+  return EDITS.test(line) || /\bgit\s+commit\b|\bapply_patch\b/.test(cmd) ? "change" : null;
+}
+
+/**
+ * Reads a run's output as it arrives, chunk by chunk, and calls `on` each time it reaches a later step (steps only move
+ * forward: a check run before the change doesn't tick the change off).
+ */
+export function stepReader(on: (step: WinStep) => void): (chunk: string) => void {
+  let rest = "";
+  let far = 0;
+  return (chunk) => {
+    const lines = (rest + chunk).split("\n");
+    rest = lines.pop() ?? "";
+    for (const l of lines) {
+      const s = stepOf(l);
+      const i = s ? WIN_STEPS.indexOf(s) : -1;
+      if (s && i > far) {
+        far = i;
+        on(s);
+      }
+    }
+  };
 }
 
 /** A field of an unknown JSON value, or undefined. */

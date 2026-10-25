@@ -13,6 +13,7 @@ import {
   type Session,
   sectionHeading,
   type Ticket,
+  type WinStep,
   type Worktrees,
 } from "@overhand/contract";
 import { BOOK88_CORNERS, GUARD_BLOCKS } from "@overhand/contract/fixtures/trust";
@@ -75,7 +76,28 @@ export const STOPPED_FINDING = {
   failed: { reason: "pr-open" as const, task: STOPPED.key, account: "Local", branch: STOPPED.branch },
 };
 
+/**
+ * Mobile app joined last night: its first win, a test for an untested pure function, runs right after setup, just
+ * after the night begins. Its card ticks through the steps at these times; from `to` on its draft waits in Review (Sam
+ * moved Mobile app up from Draft pull requests after it).
+ */
+export const FIRST_WIN: { key: string; title: string; from: string; to: string; cost: number; steps: [string, WinStep][] } = {
+  key: "APP-0",
+  title: "Add tests for splitting the bill",
+  from: "23:31",
+  to: "23:35",
+  cost: 0.3,
+  steps: [
+    ["23:31", "read"],
+    ["23:32", "change"],
+    ["23:33", "checks"],
+    ["23:34", "pr"],
+  ],
+};
+
 const LOG: [string, string][] = [
+  [FIRST_WIN.from, `🌱 first win in Mobile app: ${FIRST_WIN.title}`],
+  [FIRST_WIN.to, `✅ ${FIRST_WIN.key} (sam, $0.30) → ${samplePr("sam/mobile-app", 58)}`],
   ["23:41", "📋 plan written: 5 agent tasks ready to deploy (planner on Sam)"],
   ["23:58", "⚡ Online shop lead started headless (pid 4101, sam)"],
   [MOMENTS.started, "⚡ SHOP-142 started (Sam)"],
@@ -111,6 +133,7 @@ const LOG: [string, string][] = [
 
 /** Ticket agent runs: which ticket, in which project, from when to when, and what it cost. */
 const RUNS: { key: string; client: string; from: string; to: string; cost: number; account?: string }[] = [
+  { key: FIRST_WIN.key, client: "Mobile app", from: FIRST_WIN.from, to: FIRST_WIN.to, cost: FIRST_WIN.cost },
   { key: "SHOP-142", client: "Online shop", from: MOMENTS.started, to: "00:47", cost: 2.1 },
   { key: "BOOK-88", client: "Booking app", from: "01:06", to: "01:58", cost: 3.4, account: "Bedrock" },
   { key: "WEB-31", client: "Company website", from: "03:10", to: "04:02", cost: 0, account: "Local" },
@@ -662,7 +685,7 @@ export function nightAt(minutes: number): DashboardState {
     ]),
   );
 
-  const prNumber: Record<string, number> = { "SHOP-142": 311, "BOOK-88": 77, "WEB-31": 52, "APP-12": 19 };
+  const prNumber: Record<string, number> = { "APP-0": 58, "SHOP-142": 311, "BOOK-88": 77, "WEB-31": 52, "APP-12": 19 };
   const human = ([client, repo, number, title, hm, review = ""]: [string, string, number, string, string, string?]) => ({
     client,
     repo,
@@ -681,9 +704,9 @@ export function nightAt(minutes: number): DashboardState {
       client: r.client,
       repo: c?.repo ?? "",
       number: prNumber[r.key] ?? 1,
-      title: TICKETS[r.client]?.find(([k]) => k === r.key)?.[1] ?? r.key,
+      title: r.key === FIRST_WIN.key ? FIRST_WIN.title : (TICKETS[r.client]?.find(([k]) => k === r.key)?.[1] ?? r.key),
       url: samplePr(c?.repo ?? "", prNumber[r.key] ?? 1),
-      draft: proposes(r.client),
+      draft: proposes(r.client) || r.key === FIRST_WIN.key,
       review: "",
       checks: red ? "FAILURE" : r.key === "BOOK-88" && between(now, MOMENTS.fixRound, MOMENTS.green) ? "PENDING" : "SUCCESS",
       updated: new Date(at(r.to)).toISOString(),
@@ -769,7 +792,7 @@ export function nightAt(minutes: number): DashboardState {
       url: samplePr(CLIENTS.find((c) => c.name === r.client)?.repo ?? "", prNumber[r.key] ?? 1),
       fixes: r.key === "BOOK-88" && now >= at(MOMENTS.fixRound) ? 1 : 0,
       branch: `agent/${r.key}`,
-      draft: proposes(r.client),
+      draft: proposes(r.client) || r.key === FIRST_WIN.key,
       corners: r.key === "BOOK-88" && now >= at(MOMENTS.fixRound) ? BOOK88_CORNERS : [],
       // on Ship, armed until GitHub merges it
       ship: CLIENTS.find((c) => c.name === r.client)?.autonomy === "ship" ? { on: true, why: "" } : null,
@@ -845,17 +868,23 @@ export function nightAt(minutes: number): DashboardState {
     instructions: INSTRUCTIONS,
     rules: RULES,
     guides: GUIDES,
-    // Mobile app joined last night: its first win, a test for an untested pure function, ran right after setup
     firstWin: {
-      state: between(now, "00:00", "00:18") ? "running" : "pr",
+      state: now < at(FIRST_WIN.from) ? "queued" : now < at(FIRST_WIN.to) ? "running" : "pr",
       kind: "test",
-      title: "Add tests for splitting the bill",
+      title: FIRST_WIN.title,
       project: "Mobile app",
       repo: "mobile",
-      key: "APP-0",
-      url: samplePr("sam/mobile-app", 58),
-      message: "5 tests now check how the bill splits, from an even split to a guest who ate nothing. All pass, and so do the other 48.",
-      at: at("00:18"),
+      key: FIRST_WIN.key,
+      url: now < at(FIRST_WIN.to) ? "" : samplePr("sam/mobile-app", 58),
+      message:
+        now < at(FIRST_WIN.to)
+          ? ""
+          : "5 tests now check how the bill splits, from an even split to a guest who ate nothing. All pass, and so do the other 48.",
+      at: Math.min(now, at(FIRST_WIN.to)),
+      step: FIRST_WIN.steps.findLast(([hm]) => at(hm) <= now)?.[1],
+      since: now < at(FIRST_WIN.from) ? 0 : at(FIRST_WIN.from),
+      cost: now < at(FIRST_WIN.to) ? 0 : FIRST_WIN.cost,
+      billing: "plan",
     },
     routing: ROUTING,
     progression: progressionAt(now),

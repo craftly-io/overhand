@@ -54,7 +54,7 @@ const PHRASED: Record<string, Phrased> = {
   "pr:WEB-31": {
     what: "WEB-31's draft PR adds the bookings spreadsheet download; every check passes.",
     why: "Company website runs on propose: the PR stays a draft until you mark it ready.",
-    recommend: { option: "review", reason: "A 3-file change with tests: a quick read, then Mark ready.", confidence: "high" },
+    recommend: { option: "review", reason: "A 3-file change with tests: a quick read, then Ready for review.", confidence: "high" },
   },
   [`review:${samplePr("example/booking-desk", 214)}`]: {
     what: "A teammate's PR makes the front-desk calendar remember its last view.",

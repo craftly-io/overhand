@@ -135,7 +135,7 @@ Five levels, as `Button` variants (`apps/web/src/components/ui/button.tsx`), dra
 | Level | Variant | House look | Use | Rule |
 | --- | --- | --- | --- | --- |
 | Primary | `primary` (the default) | Ink 12 fill, ink 1 text | The single next step on a surface: Start 4 now, Approve and mark ready, Launch, Save | At most one per surface. Starting real agents is primary with a count or object in the label |
-| Secondary | `outline` | Transparent, ink 12 hairline and text; hover ink 4 | Anything else that acts: Plan the day, Request changes, Overdrive… | The default for an action that isn't the next step |
+| Secondary | `outline` | Transparent, ink 12 hairline and text; hover ink 4 | Anything else that acts: Plan the day, Ask for changes, Overdrive… | The default for an action that isn't the next step |
 | State | `state` | `you` outline and text | Pause and Resume only | `you` means it needs you or changes the agents' state; never Turn off, a cost, or a lead that's asleep |
 | Quiet | `ghost`, `link` | No surface, ink 11 text | Navigation and reveal: Log, Open Crew, All 9, Manage accounts | Never for something that changes data |
 | Danger | `danger` | Crimson fill, white text | Turn off, Close PR, Stop a running lead, Clean up {size} | Only for stopping or removing, always behind a confirm (or a review like the cleanup list, or Save) |

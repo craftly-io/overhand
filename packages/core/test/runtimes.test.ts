@@ -10,7 +10,7 @@ import { OPS } from "../src/env";
 import { RUNTIMES } from "../src/runtimes";
 import { knownCost } from "../src/runtimes/claude-code";
 import { guardArgs, strictSchema } from "../src/runtimes/codex";
-import { extractJson, type RunInput } from "../src/runtimes/runtime";
+import { extractJson, type RunInput, stepOf, stepReader } from "../src/runtimes/runtime";
 import { checks } from "../src/setup";
 
 /** Real CLI output recorded through Overhand's own runs (logs/<name>: stdout, then "--- stderr ---" and stderr). */
@@ -392,4 +392,35 @@ test("doctor requires the agent CLIs the accounts run, claude only for a Claude 
       if (v === undefined) delete process.env[k];
       else process.env[k] = v;
   }
+});
+
+test("a run's steps come from the tool calls in its own output, never from what a tool printed", () => {
+  const tool = (name: string, input: object) =>
+    JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", name, input }] } });
+  expect(stepOf(tool("Read", { file_path: "/w/package.json" }))).toBeNull();
+  expect(stepOf(tool("Edit", { file_path: "/w/README.md" }))).toBe("change");
+  expect(stepOf(tool("Bash", { command: "npm test" }))).toBe("checks");
+  expect(stepOf(tool("Bash", { command: "bun run typecheck && bun run lint" }))).toBe("checks");
+  expect(stepOf(tool("Bash", { command: "git commit -m 'docs: run steps'" }))).toBe("change");
+  expect(stepOf(tool("Bash", { command: "cat test/split.test.js" }))).toBeNull();
+  // Codex's events: a command (an argv) and a file change
+  expect(stepOf(JSON.stringify({ type: "item.started", item: { type: "command_execution", command: ["bash", "-lc", "pnpm test"] } }))).toBe(
+    "checks",
+  );
+  expect(stepOf(JSON.stringify({ type: "item.completed", item: { type: "file_change", changes: [] } }))).toBe("change");
+  // a tool's result that mentions a test run is output, not a step
+  expect(
+    stepOf(JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", content: "ran npm test: 3 pass" }] } })),
+  ).toBeNull();
+});
+
+test("the step reader hears each later step once, across chunks cut mid-line, and never goes back", () => {
+  const heard: string[] = [];
+  const read = stepReader((s) => heard.push(s));
+  const edit = JSON.stringify({ type: "tool_use", name: "Write", input: { file_path: "a" } });
+  const check = JSON.stringify({ type: "tool_use", name: "Bash", input: { command: "npm test" } });
+  read(edit.slice(0, 10));
+  read(`${edit.slice(10)}\n${edit}\n`);
+  read(`${check}\n${edit}\n${check}\n`);
+  expect(heard).toEqual(["change", "checks"]);
 });

@@ -439,7 +439,7 @@ test("every Ship merge is reported and Undo opens a revert PR from a new branch:
   await expect(undoShip("https://github.com/o/r/pull/999", again.run)).rejects.toThrow("no Ship merge");
 });
 
-test("the dashboard stops auto-merge at once: Request changes, and a save that takes the project off Ship", async () => {
+test("the dashboard stops auto-merge at once: Ask for changes, and a save that takes the project off Ship", async () => {
   const bin = mkdtempSync(join(tmpdir(), "overhand-ship-gh-"));
   const log = join(bin, "calls.jsonl");
   const view = JSON.stringify({ id: "PR_node", state: "OPEN", baseRefName: "main", headRefOid: "abc", autoMergeRequest: { at: 1 } });

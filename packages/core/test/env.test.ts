@@ -46,6 +46,18 @@ test("a command that exits but leaves a process holding its output returns withi
   expect(code).toBe(3);
 });
 
+test("a run's output is heard as it arrives, before the process exits: the first win's steps tick from it", async () => {
+  const p = Bun.spawn(["sh", "-c", "echo one; sleep 0.3; echo two >&2; echo three"], { stdout: "pipe", stderr: "pipe" });
+  const heard: { text: string; done: boolean }[] = [];
+  let done = false;
+  void p.exited.then(() => {
+    done = true;
+  });
+  await untilExit(p.exited, [p.stdout, p.stderr], 200, (text) => heard.push({ text, done }));
+  expect(heard.map((h) => h.text).join("")).toBe("one\nthree\n"); // the first stream only
+  expect(heard[0]?.done).toBe(false);
+});
+
 // a newcomer picked a repo last committed years ago, and its first win said nothing turned up
 test("a repo you just cloned is active however old its last commit; one made here with old commits isn't", () => {
   const root = mkdtempSync(join(tmpdir(), "overhand-active-"));

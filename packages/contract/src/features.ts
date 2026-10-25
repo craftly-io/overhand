@@ -178,7 +178,7 @@ export const FEATURES: readonly Feature[] = [
   {
     id: "first-win",
     name: "Your first win",
-    line: "Right after setup, one small, safe task, as a draft pull request.",
+    line: "Right after setup, one small, safe task as a draft pull request, its steps ticking over while it runs.",
     area: "agents",
     since: "2026-10-22",
     source: "apps/web/src/components/now/FirstWin.tsx",
