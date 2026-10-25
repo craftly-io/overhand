@@ -28,7 +28,7 @@ import { gitRepos } from "./cleanup";
 import type { Client } from "./config";
 import { inspectCorners } from "./corners";
 import { CFG, CLIENTS, CODE, clientOf, http, LABEL, MIN, OPS, sh, shAsync } from "./env";
-import { loadWin, type StoredWin, saveWin } from "./firstwin";
+import { loadWin, type StoredWin, saveWin, winToRun } from "./firstwin";
 import { protectedBranch } from "./guard";
 import { capReport, guideMerged, guideNext, guidePrompt, isGuideKey, loadGuides, type StoredGuide, saveGuide } from "./guide";
 import { recordOutcome } from "./history";
@@ -563,7 +563,7 @@ export async function handleTicket(state: State, tk: Ticket, told?: (r: AgentRes
  */
 async function runFirstWin(state: State): Promise<boolean> {
   const w = loadWin();
-  const c = w?.state === "queued" ? CLIENTS.find((x) => x.name === w.project) : undefined;
+  const c = w && winToRun(w) ? CLIENTS.find((x) => x.name === w.project) : undefined;
   if (!w || !c) return false;
   const save = (patch: Partial<StoredWin>) => saveWin({ ...w, ...patch, at: Date.now() });
   save({ state: "running" });

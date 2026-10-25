@@ -281,6 +281,12 @@ export const loadWin = (): StoredWin | null => readJson<StoredWin | null>(FILE, 
 /** Saves the first win atomically. */
 export const saveWin = (w: StoredWin): void => writeJsonAtomic(FILE, w);
 
+/** When this daemon started: a first win still "running" from before then was stranded by a restart. */
+const STARTED = Date.now();
+/** The first win is one to run now: queued, or left running by an Overhand that has since restarted. */
+export const winToRun = (w: { state: StoredWin["state"]; at: number } | null, started = STARTED): boolean =>
+  w?.state === "queued" || (w?.state === "running" && w.at < started);
+
 /** How long a finished first win stays on Now. */
 const SHOW_MS = 3 * 864e5;
 
