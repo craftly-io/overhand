@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { Alert } from "@/lib/alerts";
+import { type Alert, trackerItem } from "@/lib/alerts";
 import { post } from "@/lib/api";
 import { BUTTON_WORDS } from "@/lib/decide";
 import { explainCalls } from "@/lib/explain";
@@ -101,7 +101,7 @@ export const needsTone = (list: readonly Need[]) => (anyBroken(list) ? "var(--ba
 /** One alert; clicking it opens whatever it's about (a link, a ticket, a lead…). */
 function AlertCard({ a, brief, className }: { a: Alert; brief?: string; className?: string }) {
   const ui = useUi();
-  const { plugin, quiet, run, selfUpdate } = useActions();
+  const { plugin, quiet, run, selfUpdate, snooze, ticketsRefresh } = useActions();
   // once its brief is in, the brief's what says what's asked, in place of the title and line (a plan keeps its request);
   // the decision card under it adds the one line of context and the choices
   const { data: b } = useBrief(brief);
@@ -149,6 +149,7 @@ function AlertCard({ a, brief, className }: { a: Alert; brief?: string; classNam
     else if (t.kind === "restart") void run({ name: "restart" });
     else if (t.kind === "quiet") void quiet(t.hours);
     else if (t.kind === "plugin") void plugin({ do: "run", name: t.name });
+    else if (t.kind === "tracker") void (t.outage === "network" ? ticketsRefresh() : snooze(trackerItem(t.client), 1));
     else toast(a.sub || a.title);
   };
   return (
@@ -196,7 +197,9 @@ function Actions({ a }: { a: Alert }) {
     run,
     selfUpdate,
     slackSignIn,
+    snooze,
     taskRetry,
+    ticketsRefresh,
   } = useActions();
   const save = useQuickSave();
   const [open, setOpen] = useState(false);
@@ -283,6 +286,11 @@ function Actions({ a }: { a: Alert }) {
   if (t.kind === "leak") return <LeakActions f={t.finding} />;
   if (t.kind === "selfcheck") return <SelfCheckActions />;
   if (t.kind === "interrupted") return one(w.signInRetry, () => void taskRetry(t.key));
+  // a tracker down asks again now; one limiting how often Overhand asks is left alone for an hour (it retries by itself)
+  if (t.kind === "tracker")
+    return t.outage === "network"
+      ? one(w.retryNow, () => void ticketsRefresh())
+      : one(w.alTrackerLimitGo, () => void snooze(trackerItem(t.client), 1), "outline");
   if (t.kind === "config")
     return (
       <div className="flex flex-wrap justify-end gap-1">

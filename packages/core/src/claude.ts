@@ -9,6 +9,7 @@ import { budgetUntil, recordedBilling } from "./billing";
 import type { Client } from "./config";
 import { ingestOutboxes, recordSpawn } from "./control";
 import { ACCOUNTS, CFG, claudeEnv, MIN, OPS, providerOf, runtimeOf, today, untilExit } from "./env";
+import { killTree, leftBehind, processTable } from "./governor";
 import { GUARD_LOG } from "./guard";
 import { comboOfAccount, identityOf, nameParts, projectOf, projectRows } from "./history";
 import { allowSubscriptionTokens } from "./legacy-token";
@@ -191,12 +192,12 @@ export async function claude<T>(
     let cost = run.out.cost;
     let transcript = run.stdout;
     // an expired sign-in isn't the task's failure: the account waits for you to sign it in again (Needs you: Sign in)
-    if (!run.out.ok && signedOut(runOutput(run))) {
+    if (!run.out.ok && !run.stopped && signedOut(runOutput(run))) {
       markSignedOut(account, true);
       report(`🔑 account ${account} is signed out: sign it in again`);
       continue;
     }
-    const until = run.out.ok ? 0 : outOfUsage(runOutput(run), run.out.usage);
+    const until = run.out.ok || run.stopped ? 0 : outOfUsage(runOutput(run), run.out.usage);
     if (until) {
       bench(account, until); // for every run, lead and test, not just this pass
       report(`⏸ account ${account} hit its limit, back at ${backAt(until)}`);
@@ -206,7 +207,7 @@ export async function claude<T>(
     state.nextAccount = (state.nextAccount + 1) % Math.max(ACCOUNTS.length, 1); // spread load across runs
     let answer = run.out.ok ? checked(rt, schema, run.out) : { value: undefined, problem: "" };
     // an answer that doesn't match the schema gets one more try, told what was wrong with it
-    if (run.out.ok && answer.value === undefined) {
+    if (run.out.ok && !run.stopped && answer.value === undefined) {
       const again = `Your reply wasn't a JSON object matching the schema (${answer.problem}). Reply with only that JSON object.`;
       run = await runOnce(rt, { ...input, prompt: [prompt, again].join("\n\n") }, cwd, `${logName}-retry`, meta);
       cost += run.out.cost;
@@ -233,10 +234,11 @@ export async function claude<T>(
 const runOutput = (run: { out: RunOutput; stderr: string }): string => [run.out.text, run.stderr].join("\n");
 
 /**
- * Why a run gave no answer: it ran past its time limit, its account is signed out, its CLI exited with an error
- * (crashed), or it exited cleanly with output Overhand can't read (the CLI changed how it reports).
+ * Why a run gave no answer: you stopped it, it ran past its time limit, its account is signed out, its CLI exited with an
+ * error (crashed), or it exited cleanly with output Overhand can't read (the CLI changed how it reports).
  */
-export function failureOf(run: { out: RunOutput; stderr: string; code: number; timedOut: boolean }): FailureReason {
+export function failureOf(run: { out: RunOutput; stderr: string; code: number; timedOut: boolean; stopped?: boolean }): FailureReason {
+  if (run.stopped) return "stopped";
   if (run.timedOut) return "timeout";
   if (signedOut(runOutput(run))) return "signed-out";
   return run.code !== 0 ? "crashed" : "unreadable";
@@ -304,7 +306,7 @@ async function runOnce(
   logName: string,
   meta: { kind: RunKind; key: string; project: string },
   onText?: (chunk: string) => void,
-): Promise<{ out: RunOutput; stderr: string; stdout: string; code: number; timedOut: boolean }> {
+): Promise<{ out: RunOutput; stderr: string; stdout: string; code: number; timedOut: boolean; stopped: boolean }> {
   readyHome(rt.id, input.configDir);
   // the OS sandbox (sandbox.ts): one sandbox, ours, so the CLI's own is off under it
   const sb = projectSandbox(meta.project);
@@ -316,7 +318,8 @@ async function runOnce(
     gitCommonDir,
   );
   const { argv, env } = boxed;
-  const proc = Bun.spawn(argv, { cwd, env, stdout: "pipe", stderr: "pipe" });
+  // its own process group, so it ends with everything it started (endRun)
+  const proc = Bun.spawn(argv, { cwd, env, stdout: "pipe", stderr: "pipe", detached: true });
   recordSpawn(OPS, proc, env, boxed.sandboxed, cwd, boxed.guardOnly);
   const startedAt = Date.now();
   const { account } = input;
@@ -324,18 +327,26 @@ async function runOnce(
   const mode = pm >= 0 ? (argv[pm + 1] ?? "") : rt.caps.autoMode ? "auto" : "";
   saveCurrentRuns([...currentRuns(), { name: logName, account, cwd, startedAt, pid: proc.pid, model: input.alias || input.model, mode }]);
   let timedOut = false;
-  const timer = setTimeout(
-    () => {
-      timedOut = true;
-      proc.kill();
-    },
-    (input.tune?.timeoutMin || CFG.limits.taskTimeoutMin) * MIN,
-  );
+  // the time limit counts the time the run was awake: a laptop asleep past it doesn't stop the run the moment it wakes
+  const limit = (input.tune?.timeoutMin || CFG.limits.taskTimeoutMin) * MIN;
+  const tick = Math.min(15_000, limit / 4);
+  let awake = 0;
+  let last = startedAt;
+  const timer = setInterval(() => {
+    const now = Date.now();
+    awake += awakeFor(now - last, tick);
+    last = now;
+    if (awake < limit || timedOut) return;
+    timedOut = true;
+    void endRun(proc.pid, cwd);
+  }, tick);
   const {
     texts: [stdout = "", stderr = ""],
     code,
   } = await untilExit(proc.exited, [proc.stdout, proc.stderr], undefined, onText);
-  clearTimeout(timer);
+  clearInterval(timer);
+  const stopped = stopping.delete(logName);
+  await endRun(proc.pid, cwd); // nothing it started outlives it
   boxed.done(startedAt);
   if (boxed.sandboxed) ingestOutboxes(OPS, GUARD_LOG);
   saveCurrentRuns(currentRuns().filter((r) => r.pid !== proc.pid));
@@ -348,9 +359,36 @@ async function runOnce(
   mkdirSync(join(OPS, "runs"), { recursive: true });
   appendFileSync(
     join(OPS, "runs", `${today()}.jsonl`),
-    `${JSON.stringify({ name: logName, account, start: startedAt, end: Date.now(), cost: out.cost, ok: out.ok, ...meta, ...identityOf(account), billing: recordedBilling(account), ...(timedOut ? { timedOut } : {}), ...(boxed.guardOnly ? { guardOnly: true } : {}) })}\n`,
+    `${JSON.stringify({ name: logName, account, start: startedAt, end: Date.now(), cost: out.cost, ok: out.ok, ...meta, ...identityOf(account), billing: recordedBilling(account), ...(timedOut ? { timedOut } : {}), ...(stopped ? { stopped } : {}), ...(boxed.guardOnly ? { guardOnly: true } : {}) })}\n`,
   );
-  return { out, stderr, stdout, code, timedOut };
+  return { out, stderr, stdout, code, timedOut, stopped };
+}
+
+/**
+ * How much of the `elapsed` ms since a run's clock last ticked counts toward its time limit: all of it, except a gap far
+ * longer than a tick, which is the computer asleep (and the run with it), counted as one tick.
+ */
+export const awakeFor = (elapsed: number, tick: number): number => (elapsed > tick * 3 ? tick : elapsed);
+
+/**
+ * Ends a run and what it started: its process group and children, then anything it detached from them and left working
+ * in its worktree (governor.ts leftBehind). Once its CLI exits, is stopped, or runs past its time limit.
+ */
+async function endRun(pid: number, cwd: string): Promise<void> {
+  await killTree(pid, 1000);
+  for (const p of leftBehind(cwd, processTable())) await killTree(p, 1000);
+}
+
+/** Runs stopped from the dashboard, by name: their end reads as stopped, not as a crash. */
+const stopping = new Set<string>();
+
+/** Stop on a running agent: ends its run and everything it started; false when no run has that name. */
+export async function stopRun(name: string): Promise<boolean> {
+  const r = currentRuns().find((x) => x.name === name);
+  if (!r) return false;
+  stopping.add(name);
+  await killTree(r.pid);
+  return true;
 }
 
 /**

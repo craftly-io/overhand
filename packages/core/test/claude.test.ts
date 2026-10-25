@@ -1,17 +1,21 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { INSTRUCTIONS_FILE } from "../src/agent-home";
-import { claude, failureOf, testAccount } from "../src/claude";
+import { awakeFor, claude, failureOf, stopRun, testAccount } from "../src/claude";
 import { parseConfig } from "../src/config";
 import { applyConfig, CFG } from "../src/env";
+import { alive } from "../src/governor";
 import { bench, benched, markSignedOut, signedOutAccounts } from "../src/limits";
-import { loadState } from "../src/state";
+import { currentRuns, loadState } from "../src/state";
 
 // a fake Claude Code on PATH, ending each run the way the real one did in the failure audit (2026-10-25)
 const bin = mkdtempSync(join(tmpdir(), "overhand-fake-claude-"));
 const modeFile = join(bin, "mode");
+// the runs work in a folder shaped like the worktree Overhand makes for a task, as a ticket's run does
+const wt = join(bin, "repo", ".claude", "worktrees", "audit");
+mkdirSync(wt, { recursive: true });
 const FAKE = `#!/usr/bin/env bun
 const fs = require("node:fs");
 const argv = process.argv.slice(2);
@@ -32,6 +36,18 @@ if (mode === "ratelimitword") {
   out({ type: "result", subtype: "error_max_turns", is_error: true, total_cost_usd: 0.3, result: "Stopped: the rate limit test still fails (expected 429)" });
 }
 if (mode === "ok") out({ type: "result", subtype: "success", is_error: false, total_cost_usd: 0, result: "{}", structured_output: { ok: true } });
+// a dev server the agent detached and left behind, or a run that hangs with a child of its own: their pids in child.pid
+const cp = require("node:child_process");
+if (mode === "orphan") {
+  const child = cp.spawn("sleep", ["300"], { stdio: "ignore", detached: true });
+  child.unref();
+  fs.writeFileSync("child.pid", String(child.pid));
+  out({ type: "result", subtype: "success", is_error: false, total_cost_usd: 0, result: "{}", structured_output: { ok: true } });
+}
+if (mode === "hang") {
+  fs.writeFileSync("child.pid", String(cp.spawn("sleep", ["300"], { stdio: "ignore" }).pid));
+  cp.execFileSync("sleep", ["300"]);
+}
 `;
 const before = CFG;
 const path = process.env.PATH;
@@ -57,7 +73,7 @@ afterAll(() => {
 async function run(mode: string) {
   writeFileSync(modeFile, mode);
   let limited = false;
-  const r = await claude(loadState(), "p", bin, '{"type":"object"}', `audit-${mode}`, {
+  const r = await claude(loadState(), "p", wt, '{"type":"object"}', `audit-${mode}`, {
     onLimit: () => {
       limited = true;
     },
@@ -105,4 +121,49 @@ test("a run with no answer says why: timed out, signed out, crashed, or output O
   expect(failureOf(failed({ stderr: "TypeError: x is undefined", code: 1 }))).toBe("crashed");
   // exit 0 and no result Overhand recognises: the CLI changed how it reports
   expect(failureOf(failed({ text: '{"type":"brand-new-event"}' }))).toBe("unreadable");
+  expect(failureOf({ ...failed({ code: 143 }), stopped: true })).toBe("stopped");
+});
+
+/** The pid the fake CLI wrote for its child, and whether that child is still running a moment later. */
+async function childLives(): Promise<boolean> {
+  const pid = Number(readFileSync(join(wt, "child.pid"), "utf8"));
+  await Bun.sleep(200);
+  return alive(pid);
+}
+
+test("nothing a run started outlives it: a child it detached and left running ends with the run", async () => {
+  bench("work", 0); // the limit test above benched it
+  const { r } = await run("orphan");
+  expect(r?.failure).toBeUndefined();
+  expect(await childLives()).toBe(false);
+});
+
+test("a run past its time limit stops with its children and says it timed out", async () => {
+  bench("work", 0);
+  const limit = CFG.limits.taskTimeoutMin;
+  CFG.limits.taskTimeoutMin = 0.02; // 1.2 s
+  try {
+    const { r } = await run("hang");
+    expect(r?.failure).toBe("timeout");
+    expect(await childLives()).toBe(false);
+  } finally {
+    CFG.limits.taskTimeoutMin = limit;
+  }
+});
+
+test("Stop ends a running agent and everything it started, and reads as stopped, not as a crash", async () => {
+  bench("work", 0);
+  const going = run("hang");
+  while (!currentRuns().some((x) => x.name === "audit-hang")) await Bun.sleep(50);
+  expect(await stopRun("audit-hang")).toBe(true);
+  const { r } = await going;
+  expect(r?.failure).toBe("stopped");
+  expect(await childLives()).toBe(false);
+  expect(await stopRun("audit-hang")).toBe(false); // already over
+});
+
+test("the time limit counts the time a run was awake: a laptop asleep past it isn't a timeout on wake", () => {
+  expect(awakeFor(15_000, 15_000)).toBe(15_000);
+  expect(awakeFor(40_000, 15_000)).toBe(40_000); // a slow tick still counts
+  expect(awakeFor(3 * 3_600_000, 15_000)).toBe(15_000); // three hours asleep count as one tick
 });

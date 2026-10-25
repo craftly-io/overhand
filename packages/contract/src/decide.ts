@@ -96,10 +96,41 @@ export type BriefOption = z.infer<typeof BriefOptionSchema>;
 /**
  * Why an agent's run on a task stopped for good, each with its own sentence (`FAILURE_WORDS`) and fix: the agent changed
  * nothing, its CLI crashed, ran past the time limit, was signed out, or answered in a shape Overhand can't read; the
- * branch couldn't be pushed, or was pushed and the pull request couldn't be opened; or the agent itself said it was stuck.
+ * branch couldn't be pushed, or was pushed and the pull request couldn't be opened; the agent itself said it was stuck;
+ * or you stopped it.
  */
-export const FAILURE_REASONS = ["no-changes", "crashed", "timeout", "signed-out", "unreadable", "push", "pr-open", "stuck"] as const;
+export const FAILURE_REASONS = [
+  "no-changes",
+  "crashed",
+  "timeout",
+  "signed-out",
+  "unreadable",
+  "push",
+  "pr-open",
+  "stuck",
+  "stopped",
+] as const;
 export type FailureReason = (typeof FAILURE_REASONS)[number];
+
+/**
+ * Why a call to a tracker or code host failed, read from its error: the network or the service isn't answering, it's
+ * limiting how often Overhand asks, or its sign-in no longer works; `other` for anything else. Each has its own fix.
+ */
+export type Outage = "network" | "rate-limit" | "auth" | "other";
+
+/** The outage an error's text describes; a rate limit is read first, as GitHub sends one as a 403. */
+export function outageOf(error: string): Outage {
+  if (/rate.?limit|too many requests|\b429\b|abuse detection/i.test(error)) return "rate-limit";
+  if (/\b401\b|bad credentials|unauthori[sz]ed|authentication|not logged in|auth login|token (has )?expired|invalid token/i.test(error))
+    return "auth";
+  if (
+    /error connecting|could not resolve|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|timed out|timeout|network|socket hang up|fetch failed|unable to connect|\b50[234]\b/i.test(
+      error,
+    )
+  )
+    return "network";
+  return "other";
+}
 
 /** Each failure reason's one plain sentence, by its key in the dashboard's words. */
 export const FAILURE_WORDS = {
@@ -111,6 +142,7 @@ export const FAILURE_WORDS = {
   push: "failedPush",
   "pr-open": "failedPrOpen",
   stuck: "failedStuck",
+  stopped: "failedStopped",
 } as const satisfies Record<FailureReason, string>;
 
 /**
@@ -346,7 +378,7 @@ function leadBrief(s: DashboardState, key: string, now: number): Body | null {
   };
 }
 
-function prBrief(s: DashboardState, key: string): Body | null {
+function prBrief(s: DashboardState, key: string, w: Words): Body | null {
   const p = s.prs.find((x) => x.key === key);
   if (!p) return null;
   const gh = s.status.myPrs.find((x) => x.url === p.url);
@@ -354,9 +386,11 @@ function prBrief(s: DashboardState, key: string): Body | null {
   const block = p.corners.filter((c) => c.severity === "block");
   const red = /FAILURE|ERROR/.test(gh?.checks ?? "");
   const gaps = p.proof?.gaps ?? [];
+  // a PR that only deletes isn't one to wave through: it says what it removes, and you look before it merges
+  const removes = p.proof && p.proof.added === 0 && p.proof.removed > 0 ? p.proof : null;
   const options: BriefOption[] = [{ id: "review", do: "drawer", drawer: "review", key, tab: "" }];
   if (p.draft) options.push({ id: "ready", do: "ready", key });
-  options.push({ id: "open-pr", do: "link", url: p.url, what: p.draft || red || block.length ? "pr" : "merge" }, snooze);
+  options.push({ id: "open-pr", do: "link", url: p.url, what: p.draft || red || block.length || removes ? "pr" : "merge" }, snooze);
   const evidence = [
     { text: `${gh ? `#${gh.number} ` : ""}${gh?.title ?? p.branch}`, url: p.url },
     ...(gh ? [{ text: `Checks ${gh.checks || "none"} · review ${gh.review || "none yet"}`, url: p.url }] : []),
@@ -370,47 +404,56 @@ function prBrief(s: DashboardState, key: string): Body | null {
         `Its diff ${[...new Set(block.map((c) => c.kind))].join(", ")}: look before it goes further.`,
         { option: "review", reason: "Read the flagged lines in the diff; send it back if the corner was cut.", confidence: "high" },
       ]
-    : red
+    : removes
       ? [
-          `${key}'s PR has failing checks.`,
-          `Checks ${gh?.checks}; the agent has had ${p.fixes} fix round${p.fixes === 1 ? "" : "s"}.`,
-          { option: "open-pr", reason: "See which check fails and whether it's the PR or the base branch.", confidence: "medium" },
+          fill(w.prRemovesOnly ?? "", { key }),
+          fill(w.prRemovesOnlyWhy ?? "", {
+            lines: `${removes.removed} line${removes.removed === 1 ? "" : "s"}`,
+            files: `${removes.files} file${removes.files === 1 ? "" : "s"}`,
+          }),
+          { option: "review", reason: w.prRemovesOnlyRec ?? "", confidence: "high" },
         ]
-      : gaps.length
+      : red
         ? [
-            `${key}'s PR has gaps in its proof.`,
-            `${clip(gaps.slice(0, 2).join("; "), 200)}: what the agent didn't check is yours to check.`,
-            { option: "review", reason: "See what was and wasn't checked before you trust it.", confidence: "medium" },
+            `${key}'s PR has failing checks.`,
+            `Checks ${gh?.checks}; the agent has had ${p.fixes} fix round${p.fixes === 1 ? "" : "s"}.`,
+            { option: "open-pr", reason: "See which check fails and whether it's the PR or the base branch.", confidence: "medium" },
           ]
-        : p.draft
+        : gaps.length
           ? [
-              `${key}'s draft PR is ready for your review.`,
-              "It's a draft until you mark it ready; it never merges on its own.",
-              { option: "review", reason: "Checks pass; reviewing it is the one step left before the team sees it.", confidence: "high" },
+              `${key}'s PR has gaps in its proof.`,
+              `${clip(gaps.slice(0, 2).join("; "), 200)}: what the agent didn't check is yours to check.`,
+              { option: "review", reason: "See what was and wasn't checked before you trust it.", confidence: "medium" },
             ]
-          : gh?.review === "CHANGES_REQUESTED"
+          : p.draft
             ? [
-                `Changes were requested on ${key}'s PR.`,
-                "A reviewer asked for changes; the agent picks them up on its next fix round.",
-                { option: "review", reason: "Check the request is clear enough for the agent to act on.", confidence: "medium" },
+                `${key}'s draft PR is ready for your review.`,
+                "It's a draft until you mark it ready; it never merges on its own.",
+                { option: "review", reason: "Checks pass; reviewing it is the one step left before the team sees it.", confidence: "high" },
               ]
-            : p.ship?.on
+            : gh?.review === "CHANGES_REQUESTED"
               ? [
-                  `${key}'s PR merges on Ship once CI is green.`,
-                  "GitHub's auto-merge is on: it merges when every required check passes.",
-                  {
-                    option: "review",
-                    reason: "Nothing to do, unless you want to stop it: request changes or close the PR.",
-                    confidence: "low",
-                  },
+                  `Changes were requested on ${key}'s PR.`,
+                  "A reviewer asked for changes; the agent picks them up on its next fix round.",
+                  { option: "review", reason: "Check the request is clear enough for the agent to act on.", confidence: "medium" },
                 ]
-              : [
-                  `${key}'s PR is open.`,
-                  p.ship?.why
-                    ? `It waits for review and merge on the code host. ${p.ship.why}`
-                    : "It waits for review and merge on the code host.",
-                  { option: "open-pr", reason: "Merging is yours: open it to merge when it's approved.", confidence: "medium" },
-                ];
+              : p.ship?.on
+                ? [
+                    `${key}'s PR merges on Ship once CI is green.`,
+                    "GitHub's auto-merge is on: it merges when every required check passes.",
+                    {
+                      option: "review",
+                      reason: "Nothing to do, unless you want to stop it: request changes or close the PR.",
+                      confidence: "low",
+                    },
+                  ]
+                : [
+                    `${key}'s PR is open.`,
+                    p.ship?.why
+                      ? `It waits for review and merge on the code host. ${p.ship.why}`
+                      : "It waits for review and merge on the code host.",
+                    { option: "open-pr", reason: "Merging is yours: open it to merge when it's approved.", confidence: "medium" },
+                  ];
   return { project, what, why, recommend: rec, evidence, options, ifNothing: null };
 }
 
@@ -586,6 +629,7 @@ function failedBrief(f: DashboardState["findings"][number], failed: Failure, w: 
     unreadable: [retry, "failedRetryWhy"],
     push: [retry, "failedRetryWhy"],
     stuck: [retry, "failedRetryWhy"],
+    stopped: [retry, "failedRetryWhy"],
   };
   const [first, reason] = fix[failed.reason];
   return {
@@ -761,7 +805,7 @@ export function factsBrief(s: DashboardState, id: string, more: MoreFacts = {}, 
   const body: Record<BriefKind, () => Body | null> = {
     ticket: () => ticketBrief(s, rest, more),
     lead: () => leadBrief(s, rest, now),
-    pr: () => prBrief(s, rest),
+    pr: () => prBrief(s, rest, w),
     review: () => reviewBrief(s, rest),
     reviews: () => groupBrief(s, rest, false),
     changes: () => groupBrief(s, rest, true),
