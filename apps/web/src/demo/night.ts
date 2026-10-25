@@ -782,7 +782,7 @@ export function nightAt(minutes: number): DashboardState {
     ],
     prs: done.map((r) => ({
       key: r.key,
-      // the same URL as its entry in myPrs, so In flight shows its title and checks
+      // the same URL as its entry in myPrs, so In progress shows its title and checks
       url: samplePr(CLIENTS.find((c) => c.name === r.client)?.repo ?? "", prNumber[r.key] ?? 1),
       fixes: r.key === "BOOK-88" && now >= at(MOMENTS.fixRound) ? 1 : 0,
       branch: `agent/${r.key}`,

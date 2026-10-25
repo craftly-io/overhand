@@ -973,7 +973,7 @@ async function open(page: Page, screen: string): Promise<void> {
       });
   } else if (screen.startsWith("settings-")) await post(page, { type: "overhand:settings", tab: screen.slice(9) });
   else if (screen === "menu") await page.click("header button:has(svg.lucide-ellipsis)", { timeout: 3000 });
-  else if (screen === "quick") await page.click("header button:has(svg.lucide-sliders-horizontal)", { timeout: 3000 });
+  else if (screen === "quick") await page.click("header button:has(svg.lucide-pause)", { timeout: 3000 });
   else if (screen === "command" || screen === "command-typo") {
     await page.keyboard.press("Control+k");
     await page.waitForSelector("[cmdk-input]", { timeout: 3000 });

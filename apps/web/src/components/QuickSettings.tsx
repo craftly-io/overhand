@@ -1,13 +1,12 @@
 import { AUTONOMY_LEVELS, type QuickSetting } from "@overhand/contract";
 import { useQueryClient } from "@tanstack/react-query";
-import { SlidersHorizontal } from "lucide-react";
+import { Pause } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useActions } from "@/app/actions";
 import { type Model, STATE_KEY } from "@/app/data";
 import { setFocus, useFocus } from "@/app/focus";
-import { useMapMode } from "@/app/mapMode";
 import { useSound } from "@/app/sound";
 import { store } from "@/app/store";
 import { useTheme } from "@/app/theme";
@@ -42,7 +41,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   );
 }
 
-/** Quiet mode's switch, live: in Quick settings and on the menu bar item's popover. */
+/** Quiet mode's switch, live: under the header's Pause and on the menu bar item's popover. */
 export function QuietRow({ m }: { m: Model }) {
   const { words: w } = useTheme();
   const { quiet } = useActions();
@@ -133,16 +132,15 @@ export function ProjectRules({ m }: { m: Model }) {
 }
 
 /**
- * Quick settings, one tap from the header: the day-to-day switches, each one live (no Save) and each one the same
- * setting Settings shows: Focus, pause, quiet mode, the daily budget, pacing, the menu bar item, the scene, sound, and how far agents go on each
- * project. Everything else stays in Settings, one link away.
+ * Pause, one tap from the header: pause new work and quiet mode first, then the day-to-day switches, each one live (no
+ * Save) and each one the same setting Settings shows: Focus, the daily budget, pacing, the menu bar item, sound, and how
+ * far agents go on each project. Everything else stays in Settings, one link away. Paused, the button says so in amber.
  */
 export function QuickSettings({ m }: { m: Model }) {
   const { words: w } = useTheme();
   const { run } = useActions();
   const ui = useUi();
   const sound = useSound();
-  const [motion, setMotion] = useMapMode();
   const focus = useFocus();
   const [open, setOpen] = useState(false);
   const budgetId = useId();
@@ -163,8 +161,15 @@ export function QuickSettings({ m }: { m: Model }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={w.quickSettings}>
-              <SlidersHorizontal />
+            <Button
+              variant={m.s.paused ? "state" : "ghost"}
+              size="sm"
+              aria-label={w.quickSettings}
+              data-hot={m.s.paused ? "" : undefined}
+              className="hdr-act max-xl:size-8 max-xl:px-0"
+            >
+              <Pause aria-hidden="true" />
+              <span className="hidden xl:inline">{m.s.paused ? w.pausedShort : w.pauseShort}</span>
             </Button>
           </PopoverTrigger>
         </TooltipTrigger>
@@ -174,14 +179,14 @@ export function QuickSettings({ m }: { m: Model }) {
         <b data-heading="" className="font-display text-sm">
           {w.quickSettings}
         </b>
-        <Row label={w.focus} hint={w.focusHint}>
-          <Switch aria-label={w.focus} checked={focus} onCheckedChange={setFocus} />
-        </Row>
-        <FeatureTip at="quick-focus" />
         <Row label={w.pause} hint={w.pauseHint}>
           <Switch aria-label={w.pause} checked={m.s.paused} onCheckedChange={(on) => void run({ name: on ? "pause" : "resume" })} />
         </Row>
         <QuietRow m={m} />
+        <Row label={w.focus} hint={w.focusHint}>
+          <Switch aria-label={w.focus} checked={focus} onCheckedChange={setFocus} />
+        </Row>
+        <FeatureTip at="quick-focus" />
         {/* the budget caps billed money only: with every account on a plan or this computer, it says it doesn't apply */}
         <Row
           label={w.quickBudget}
@@ -224,21 +229,6 @@ export function QuickSettings({ m }: { m: Model }) {
             <Switch aria-label={w.menubar} checked={m.s.menubar} onCheckedChange={(on) => void save({ menubar: on })} />
           </Row>
         ) : null}
-        <fieldset className="grid gap-1.5">
-          <legend className="mb-1.5 text-sm">{w.sceneSetting}</legend>
-          <div className="seg flex gap-1.5">
-            {(
-              [
-                ["on", w.sceneOn],
-                ["still", w.sceneStill],
-              ] as const
-            ).map(([v, name]) => (
-              <Button key={v} variant="outline" size="xs" aria-pressed={motion === v} onClick={() => setMotion(v)}>
-                {name}
-              </Button>
-            ))}
-          </div>
-        </fieldset>
         <Row label={w.soundSetting} hint={w.soundChimes}>
           <Switch aria-label={sound.on ? w.soundOff : w.soundOn} checked={sound.on} onCheckedChange={sound.toggle} />
         </Row>

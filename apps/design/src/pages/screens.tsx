@@ -1,6 +1,6 @@
 /**
- * Screens: the whole dashboard (the real App) in each of its five places, each in the five states every screen has.
- * On a computer Work, Crew, Health and Settings open as drawers beside the bridge; on a phone they're tabs.
+ * Screens: the whole dashboard (the real App) on Now and in each view behind it, each in the five states every screen
+ * has. Work, Agents, Health and Settings open as drawers over Now (docked beside it from 2200px; from the bottom on a phone).
  */
 import type { Drawer } from "@/app/ui";
 import type { Entry } from "../catalog";
@@ -15,7 +15,7 @@ const NOTES = {
   phone: "The busy moment on a 390px phone.",
 };
 
-/** One place in its five states. */
+/** Now or one view, in its five states. */
 const place = (id: string, title: string, about: string, open: Drawer | undefined, extra: Partial<Entry> = {}): Entry => {
   const at = (seed: () => Seed) => () => <Screen seed={seed()} open={open} />;
   return {
@@ -30,9 +30,9 @@ const place = (id: string, title: string, about: string, open: Drawer | undefine
   };
 };
 
-/** The five places. */
+/** Now and the four views behind it. */
 export const SCREENS: Entry[] = [
-  place("now", "Now", "The bridge: what needs you, the story and the map, the crew, the work and the day.", undefined, {
+  place("now", "Now", "Three blocks: one sentence with the Night report, Needs you, and In progress.", undefined, {
     covers: ["DrawerHost", "MeTeam"],
   }),
   place(
@@ -41,10 +41,10 @@ export const SCREENS: Entry[] = [
     "The pipeline: every ticket from queued to merged, and every pull request in flight.",
     { kind: "work" },
     {
-      covers: ["ViewDrawer", "PlaceBody", "DrawerHead"],
+      covers: ["ViewDrawer", "DrawerHead"],
     },
   ),
-  place("crew", "Crew", "Who's working, where, under which instructions.", { kind: "crew" }),
+  place("crew", "Agents", "Who's working, where, under which instructions, and the day so far.", { kind: "crew" }),
   place("health", "Health", "Is anything broken, and is it worth it: checks, spend and each account's usage.", { kind: "health" }),
   place(
     "settings",

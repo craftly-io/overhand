@@ -19,8 +19,8 @@ import { leadName } from "@/lib/sessions";
 import { guessProject, looksLikeTask } from "@/lib/task";
 
 /**
- * ⌘K / Ctrl+K or "/" opens the command bar; W, A and H open Work, Agents and Health and F turns Focus on or off when you
- * aren't typing; Escape closes either (via Radix).
+ * ⌘K / Ctrl+K or "/" opens the command bar; W, A and H open the Work, Agents and Health drawers and F turns Focus on or
+ * off when you aren't typing; Escape closes either (via Radix).
  */
 function useShortcut(open: () => void, openView: (v: View) => void) {
   useEffect(() => {
@@ -64,10 +64,10 @@ export function Palette({ m }: { m: Model | undefined }) {
   const listen = useVoice();
   const [text, setText] = useState("");
   const setOpen = ui.setPaletteOpen;
-  const { goPlace, openPalette, paletteOpen, paletteSeed } = ui;
+  const { openDrawer, closeDrawer, openPalette, paletteOpen, paletteSeed } = ui;
   useShortcut(
     useCallback(() => openPalette(""), [openPalette]),
-    useCallback((v: View) => goPlace(v), [goPlace]),
+    useCallback((v: View) => openDrawer({ kind: v }), [openDrawer]),
   );
   // it opens with what it was asked to say (a plan to change), else empty
   useEffect(() => {
@@ -85,7 +85,7 @@ export function Palette({ m }: { m: Model | undefined }) {
     return {
       kw: p,
       desc: `${fmt(w.openPlace, { name: w[k] })}${w[k] === plainWords[k] ? "" : ` · ${plainWords[k]}`}${key}`,
-      act: close(() => goPlace(p)),
+      act: close(() => (p === "now" ? closeDrawer() : openDrawer({ kind: p }))),
     };
   };
   const theming = text.trim().toLowerCase().startsWith("theme");

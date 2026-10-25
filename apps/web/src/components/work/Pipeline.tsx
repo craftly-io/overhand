@@ -17,7 +17,16 @@ import { PreviewLink } from "../drawers/ReviewDrawer";
 import { Explain } from "../Explain";
 import { Muted } from "../Pane";
 import { ShipNote } from "../ShipNote";
-import { checks } from "./InFlight";
+
+/** CI state of an agent PR, as a state colour and its words. */
+export function checks(m: Model, url: string) {
+  const gh = m.s.status.myPrs.find((x) => x.url === url);
+  const c = gh?.checks ?? "";
+  if (/FAILURE|ERROR/.test(c)) return { gh, color: "var(--bad)", word: "checksFailing" } as const;
+  if (/PENDING|EXPECTED/.test(c)) return { gh, color: "var(--primary)", word: "checksRunning" } as const;
+  if (c) return { gh, color: "var(--ok)", word: "checksPass" } as const;
+  return { gh, color: "var(--muted-foreground)", word: null } as const;
+}
 
 const HEAD: Record<Stage, { word: WordKey; hint?: WordKey; tone: string }> = {
   planned: { word: "stagePlanned", hint: "stagePlannedHint", tone: "var(--muted-foreground)" },

@@ -51,7 +51,7 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * Actions only, never navigation or preferences (those are the header's places and Quick settings): the next step first (resume, run what the next pass would start, or
+ * Actions only, never navigation or preferences (those are Now's sentence, the header's Pause and Settings): the next step first (resume, run what the next pass would start, or
  * plan the day when there's no plan), then today, running the agents, upkeep, and the
  * system behind a divider, with What's new (the feature registry) beside Suggest or report. Its length doesn't grow
  * with leads or themes.
@@ -89,7 +89,7 @@ export function MenuDrawer({ m }: { m: Model }) {
             <Row tone="secondary" title={w.planDay} sub={says("planDay", w.cmdPlan)} onClick={() => run({ name: "plan" })} />
           )}
         </Section>
-        {/* pausing is a switch in Quick settings (and the header's own action while agents work); places are in the header */}
+        {/* pausing is a switch under the header's Pause; the views open from Now's sentence */}
         <Section label={w.menuRun}>
           <Row tone="secondary" title={`${w.overdrive}…`} sub={w.menuOverdriveHint} onClick={() => run({ name: "overdrive" })} />
           <Row tone="quiet" title={`${w.sweep}…`} sub={says("sweep", w.cmdSweep)} onClick={() => run({ name: "sweep" })} />

@@ -103,7 +103,7 @@ export function Spend({ m }: { m: Model }) {
           </dl>
         </section>
       ) : null}
-      {/* the cap itself is a switch in Quick settings; this opens where it and the other limits live */}
+      {/* the cap itself is a switch under the header's Pause; this opens where it and the other limits live */}
       <Button variant="link" size="xs" className="mt-1 px-0" onClick={() => ui.openDrawer({ kind: "settings", tab: "schedule" })}>
         {w.budgetChange}
       </Button>

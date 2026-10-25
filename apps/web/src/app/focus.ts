@@ -39,7 +39,7 @@ export const FOCUS_KEY = "F";
 /** Turns Focus the other way: the F key and the command bar. */
 export const toggleFocus = (): void => setFocus(!focusOn(store.get(KEY), false));
 
-/** Whether Focus is on, shared by Quick settings, the F key and everything it folds. */
+/** Whether Focus is on, shared by the header's Pause menu, the F key and everything it folds. */
 export function useFocus(): boolean {
   return useSyncExternalStore(
     (l) => {

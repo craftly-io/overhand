@@ -9,11 +9,21 @@
 <main id="main" class="docs">
 {{> dochero}}
 <div class="wrap">
+<section class="block hood" id="now" aria-labelledby="h-now">
+<h2 id="h-now">Now: three blocks.</h2>
+<ul class="facts">
+<li><b>One sentence</b> At the top: how many agents are working, how many things need you, what merged this week and today's money. Each number opens what it counts: {{w.viewCrew}}, {{w.paneAlerts}} in full, {{w.viewWork}} or {{w.viewHealth}}.</li>
+<li><b>{{w.paneAlerts}}</b> One card for each thing that asks for you, with the button that settles it. A broken check or a new error, {{w.paneToday}} and the project agents worth starting arrive here too.</li>
+<li><b>{{w.paneInProgress}}</b> Every agent at work in one list, task runs, project agents and your own sessions alike, then the pull requests they opened. Each row says its project, what it's doing and for how long, with Open; finished runs fold away below it, counted for the day.</li>
+<li><b>The views behind it</b> {{w.viewWork}}, {{w.viewCrew}} and {{w.viewHealth}} open as drawers, from the sentence, the W, A and H keys or the command bar.</li>
+<li><b>The header</b> The status, <em>{{w.briefMe}}</em>, <em>{{w.pauseShort}}</em> with {{w.quiet}} inside it, the command bar and {{w.settings}}.</li>
+</ul>
+</section>
 <section class="block hood" id="focus" aria-labelledby="h-focus">
 <h2 id="h-focus">Focus: outcomes only.</h2>
 <ul class="facts">
 <li><b>What stays</b> What needs you, what finished and what broke. What agents are saying, subagents and the day's in-between beats fold behind <em>{{w.showSteps}}</em>.</li>
-<li><b>Turn it on</b> The Focus switch in Quick settings, the F key, or <code>focus</code> in the command bar. Each browser keeps its own choice.</li>
+<li><b>Turn it on</b> The Focus switch under <em>{{w.pauseShort}}</em> in the header, the F key, or <code>focus</code> in the command bar. Each browser keeps its own choice.</li>
 <li><b>Its default</b> On for a new install. An install in use before Focus existed starts with it off.</li>
 </ul>
 </section>
@@ -22,7 +32,7 @@
 <ul class="facts">
 <li><b>What it shows</b> On a Mac, the Overhand mark in the menu bar, with the count of what needs you beside it: amber, or red when something is broken. Click it for who's at work, what needs you, {{w.quiet}}, <em>{{w.glanceOpen}}</em> and <em>{{w.briefMe}}</em>.</li>
 <li><b>What a click opens</b> A card or a sentence opens its place in the full dashboard, in your browser, signed in.</li>
-<li><b>Turn it off</b> <em>{{w.glanceHide}}</em> on it, or the {{w.menubar}} switch in Quick settings, which turns it back on. It comes with the installed Overhand on a Mac; a source checkout builds it with <code>bun run menubar</code>.</li>
+<li><b>Turn it off</b> <em>{{w.glanceHide}}</em> on it, or the {{w.menubar}} switch under <em>{{w.pauseShort}}</em>, which turns it back on. It comes with the installed Overhand on a Mac; a source checkout builds it with <code>bun run menubar</code>.</li>
 </ul>
 </section>
 <section class="block hood" id="looks" aria-labelledby="h-looks">
@@ -30,6 +40,7 @@
 <ul class="facts">
 <li><b>Pick one</b> Settings → Look &amp; sound → {{w.theme}}, or <code>theme</code> in the command bar: Instrument (the default), Observatory, Transit, Koi Pond or Catnap.</li>
 <li><b>What changes</b> The map's art and motion, the colours, the greeting's face and a few of its lines. Every button, label and setting stays the same, in the same place.</li>
+<li><b>The map</b> Settings → Look &amp; sound → {{w.sceneSetting}}: off unless you pick Moving or Still, which put each project's place on Now, above the two lists.</li>
 <li><b>Light and dark</b> Each look follows your computer; {{w.appearance}} beside it picks light or dark instead.</li>
 <li><b>Where it's kept</b> In this browser, so other devices pick their own. The menu bar item draws in the look you picked last.</li>
 </ul>
@@ -38,7 +49,7 @@
 <h2 id="h-night-report">The night report.</h2>
 <ul class="facts">
 <li><b>Every morning</b> One notification a day, from the hour you set in Settings → Schedule &amp; limits: what merged and opened, what waits on you, and what yesterday was billed. With an <a href="https://ntfy.sh">ntfy</a> topic it reaches your phone too.</li>
-<li><b>{{w.briefMe}}</b> In the actions menu or the command bar, and in the header when nothing else is next. It reads where things stand aloud and writes it down.</li>
+<li><b>{{w.briefMe}}</b> In the header (beside Now's sentence on a phone), the actions menu or the command bar. It reads where things stand aloud and writes it down.</li>
 <li><b>Stop</b> While it reads, its button turns into Stop. Esc, closing the report or leaving the page stops it as well.</li>
 </ul>
 </section>

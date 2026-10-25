@@ -1,14 +1,14 @@
 import { useSyncExternalStore } from "react";
 import { store } from "./store";
 
-/** The map's motion: moving, or one still frame per change. Kept in this browser. */
-export type MapMode = "on" | "still";
-// the key from when this was the painted scene's setting; its old "off" holds the map still
-const KEY = "overhand-backdrop";
-const toMode = (v: string | null): MapMode => (v === "still" || v === "off" ? "still" : "on");
+/** The map on Now: off (the default), moving, or one still frame per change. Kept in this browser. */
+export type MapMode = "off" | "on" | "still";
+// a key of its own: the map was always shown before, and that old setting only said whether it moved
+const KEY = "overhand-map";
+const toMode = (v: string | null): MapMode => (v === "on" || v === "still" ? v : "off");
 const listeners = new Set<() => void>();
 
-/** The map's motion setting (Settings › Look & sound, Quick settings), shared by the map and both settings. */
+/** The map setting (Settings › Look & sound), shared by Now and the setting. */
 export function useMapMode(): [MapMode, (mode: MapMode) => void] {
   const mode = useSyncExternalStore(
     (l) => {

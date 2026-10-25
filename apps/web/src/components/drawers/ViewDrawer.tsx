@@ -18,8 +18,10 @@ import { Spend } from "../health/Spend";
 import { Updates } from "../health/Updates";
 import { Week } from "../health/Week";
 import { InlineMd } from "../Markdown";
+import { Activity } from "../now/Activity";
 import { Cast } from "../now/Cast";
 import { ControlRoom } from "../now/ControlRoom";
+import { DayRibbon } from "../now/DayRibbon";
 import { Worktrees } from "../now/Worktrees";
 import { Dot, Muted, Pane } from "../Pane";
 import { Button } from "../ui/button";
@@ -159,8 +161,9 @@ function Places({ m, project }: { m: Model; project?: string }) {
 }
 
 /**
- * A place behind the bridge: Work (the pipeline), Crew (who's working, where, under which instructions) or Health (is
- * anything broken, and is it worth it: spend, the budget and each account's usage together).
+ * A view behind Now, opened from its sentence's numbers, its keys or the command bar: Work (the pipeline), Agents (who's
+ * working, where, under which instructions, and the day so far) or Health (is anything broken, and is it worth it:
+ * spend, the budget and each account's usage together).
  */
 export function ViewDrawer({ m, view, project }: { m: Model; view: View; project?: string }) {
   const w = useWords();
@@ -182,6 +185,13 @@ export function ViewDrawer({ m, view, project }: { m: Model; view: View; project
           <Instructions m={m} />
           <Guides m={m} project={project} />
           {project ? <WorkReports m={m} project={project} /> : null}
+          {/* the day so far, as beats and as one ribbon: what Now's sentence and Done today sum up */}
+          {project ? null : <Activity m={m} />}
+          {project ? null : (
+            <Pane title="storyDay">
+              <DayRibbon m={m} />
+            </Pane>
+          )}
         </div>
       ) : (
         // the balanced panes, then the two wide ones, one gap apart. Accounts before Spend: the columns come out nearly

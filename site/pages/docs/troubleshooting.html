@@ -63,7 +63,7 @@
         <li><b><em>{{w.signInRetry}}</em></b> Runs the same task again, with its brief and its branch: nothing done so far is lost.</li>
         <li><b><em>{{w.failedMoreDetail}}</em></b> When the agent changed nothing, it isn't run again on its own. Say more about what you want and it starts again from that.</li>
         <li><b><em>{{w.failedReopen}}</em></b> The branch was pushed, but GitHub didn't answer when its pull request was opened. This only opens the pull request; nothing runs again.</li>
-        <li><b><em>{{w.stopLead}}</em></b> Every working agent in {{w.viewCrew}} has one. It ends the run and everything it started, such as a dev server; its edits stay in its worktree, and the next run on that task is told they're there.</li>
+        <li><b><em>{{w.stopLead}}</em></b> Every task run in {{w.paneInProgress}} on Now, and every working agent in {{w.viewCrew}}, has one. It ends the run and everything it started, such as a dev server; its edits stay in its worktree, and the next run on that task is told they're there.</li>
         <li><b>The time limit</b> Counts only the time the computer was awake, so a laptop that slept through a run's limit doesn't stop it the moment it wakes. A run past its limit stops with everything it started, and its card says so.</li>
         <li><b>A round of fixes that failed</b> Another one runs, up to {{cfg.limits.maxFixes}} rounds; then the pull request waits for you.</li>
       </ul>
