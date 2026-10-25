@@ -4,10 +4,11 @@ import type { Model } from "@/app/data";
 import { useWords } from "@/app/theme";
 import { useUi } from "@/app/ui";
 import { Button } from "@/components/ui/button";
-import { changedText, proofLine, STEP_WORDS, stepStates, winSpent } from "@/lib/firstwin";
+import { proofLine, STEP_WORDS, stepStates, winSpent } from "@/lib/firstwin";
 import { fmt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Checkup } from "../Checkup";
+import { Changed } from "../drawers/Proof";
 import { Dot, Muted, Pane } from "../Pane";
 import { Tonight } from "./Tonight";
 
@@ -95,10 +96,7 @@ export function FirstWin({ m }: { m: Model }) {
           {win.state === "pr" && proof ? (
             <div className="grid gap-1 text-sm">
               <p>
-                {changedText(proof, w)}
-                {proof.areas.length ? (
-                  <span className="ml-2 font-mono text-xs text-muted-foreground">{proof.areas.join(" · ")}</span>
-                ) : null}
+                <Changed proof={proof} />
               </p>
               {proofLine(proof, w) ? <p>{proofLine(proof, w)}</p> : null}
             </div>

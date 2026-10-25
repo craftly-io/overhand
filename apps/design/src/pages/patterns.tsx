@@ -430,7 +430,7 @@ export const PATTERNS: Entry[] = [
     "review-drawer",
     "Review",
     "A pull request to review: the change, its proof, the corners the agent cut, and the preview to pin notes on.",
-    ["ReviewDrawer", "PreviewReview", "PreviewLink", "Proof", "Corners"],
+    ["ReviewDrawer", "PreviewReview", "PreviewLink", "Proof", "Changed", "Corners"],
     {
       review: () => <Screen seed={morning()} open={{ kind: "review", key: "BOOK-88" }} />,
       "on the preview": () => <Screen seed={morning()} open={{ kind: "review", key: "BOOK-88", preview: true }} />,

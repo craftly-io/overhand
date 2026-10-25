@@ -45,6 +45,21 @@ function ciCounts(checks: { state: string }[]): { ok: number; bad: number; wait:
   return { ok: checks.length - bad - wait, bad, wait };
 }
 
+/** What changed, in words, then the folders it touched: paths, so data in the mono face. */
+export function Changed({ proof }: { proof: ProofData }) {
+  const w = useWords();
+  return (
+    <>
+      {changedText(proof, w)}
+      {proof.areas.length ? (
+        <span data-data className="ml-2 font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">
+          {proof.areas.join(" · ")}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * "Proof": what the agent ran and how each check ended, CI as it stands, what changed, what the agent says it verified,
  * before/after screenshots when the project renders, and the gaps (amber: they're yours to check). Nothing for a PR
@@ -90,12 +105,7 @@ export function Proof({ prKey, proof, ci }: { prKey: string; proof: ProofData | 
         <div>
           <dt className={SECTION}>{w.proofChanged}</dt>
           <dd className="mt-1">
-            {changedText(proof, w)}
-            {proof.areas.length ? (
-              <span data-data className="ml-2 font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                {proof.areas.join(" · ")}
-              </span>
-            ) : null}
+            <Changed proof={proof} />
           </dd>
         </div>
         {proof.verified ? (

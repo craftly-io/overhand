@@ -29,11 +29,12 @@ function fill(word: string, vars: Record<string, ReactNode>): ReactNode[] {
 
 /**
  * A live fact inside the prologue: lit in its colour, and a shortcut to where it's explained. It underlines on hover; on
- * a touch screen, with no hover, a faint dotted underline stays so it still reads as tappable.
+ * a touch screen, with no hover, a faint dotted underline stays so it still reads as tappable. It keeps together on one
+ * line (inline-block) unless it is longer than the line, as a long project name is on a phone: then it wraps within it.
  */
 function Fact({ children, color = "var(--primary)", onClick }: { children: ReactNode; color?: string; onClick?: () => void }) {
   const cls =
-    "font-medium whitespace-nowrap text-(--c) [text-shadow:0_0_18px_color-mix(in_srgb,var(--c)_55%,transparent)] decoration-(--c)/40 underline-offset-[0.2em]";
+    "inline-block max-w-full text-left font-medium text-(--c) [text-shadow:0_0_18px_color-mix(in_srgb,var(--c)_55%,transparent)] decoration-(--c)/40 underline-offset-[0.2em]";
   const style = { "--c": color } as CSSProperties;
   return onClick ? (
     <button
