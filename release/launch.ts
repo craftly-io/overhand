@@ -113,7 +113,9 @@ function preflight(): void {
     );
 
   // an annotated tag lists its own object and, as <tag>^{}, the commit it points at
-  const refs = read(["git", "ls-remote", "--tags", "origin", TAG]).out.split("\n").filter(Boolean);
+  const refs = read(["git", "ls-remote", "--tags", "origin", TAG, `${TAG}^{}`])
+    .out.split("\n")
+    .filter(Boolean);
   const tagged = (refs.find((l) => l.endsWith("^{}")) ?? refs[0] ?? "").split(/\s+/)[0] ?? "";
   need(!tagged || tagged === head, `${TAG} not released from another commit`, "bump package.json's version");
   if (tagged === head) console.log(`    ${TAG} already points at HEAD: resuming`);
