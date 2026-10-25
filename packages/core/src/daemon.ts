@@ -56,9 +56,9 @@ import { inbox, inboxReadAt } from "./inbox";
 import { blankLead, leadPid, loadLeads, lockHolder, superviseLeads, watchQuestions } from "./leads";
 import { serveMcp } from "./mcp-server";
 import { syncMenubar } from "./menubar";
-import { diskFree, notify, problems, report, stampConsole } from "./notify";
+import { diskFree, notify, problems, report, reportDaily, stampConsole } from "./notify";
 import { refreshSuggestions } from "./organise";
-import { plan } from "./plan";
+import { plan, planDue } from "./plan";
 import { daemonLog, hasDisplay, installService, isLoginService, openBrowser, readSecret, SERVICE, uninstallService } from "./platform";
 import { tickPlugins } from "./plugins";
 import { claudeSignedIn } from "./runtimes/claude-code";
@@ -129,19 +129,21 @@ export async function finishMoves(
   return moved;
 }
 
-/** Says which accounts still wait for their one-time sign-in in a folder of their own (Settings shows each one's row). */
+/**
+ * Says which accounts still wait for their one-time sign-in in a folder of their own (Settings shows each one's row):
+ * once a day, not at every start.
+ */
 function noticeMoves(): void {
   const waiting = pendingMoves(CFG);
   if (!waiting.length) return;
   const title = plainWords.movedOffOwnTitle.replace("{accounts}", waiting.join(", "));
-  report(`🔐 ${title}`);
-  notify(title, plainWords.movedOffOwnBody);
+  if (reportDaily(`🔐 ${title}`)) notify(title, plainWords.movedOffOwnBody);
 }
 
-/** Runs forever: serves the dashboard, plans daily, reads Slack on config.schedule, works the queue. */
+/** Runs forever: serves the dashboard, plans daily when the plan is on, reads Slack on config.schedule, works the queue. */
 export async function daemon(): Promise<void> {
   const local = await loadLocalCode();
-  if (local) report(`🔌 account order from local code ${local}`);
+  if (local) reportDaily(`🔌 account order from local code ${local}`);
   writeAgentHome();
   noticeMoves();
   void finishMoves();
@@ -182,8 +184,10 @@ export async function daemon(): Promise<void> {
         plugging = false;
       });
   }, MIN);
-  // the dashboard looks at itself every 15 min, the first time once it has warmed up; a failure shows in Needs you
-  const selfCheck = () => void runSelfCheck(liveDeps(dashboardState)).then(() => pushState().catch(() => {}));
+  // the dashboard looks at itself every 15 min, the first time once it has warmed up; a failure shows in Needs you.
+  // One set of deps for the daemon's life: the headless render passes once per start (oncePerStart)
+  const checkDeps = liveDeps(dashboardState);
+  const selfCheck = () => void runSelfCheck(checkDeps).then(() => pushState().catch(() => {}));
   setTimeout(selfCheck, 2 * MIN);
   setInterval(selfCheck, SELF_CHECK_EVERY);
   // organising suggestions: cheap git reads, every half hour (ponytail: in-process; move out like cleanup if it lags)
@@ -204,14 +208,16 @@ export async function daemon(): Promise<void> {
       const paused = existsSync(join(OPS, "PAUSE"));
       const hour = new Date().getHours();
       const planned = existsSync(join(OPS, "plans", `${today()}.md`));
-      const planAsked = takeRequest(".request-plan");
-      if (planAsked || (!planned && hour >= CFG.schedule.planFromHour && !paused && Date.now() - lastPlanTry > 60 * MIN)) {
+      const asked = takeRequest(".request-plan");
+      const sinceTryMin = (Date.now() - lastPlanTry) / MIN;
+      if (planDue({ on: CFG.schedule.plan, asked, planned, paused, hour, fromHour: CFG.schedule.planFromHour, sinceTryMin })) {
         lastPlanTry = Date.now();
         await plan();
       }
       const inboxAsked = takeRequest(".request-inbox");
+      // with the plan on, Slack waits for today's plan (its items land in the plan's Inbox sections)
       const inboxDue =
-        planned &&
+        (planned || !CFG.schedule.plan) &&
         hour >= CFG.schedule.inboxFromHour &&
         hour < CFG.schedule.inboxToHour &&
         Date.now() - lastInbox > CFG.schedule.inboxEveryMin * MIN &&

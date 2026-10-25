@@ -57,7 +57,7 @@ const SAMPLE_CONFIG = {
     },
   ],
   codeRoot: "~/Code",
-  schedule: { planFromHour: 7, briefAtHour: 8, taskTimeoutMin: 75, maxParallel: 2, maxFixes: 3, dailyBudgetUsd: 25 },
+  schedule: { plan: true, planFromHour: 7, briefAtHour: 8, taskTimeoutMin: 75, maxParallel: 2, maxFixes: 3, dailyBudgetUsd: 25 },
   slack: [{ server: "slack_shop", client: "Online shop" }],
   ntfySecret: "overhand-ntfy",
   updates: [
@@ -364,7 +364,7 @@ export function demoGet(url: string): unknown {
   if (u.pathname === "/api/projects/added") return { projectsDir: "/Users/sam/Code", additions: [], projects: [] };
   if (u.pathname.startsWith("/api/organise") || (u.pathname === "/api/brief" && u.searchParams.get("id")?.startsWith("organise:")))
     return demoOrganise(u.pathname, u.searchParams.get("id") ?? "");
-  if (u.pathname === "/api/brief") return demoBrief(u.searchParams.get("id") ?? "");
+  if (u.pathname === "/api/brief") return demoBrief(u.searchParams.get("id") ?? "", undefined, u.searchParams.get("explain") === "1");
   // the morning's worktrees, the same picture the morning's Crew shows
   if (u.pathname === "/api/worktrees") return demoWorktrees(nightAt(MORNING));
   if (u.pathname === "/api/report") {

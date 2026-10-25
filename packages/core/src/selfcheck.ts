@@ -1,8 +1,9 @@
 /**
  * The dashboard self-check: every 15 minutes the daemon looks at its own dashboard with your real state. Always the
- * cheap part: the state parses with the contract and the page's files are there. Then, only when a browser is on this
- * machine and the governor has room (not strained, not quiet, a browser slot free), one muted headless tab renders it:
- * the Now view has to show with no page errors. A failure is a card in Needs you (Report, Reload) and one notification.
+ * cheap part: the state parses with the contract and the page's files are there. Then, after a start (every update and
+ * restart is one) until a render passes, and only when a browser is on this machine and the governor has room (not
+ * strained, not quiet, a browser slot free), one muted headless tab renders it: the Now view has to show with no page
+ * errors. A failure is a card in Needs you (Report, Reload) and one notification.
  */
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -203,11 +204,27 @@ export interface SelfCheckDeps {
   notify: (title: string, body: string) => void;
 }
 
+/**
+ * The headless render once per start: a daemon starts after every update and restart, which is when the page can
+ * break, so once one render has passed there's no browser again until the next start (the cheap check goes on).
+ */
+export function oncePerStart(find: () => string, render: SelfCheckDeps["render"]): Pick<SelfCheckDeps, "browser" | "render"> {
+  let passed = false;
+  return {
+    browser: () => (passed ? "" : find()),
+    render: async (url, browser) => {
+      const error = await render(url, browser);
+      passed ||= !error;
+      return error;
+    },
+  };
+}
+
 /** The live dependencies, given how to build the state (the dashboard's own function). */
 export function liveDeps(state: () => Promise<unknown>): SelfCheckDeps {
   return {
     state,
-    browser: () => findBrowser(),
+    ...oncePerStart(() => findBrowser(), renderCheck),
     hold: () =>
       gate(CFG.governor, readMachine(diskFree()), quietUntil(OPS), Date.now()) ??
       ruleHold("browser", CFG.control, { ops: OPS, project: "", session: "" }),

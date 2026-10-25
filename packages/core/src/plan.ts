@@ -2,9 +2,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { claude } from "./claude";
+import type { Client } from "./config";
 import { CLIENTS, http, LABEL, OPS, OWNER, sh, today } from "./env";
 import { notify, report } from "./notify";
-import { openBrowser } from "./platform";
 import { loadState, saveState } from "./state";
 import { bitbucket, bitbucketAuth } from "./trackers/bitbucket";
 import { myAndQueued } from "./trackers/index";
@@ -127,6 +127,69 @@ export function armAll(md: string): { md: string; armed: number } {
   return { md: lines.join("\n"), armed };
 }
 
+/** Whether any project's code lives on Bitbucket: only then does the planner read your Bitbucket pull requests. */
+export const usesBitbucket = (clients: readonly Pick<Client, "host">[]): boolean => clients.some((c) => c.host === "bitbucket");
+
+/** Your open Bitbucket pull requests as JSON, or the error in words (the planner names it in its notes). */
+async function bitbucketPrs(): Promise<string> {
+  try {
+    const me = await http<{ uuid: string }>("https://api.bitbucket.org/2.0/user", { headers: { Authorization: bitbucketAuth() } });
+    const r = await http<{ values: { title: string; links: { html: { href: string } } }[] }>(
+      `https://api.bitbucket.org/2.0/workspaces/${bitbucket().workspace}/pullrequests/${encodeURIComponent(me.uuid)}?state=OPEN&pagelen=50`,
+      { headers: { Authorization: bitbucketAuth() } },
+    );
+    return JSON.stringify(r.values.map((v) => ({ title: v.title, url: v.links.html.href })));
+  } catch (e) {
+    return `ERROR: ${String(e)}`;
+  }
+}
+
+/** The planner's prompt: tickets per project, your open pull requests (Bitbucket's only when given), how to split the day. */
+export function planPrompt(
+  owner: string,
+  tickets: Record<string, unknown>,
+  prs: { myPrs: string; reviews: string; bitbucket?: string },
+): string {
+  return [
+    `Build today's (${today()}) work plan for ${owner}.`,
+    `Below: open tickets assigned to ${owner} (plus tickets labelled \`${LABEL.queue}\`), per project, and open PRs.`,
+    "For each project split today's realistic work into:",
+    "- agent: tickets an autonomous coding agent can finish alone and hand back as a PR. Only clear, self-contained,",
+    `  code-only tickets (bug fixes, small features, tests, copy, refactors) with enough detail. Always include tickets labelled \`${LABEL.queue}\``,
+    `  unless labelled ${LABEL.blocked}/${LABEL.review}/${LABEL.working}. Never: In Review / In Progress by a human, design or product`,
+    "  decisions, messages to other people, infra/prod/credentials, vague epics. At most 3 per project.",
+    `- you: what ${owner} should do personally today, most important first: unblock reviews, in-progress work, decisions,`,
+    "  replies. Include open PRs needing attention. Realistic: about 6 focus hours in total.",
+    "Use ticket keys (e.g. HONEY-123) as ref for tickets, the URL for PRs. minutes = honest estimate (for agent items: the",
+    "agent's expected run time). reason = one short line.",
+    `top3 = the three things that matter most for ${owner} today. notes = risks or conflicts, else empty.`,
+    "In notes also flag tracker drift: open PRs whose ticket isn't In Review, tickets In Progress or In Review with no",
+    "open PR, and tickets that look already done. Name the ticket and the fix.",
+    "Skip projects with errors but mention them in notes. Do not use tools, answer only from this data.",
+    "",
+    `TICKETS: ${JSON.stringify(tickets)}`,
+    `MY OPEN GITHUB PRS: ${prs.myPrs}`,
+    `GITHUB PRS WAITING FOR MY REVIEW: ${prs.reviews}`,
+    ...(prs.bitbucket === undefined ? [] : [`MY OPEN BITBUCKET PRS: ${prs.bitbucket}`]),
+  ].join("\n");
+}
+
+/**
+ * Whether the loop writes today's plan now: always when you asked for it; else only with the plan on, none written
+ * yet today, past its hour, not paused, and over an hour since the last try.
+ */
+export function planDue(o: {
+  on: boolean;
+  asked: boolean;
+  planned: boolean;
+  paused: boolean;
+  hour: number;
+  fromHour: number;
+  sinceTryMin: number;
+}): boolean {
+  return o.asked || (o.on && !o.planned && !o.paused && o.hour >= o.fromHour && o.sinceTryMin > 60);
+}
+
 /** Builds today's plan from your tickets and PRs with one planner run, keeping armed items and inbox sections. */
 export async function plan(): Promise<void> {
   const state = loadState();
@@ -158,40 +221,8 @@ export async function plan(): Promise<void> {
     "--limit",
     "50",
   ]).out;
-  let bbPrs = "[]";
-  try {
-    const me = await http<{ uuid: string }>("https://api.bitbucket.org/2.0/user", { headers: { Authorization: bitbucketAuth() } });
-    const r = await http<{ values: { title: string; links: { html: { href: string } } }[] }>(
-      `https://api.bitbucket.org/2.0/workspaces/${bitbucket().workspace}/pullrequests/${encodeURIComponent(me.uuid)}?state=OPEN&pagelen=50`,
-      { headers: { Authorization: bitbucketAuth() } },
-    );
-    bbPrs = JSON.stringify(r.values.map((v) => ({ title: v.title, url: v.links.html.href })));
-  } catch (e) {
-    bbPrs = `ERROR: ${String(e)}`;
-  }
-
-  const prompt = [
-    `Build today's (${today()}) work plan for ${OWNER}, a developer working for several clients.`,
-    `Below: open tickets assigned to ${OWNER} (plus tickets labelled \`${LABEL.queue}\`), per client, and open PRs.`,
-    "For each client split today's realistic work into:",
-    "- agent: tickets an autonomous coding agent can finish alone and hand back as a PR. Only clear, self-contained,",
-    `  code-only tickets (bug fixes, small features, tests, copy, refactors) with enough detail. Always include tickets labelled \`${LABEL.queue}\``,
-    `  unless labelled ${LABEL.blocked}/${LABEL.review}/${LABEL.working}. Never: In Review / In Progress by a human, design or product`,
-    "  decisions, client communication, infra/prod/credentials, vague epics. At most 3 per client.",
-    `- you: what ${OWNER} should do personally today, most important first: unblock reviews, in-progress work, decisions,`,
-    "  replies. Include open PRs needing attention. Realistic: about 6 focus hours in total across clients.",
-    "Use ticket keys (e.g. HONEY-123) as ref for tickets, the URL for PRs. minutes = honest estimate (for agent items: the",
-    "agent's expected run time). reason = one short line.",
-    `top3 = the three things that matter most for ${OWNER} today across all clients. notes = risks or conflicts, else empty.`,
-    `${OWNER} doesn't keep trackers up to date, so in notes also flag tracker drift: open PRs whose ticket isn't In Review,`,
-    "tickets In Progress or In Review with no open PR, and tickets that look already done. Name the ticket and the fix.",
-    "Skip clients with errors but mention them in notes. Do not use tools, answer only from this data.",
-    "",
-    `TICKETS: ${JSON.stringify(data)}`,
-    `MY OPEN GITHUB PRS: ${myPrs}`,
-    `GITHUB PRS WAITING FOR MY REVIEW: ${reviews}`,
-    `MY OPEN BITBUCKET PRS: ${bbPrs}`,
-  ].join("\n");
+  const bb = usesBitbucket(CLIENTS) ? { bitbucket: await bitbucketPrs() } : {};
+  const prompt = planPrompt(OWNER, data, { myPrs, reviews, ...bb });
 
   const run = await claude<Plan>(state, prompt, OPS, PLAN_SCHEMA, "plan");
   saveState(state);
@@ -234,5 +265,4 @@ export async function plan(): Promise<void> {
   const agentCount = p.clients.reduce((n, c) => n + c.agent.length, 0);
   notify("Today's plan is ready", `${agentCount} tickets planned for agents. Top: ${p.top3[0] ?? ""}`);
   report(`📋 plan written: ${agentCount} agent tasks ready to deploy (planner on ${run.account}, $${run.cost.toFixed(2)})`);
-  openBrowser(planFile()); // the plan file, in the default Markdown app
 }

@@ -384,7 +384,12 @@ const ConfigSchema = z.object({
     .prefault({}),
   schedule: z
     .object({
-      /** Hour (0–23) from which the daily plan is written. */
+      /**
+       * The daily plan: one planner run over your tickets and pull requests each morning, its items waiting for you to
+       * arm them. Off on a new install; Plan the day still runs it on request.
+       */
+      plan: z.boolean().default(false),
+      /** Hour (0–23) from which the daily plan is written, when it's on. */
       planFromHour: z.number().int().min(0).max(23).default(7),
       /** When the night report is pushed (local hour); -1 turns it off. */
       briefAtHour: z.number().int().min(-1).max(23).default(8),
