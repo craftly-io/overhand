@@ -27,10 +27,12 @@ import { systemSchemeCss } from "@overhand/themes/system";
 import { z } from "zod";
 import { billingRoute, publicHome } from "./billing";
 import { hasLink, homeRoute, recordLink } from "./home";
+import { hostedRoute } from "./hosted";
 import { applyEvent, type D1, entitlementOf, eventWorkspace, inCidr, paddleBase, paddleIps, verifyPaddleSignature } from "./paddle";
 import { signedIn, signInRoute } from "./signin";
 import { access, teamRoute, tellRoom } from "./team";
 
+export { Runner } from "./hosted";
 export { TeamRoom } from "./room";
 export { Workspace } from "./signal";
 
@@ -68,6 +70,15 @@ export type Env = {
   DEV_LOGIN?: string;
   /** TURN credential grants per workspace per month before /relay/ice hands out STUN only; TURN_GRANTS by default. */
   TURN_MONTHLY_GRANTS?: string;
+  /** "1" switches hosted runs on (hosted.ts); unset in production until the owner's setup is done. */
+  HOSTED_RUNS?: string;
+  /** Hosted runs' `Runner` objects, one per workspace, each with its container (wrangler.jsonc `containers`). */
+  RUNNER?: Namespace;
+  /** The longest one hosted run may take, in minutes; HOSTED_RUN_MAX_MIN (contract) by default. */
+  HOSTED_RUN_MAX_MIN?: string;
+  /** Overhand's GitHub App, which mints each hosted run's repository token: its id (a var) and PKCS#8 key (a secret). */
+  GITHUB_APP_ID?: string;
+  GITHUB_APP_PRIVATE_KEY?: string;
 };
 
 /**
@@ -357,6 +368,10 @@ export async function route(req: Request, env: Env, now = Date.now()): Promise<R
     h.set("x-name", d?.name ?? "");
     return env.WORKSPACE.get(env.WORKSPACE.idFromName(ws)).fetch(new Request(req.url, { method: "GET", headers: h }));
   }
+
+  // ── hosted runs: a daemon by its key, only where they're switched on ──
+  const hosted = await hostedRoute(req, env, url, now);
+  if (hosted) return hosted;
 
   // ── teams: a member's daemon or signed-in browser; every route checks membership and role in D1 ──
   const team = await teamRoute(req, env, url, now);

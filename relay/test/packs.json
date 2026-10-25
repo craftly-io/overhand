@@ -1,0 +1,20 @@
+[
+  {
+    "id": "pri_minutes_1000",
+    "status": "active",
+    "unit_price": { "amount": "600", "currency_code": "EUR" },
+    "billing_cycle": null,
+    "quantity": { "minimum": 1, "maximum": 10 },
+    "custom_data": { "pack": "minutes", "minutes": 1000 },
+    "product": { "name": "Overhand run minutes" }
+  },
+  {
+    "id": "pri_minutes_5000",
+    "status": "active",
+    "unit_price": { "amount": "2800", "currency_code": "EUR" },
+    "billing_cycle": null,
+    "quantity": { "minimum": 1, "maximum": 10 },
+    "custom_data": { "pack": "minutes", "minutes": 5000 },
+    "product": { "name": "Overhand run minutes" }
+  }
+]

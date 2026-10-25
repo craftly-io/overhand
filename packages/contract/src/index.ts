@@ -7,6 +7,7 @@ import { AutonomySchema } from "./autonomy";
 import { BillingSchema } from "./billing";
 import { CardButtonSchema, PlanPointsSchema } from "./decide";
 import { GuideSchema } from "./guide";
+import { HostedResultSchema } from "./hosted";
 import { ProjectInstructionsSchema } from "./instructions";
 import { LEAD_WORK } from "./leads";
 import { LeakSchema } from "./outward";
@@ -25,6 +26,7 @@ export * from "./features";
 export * from "./feedback";
 export * from "./guard";
 export * from "./guide";
+export * from "./hosted";
 export * from "./instructions";
 export * from "./leads";
 export * from "./links";
@@ -335,6 +337,8 @@ export const ClientSchema = z.object({
   shipBlock: z.string().optional(),
   /** Other words that name it (config aliases, its folder), for telling which project a sentence is about. Optional for older daemons. */
   aliases: z.array(z.string()).optional(),
+  /** "Run here when my computer is off" is on: its queued tickets go to a hosted run while the computer is away. */
+  hosted: z.boolean().optional(),
 });
 
 export const LeadInboxSchema = z.object({ text: z.string(), at: z.number(), open: z.boolean() });
@@ -685,6 +689,14 @@ export const DashboardStateSchema = z.object({
   sandboxRefuse: z.string().default(""),
   /** The menu bar item is on (`menubar`); null where this computer has none (not a Mac, or not installed). */
   menubar: z.boolean().nullable().default(null),
+  /**
+   * Hosted runs (hosted.ts): null where this build or this computer can't use them (switched off, not linked, no paid
+   * plan); else where to buy run minutes, and the hosted runs that stopped or never started, newest first.
+   */
+  hosted: z
+    .object({ billing: z.string(), stopped: z.array(HostedResultSchema) })
+    .nullable()
+    .default(null),
   /** No agent has run on an earlier day: a fresh install's first day. Optional for older daemons. */
   dayOne: z.boolean().default(false),
   sessions: z.array(SessionSchema),
@@ -1008,13 +1020,14 @@ export const CleanupSwitchesSchema = z.object({
 
 /**
  * `POST /api/settings/quick`: one day-to-day switch from Quick settings, saved into the config without opening the
- * whole Settings form: the daily budget (0 = off), weekly pacing, the menu bar item, or one project's autonomy.
+ * whole Settings form: the daily budget (0 = off), weekly pacing, the menu bar item, one project's autonomy, or whether it runs hosted while the computer is off.
  */
 export const QuickSettingSchema = z.union([
   z.object({ budgetUsd: z.number().min(0).max(100_000) }),
   z.object({ paceWeekly: z.boolean() }),
   z.object({ menubar: z.boolean() }),
   z.object({ project: z.string().min(1), autonomy: AutonomySchema }),
+  z.object({ project: z.string().min(1), hosted: z.boolean() }),
 ]);
 export type QuickSetting = z.infer<typeof QuickSettingSchema>;
 

@@ -138,6 +138,23 @@ export function selectPrices(list: unknown[]): Catalog {
   return out;
 }
 
+/** A run minute pack: a one-time price tagged custom_data `{pack: "minutes", minutes}`. `amount` in minor units. */
+export type Pack = { id: string; amount: number; currency: string; minutes: number };
+
+/** The run minute packs in Paddle's list, fewest minutes first; recurring, archived or malformed prices are skipped. */
+export function selectPacks(list: unknown[]): Pack[] {
+  const out: Pack[] = [];
+  for (const raw of list) {
+    const p = PriceSchema.safeParse(raw);
+    if (!p.success || (p.data.status && p.data.status !== "active") || p.data.billing_cycle) continue;
+    const minutes = Number(p.data.custom_data?.minutes);
+    const amount = Number(p.data.unit_price.amount);
+    if (p.data.custom_data?.pack !== "minutes" || !Number.isInteger(minutes) || minutes <= 0 || !Number.isFinite(amount)) continue;
+    out.push({ id: p.data.id, amount, currency: p.data.unit_price.currency_code, minutes });
+  }
+  return out.sort((a, b) => a.minutes - b.minutes);
+}
+
 /** One authenticated Paddle API call; throws with Paddle's error detail on failure. */
 export async function paddle(base: string, apiKey: string, path: string, init: { method?: string; body?: unknown } = {}): Promise<unknown> {
   const r = await fetch(`${base}${path}`, {
@@ -264,6 +281,7 @@ export async function applyEvent(db: D1, event: unknown, now: number): Promise<A
   if (!head.success) return "bad";
   const seen = await db.prepare("SELECT 1 AS hit FROM paddle_events WHERE event_id = ?").bind(head.data.event_id).first();
   if (seen) return "duplicate";
+  if (head.data.event_type === "transaction.completed") return creditPacks(db, event, head.data.event_id, now);
   if (!head.data.event_type.startsWith("subscription.")) {
     await db.prepare("INSERT OR IGNORE INTO paddle_events (event_id, received_at) VALUES (?, ?)").bind(head.data.event_id, now).run();
     return "ignored";
@@ -310,4 +328,41 @@ export async function applyEvent(db: D1, event: unknown, now: number): Promise<A
   ]);
   if (!mark?.meta.changes) return "duplicate"; // a concurrent delivery of the same event got there first
   return upsert?.meta.changes ? "applied" : "stale";
+}
+
+const PackTransaction = z.object({
+  data: z.object({
+    custom_data: z.record(z.string(), z.unknown()).nullable().optional(),
+    items: z.array(
+      z.object({ quantity: z.number(), price: z.object({ custom_data: z.record(z.string(), z.unknown()).nullable().optional() }) }),
+    ),
+  }),
+});
+
+/**
+ * A completed transaction: the run minute packs in it go onto its workspace's balance (hosted.ts). A plan's own
+ * transactions carry no pack and change nothing. The event id is recorded in the same transaction and the credit only
+ * applies when that insert did (`changes()`), so a replay or a concurrent retry never credits twice.
+ */
+async function creditPacks(db: D1, event: unknown, eventId: string, now: number): Promise<Applied> {
+  const t = PackTransaction.safeParse(event);
+  const ws = t.data?.data.custom_data?.workspace;
+  const minutes = (t.data?.data.items ?? [])
+    .filter((i) => i.price.custom_data?.pack === "minutes")
+    .reduce((n, i) => n + Math.max(0, Math.floor(Number(i.price.custom_data?.minutes) || 0)) * i.quantity, 0);
+  const mark = db.prepare("INSERT OR IGNORE INTO paddle_events (event_id, received_at) VALUES (?, ?)").bind(eventId, now);
+  if (!minutes || typeof ws !== "string" || !ws) {
+    await mark.run();
+    return "ignored";
+  }
+  const [marked] = await db.batch([
+    mark,
+    db
+      .prepare(
+        `INSERT INTO hosted_minutes (workspace, balance) SELECT ?, ? WHERE changes() > 0
+         ON CONFLICT (workspace) DO UPDATE SET balance = balance + excluded.balance`,
+      )
+      .bind(ws, minutes),
+  ]);
+  return marked?.meta.changes ? "applied" : "duplicate";
 }

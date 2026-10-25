@@ -100,3 +100,28 @@ CREATE TABLE IF NOT EXISTS sign_in_limits (
   PRIMARY KEY (key, win)
 );
 CREATE INDEX IF NOT EXISTS sign_in_limits_win ON sign_in_limits (win);
+-- Hosted runs (issue #15, relay/src/hosted.ts): a workspace's prepaid run minutes (packs bought, never expiring) and
+-- the plan's monthly allowance used in `month` (YYYY-MM); and each run's record: what the daemon reads back and the
+-- billing page lists. Nothing here holds a key, a token or a run's log. (An existing database:
+-- migrations/2026-10-25-hosted-runs.sql)
+CREATE TABLE IF NOT EXISTS hosted_minutes (
+  workspace TEXT PRIMARY KEY,
+  balance INTEGER NOT NULL DEFAULT 0,
+  month TEXT NOT NULL DEFAULT '',
+  allowance_used INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS hosted_runs (
+  id TEXT PRIMARY KEY,
+  workspace TEXT NOT NULL,
+  key TEXT NOT NULL,
+  project TEXT NOT NULL,
+  status TEXT NOT NULL,
+  pr TEXT NOT NULL DEFAULT '',
+  branch TEXT NOT NULL DEFAULT '',
+  draft INTEGER NOT NULL DEFAULT 0,
+  summary TEXT NOT NULL,
+  minutes INTEGER NOT NULL,
+  at INTEGER NOT NULL,
+  seen INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS hosted_runs_workspace ON hosted_runs (workspace, at);

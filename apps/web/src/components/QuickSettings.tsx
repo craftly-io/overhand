@@ -116,6 +116,16 @@ export function ProjectRules({ m }: { m: Model }) {
             {w[MEANS_WORDS[c.autonomy]]}
             {c.shipBlock && c.host === "github" ? ` ${c.shipBlock}${c.autonomy === "ship" ? ` ${w.shipStays}` : ""}` : ""}
           </p>
+          {/* hosted runs, only where this computer can use them (switched on, linked, on a plan) and on GitHub */}
+          {m.s.hosted && c.host === "github" ? (
+            <Row label={w.hostedHere} hint={w.hostedHereHint}>
+              <Switch
+                aria-label={`${w.hostedHere}: ${c.name}`}
+                checked={Boolean(c.hosted)}
+                onCheckedChange={(on) => void save({ project: c.name, hosted: on })}
+              />
+            </Row>
+          ) : null}
         </div>
       ))}
     </div>

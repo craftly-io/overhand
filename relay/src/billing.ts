@@ -9,6 +9,7 @@ import {
   CYCLES,
   type Cycle,
   EMAIL,
+  type HostedResult,
   PLAN_COPY,
   PLAN_TAX,
   PLANS,
@@ -22,7 +23,20 @@ import { markSvg } from "@overhand/themes/brand";
 import { plainWords as w } from "@overhand/themes/words";
 import { z } from "zod";
 import { COPY_SCRIPT, hasLink, INSTALL_CSS, installBlock } from "./home";
-import { activeEntitlement, type Catalog, type Entitlement, entitlementOf, listPrices, paddle, paddleBase, selectPrices } from "./paddle";
+import { type Minutes, minutesOf, recentRuns, runMaxMin } from "./hosted";
+import {
+  activeEntitlement,
+  type Catalog,
+  type Entitlement,
+  entitlementOf,
+  listPrices,
+  type Pack,
+  paddle,
+  paddleBase,
+  selectPacks,
+  selectPrices,
+} from "./paddle";
+import { access } from "./team";
 import { BRAND, type Env, html, json, page } from "./worker";
 
 /**
@@ -98,6 +112,54 @@ function until(e: Entitlement): string {
   return said.replace("{date}", esc(at.slice(0, 10)));
 }
 
+/** What the billing page shows of hosted runs, where they're switched on. */
+export type HostedBilling = { minutes: Minutes; runs: HostedResult[]; packs: Pack[]; maxMin: number; plan: boolean };
+
+const STATUS_WORD: Record<HostedResult["status"], string> = {
+  done: w.hostedStatusDone,
+  report: w.hostedStatusReport,
+  failed: w.hostedStatusFailed,
+  "no-minutes": w.hostedStatusNoMinutes,
+  "not-started": w.hostedStatusNotStarted,
+};
+
+/** Run minutes: what's left (allowance and bought), the packs to buy (with a plan on), and each run's minutes. */
+function minutesSection(h: HostedBilling): string {
+  const m = h.minutes;
+  const n = (x: number) => x.toLocaleString("en-US");
+  const line = h.plan
+    ? w.billingMinutesLine
+        .replace("{total}", n(m.allowanceLeft + m.balance))
+        .replace("{left}", n(m.allowanceLeft))
+        .replace("{allowance}", n(m.allowance))
+        .replace("{bought}", n(m.balance))
+    : w.billingMinutesNoPlan.replace("{bought}", n(m.balance));
+  const buy = h.plan
+    ? `<div class="row">${h.packs
+        .map(
+          (p) =>
+            `<button data-pack="${esc(p.id)}">${esc(w.billingBuyMinutes.replace("{n}", n(p.minutes)).replace("{price}", priceText(p)))}</button>`,
+        )
+        .join("")}</div>`
+    : "";
+  const runs = h.runs.length
+    ? `<ul class="runs">${h.runs
+        .map(
+          (r) =>
+            `<li>${esc(
+              w.billingRunRow
+                .replace("{date}", new Date(r.at).toISOString().slice(0, 16).replace("T", " "))
+                .replace("{ticket}", r.key)
+                .replace("{project}", r.project)
+                .replace("{minutes}", String(r.minutes))
+                .replace("{status}", STATUS_WORD[r.status]),
+            )}${r.pr ? ` · <a href="${esc(r.pr)}">${esc(r.pr.replace(/^https:\/\/github\.com\//, ""))}</a>` : ""}</li>`,
+        )
+        .join("")}</ul>`
+    : `<p><small>${w.billingRunsNone}</small></p>`;
+  return `<h2>${w.billingMinutes}</h2><p>${line}</p><p><small>${w.billingMinutesHow.replace("{max}", String(h.maxMin))}</small></p>${buy}<h2>${w.billingRuns}</h2>${runs}`;
+}
+
 /** The page for a signed-in browser. `nonce` allows its one inline script under the page's CSP. */
 export function billingPage(o: {
   session: SessionClaim;
@@ -111,6 +173,8 @@ export function billingPage(o: {
   picked: string;
   site: string;
   nonce: string;
+  /** Run minutes and hosted runs, where hosted runs are switched on (HOSTED_RUNS); absent elsewhere. */
+  hosted?: HostedBilling | null;
 }): string {
   const e = o.entitlement;
   const status =
@@ -168,11 +232,12 @@ export function billingPage(o: {
 .act{display:grid;gap:10px;align-content:end}.act button{width:100%}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}#msg:empty{display:none}
+.runs{padding-left:18px;display:grid;gap:4px;font-variant-numeric:tabular-nums}
 .links{display:flex;flex-wrap:wrap;gap:0 16px;font-size:14px}.links a{display:inline-block;padding:8px 0}`;
   const main = `${BRAND}
 <h1>Billing</h1>
 <p><small>Signed in as ${esc(o.session.email)}</small></p>
-${status}${manage}${install ? `<section class="install" aria-labelledby="install">${installBlock(`${w.billingNotInstalled} ${w.billingInstall}`, "h2")}</section>` : ""}${plans}${sandbox}
+${status}${manage}${o.hosted ? minutesSection(o.hosted) : ""}${install ? `<section class="install" aria-labelledby="install">${installBlock(`${w.billingNotInstalled} ${w.billingInstall}`, "h2")}</section>` : ""}${plans}${sandbox}
 <p id="msg" role="status" aria-live="polite"></p>
 <h2>Security</h2>
 <div class="row"><button id="signout-all">Sign out everywhere</button><small>Signs every browser out of this account, this one too. Your computers stay linked; unlink one from its own Settings → Phone.</small></div>
@@ -197,6 +262,7 @@ if (token && window.Paddle) {
     checkout: { settings: ${CHECKOUT_SETTINGS} },
     eventCallback: (ev) => {
       if (ev.name !== "checkout.completed") return;
+      if (buying) { msg(${JSON.stringify(w.billingMinutesBought)}); return void setTimeout(() => location.reload(), 4000); }
       msg("Payment received. Your plan turns on in a few seconds…");
       const poll = async (n) => {
         const me = await fetch("/relay/me").then((r) => r.json()).catch(() => ({}));
@@ -220,6 +286,17 @@ for (const f of document.querySelectorAll("form.plan")) {
     }
     try {
       const t = await post("/relay/checkout", { plan: f.dataset.plan, cycle: f.cycle.value, seats });
+      Paddle.Checkout.open({ transactionId: t.transactionId, customer: { email: t.email }, settings: { ...${CHECKOUT_SETTINGS}, displayMode: "overlay" } });
+    } catch (err) { msg(err.message); }
+  });
+}
+let buying = false;
+for (const b of document.querySelectorAll("button[data-pack]")) {
+  b.addEventListener("click", async () => {
+    if (!window.Paddle || !token) return msg("Checkout isn't available right now.");
+    try {
+      const t = await post("/relay/minutes", { price: b.dataset.pack });
+      buying = true;
       Paddle.Checkout.open({ transactionId: t.transactionId, customer: { email: t.email }, settings: { ...${CHECKOUT_SETTINGS}, displayMode: "overlay" } });
     } catch (err) { msg(err.message); }
   });
@@ -296,7 +373,7 @@ export async function publicHome(env: Env, url: URL, now = Date.now()): Promise<
   return publicPage(await prices(env, now).catch(() => null), env.SITE_ORIGIN, next);
 }
 
-let catalog: { at: number; base: string; value: Catalog } | null = null;
+let catalog: { at: number; base: string; value: unknown[] } | null = null;
 let failed: { at: number; base: string } | null = null;
 const CATALOG_MS = 10 * 60_000;
 const FAILED_MS = 60_000;
@@ -304,12 +381,17 @@ const FAILED_MS = 60_000;
  * The tagged catalog, cached per isolate for ten minutes, so a price changed in Paddle shows within that, no release.
  * A failed read (Paddle down or slower than 3 s) is remembered for a minute, so a public page never queues on it.
  */
-export async function prices(env: Env, now = Date.now()): Promise<Catalog> {
+export const prices = async (env: Env, now = Date.now()): Promise<Catalog> => selectPrices(await priceList(env, now));
+
+/** The run minute packs on sale (hosted.ts), from the same cached catalog. */
+export const packs = async (env: Env, now = Date.now()): Promise<Pack[]> => selectPacks(await priceList(env, now));
+
+async function priceList(env: Env, now: number): Promise<unknown[]> {
   const base = paddleBase(env.PADDLE_ENV);
   if (catalog && catalog.base === base && now - catalog.at < CATALOG_MS) return catalog.value;
   if (failed && failed.base === base && now - failed.at < FAILED_MS) throw new Error("Paddle prices unavailable, retrying shortly");
   try {
-    catalog = { at: now, base, value: selectPrices(await listPrices(base, env.PADDLE_API_KEY, AbortSignal.timeout(3000))) };
+    catalog = { at: now, base, value: await listPrices(base, env.PADDLE_API_KEY, AbortSignal.timeout(3000)) };
     failed = null;
     return catalog.value;
   } catch (e) {
@@ -410,10 +492,12 @@ export async function billingRoute(req: Request, env: Env, url: URL, s: SessionC
       picked: url.searchParams.get("plan") ?? "",
       site: env.SITE_ORIGIN,
       nonce,
+      hosted: env.HOSTED_RUNS === "1" ? await hostedBilling(env, s.ws, now) : null,
     });
     return new Response(page, { headers: checkoutHeaders(nonce) });
   }
-  if (req.method !== "POST" || !["/relay/checkout", "/relay/switch", "/relay/portal", "/relay/seats"].includes(p)) return null;
+  if (req.method !== "POST" || !["/relay/checkout", "/relay/switch", "/relay/portal", "/relay/seats", "/relay/minutes"].includes(p))
+    return null;
   if (!s) return json({ error: "sign in" }, 401);
   if (req.headers.get("origin") !== url.origin) return json({ error: "forbidden" }, 403);
   const body: unknown = await req.json().catch(() => ({}));
@@ -453,6 +537,21 @@ export async function billingRoute(req: Request, env: Env, url: URL, s: SessionC
       );
       return json({ transactionId: t.id, email: s.email });
     }
+    if (p === "/relay/minutes") {
+      // a run minute pack: one-time, for a workspace with a plan on; the webhook credits it (paddle.ts creditPacks)
+      if (env.HOSTED_RUNS !== "1") return json({ error: "not found" }, 404);
+      const b = z.object({ price: z.string() }).safeParse(body);
+      const pack = b.success ? (await packs(env, now)).find((x) => x.id === b.data.price) : undefined;
+      if (!pack) return json({ error: "pick a pack of run minutes" }, 400);
+      if (!(await access(env.DB, s.ws, now))) return json({ error: "Run minutes are for Pro and Team: choose a plan first." }, 409);
+      const t = z.object({ id: z.string() }).parse(
+        await paddle(base, env.PADDLE_API_KEY, "/transactions", {
+          method: "POST",
+          body: { items: [{ price_id: pack.id, quantity: 1 }], custom_data: { workspace: s.ws } },
+        }),
+      );
+      return json({ transactionId: t.id, email: s.email });
+    }
     if (p === "/relay/portal") {
       // the portal's token is temporary, so the link is made on each click and never stored
       const e = await entitlementOf(env.DB, s.ws);
@@ -480,4 +579,16 @@ export async function billingRoute(req: Request, env: Env, url: URL, s: SessionC
     console.error(`billing ${p}: ${errorOf(e)}`);
     return json({ error: BILLING_FAILED }, 502);
   }
+}
+
+/** The billing page's hosted part for a workspace: its minutes, its last runs, the packs on sale. */
+async function hostedBilling(env: Env, ws: string, now: number): Promise<HostedBilling> {
+  const plan = (await access(env.DB, ws, now))?.plan ?? null;
+  return {
+    minutes: await minutesOf(env.DB, ws, plan, now),
+    runs: await recentRuns(env.DB, ws),
+    packs: await packs(env, now).catch(() => []),
+    maxMin: runMaxMin(env),
+    plan: Boolean(plan),
+  };
 }
