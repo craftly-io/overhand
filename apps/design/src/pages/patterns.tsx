@@ -343,7 +343,8 @@ export const PATTERNS: Entry[] = [
       failing: () => <Live seed={failing()}>{(m) => <InProgress m={m} />}</Live>,
     },
     notes: { failing: "02:30: BOOK-88's preview deploy fails, before its round of fixes." },
-    frame: { height: 640, only: ["failing"] },
+    // both move the clock (01:30, 02:30), so each gets a frame of its own
+    frame: { height: 640, only: ["at work", "failing"] },
   },
   // Work
   // a list of catalog entries, alike by design, not copied logic
