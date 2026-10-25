@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { RELEASE_SIGNER, REPO } from "../packages/contract/src/links";
 
 const INSTALLER = join(import.meta.dir, "install.sh");
 const PLATFORMS = ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"];
@@ -138,6 +139,54 @@ test("offline, the installer exits 1 with a plain message and changes nothing", 
   expect(r.code).toBe(1);
   expect(r.out).toContain("Download failed: http://127.0.0.1:1/overhand-linux-x64.tar.gz. The installed Overhand is unchanged.");
   expect(installed(first.home)).toBe("linux-x64");
+});
+
+test("downloads are HTTPS only: a plain-http mirror that isn't this machine fails closed", async () => {
+  const r = await install("", "Linux", "x86_64", { env: { OVERHAND_DOWNLOAD: "http://mirror.invalid/overhand" } });
+  expect(r.code).toBe(1);
+  expect(r.out).toContain("Download failed: http://mirror.invalid/overhand/overhand-linux-x64.tar.gz.");
+  expect(r.out).toMatch(/[Pp]rotocol "?http"?.*(disabled|not supported)/); // curl's own words, which vary by version
+});
+
+test("with cosign installed, SHA256SUMS must carry the release workflow's signature; without it, the checksum alone", async () => {
+  const release = fakeRelease();
+  writeFileSync(join(release, "SHA256SUMS.sigstore.json"), "{}");
+  // a stand-in cosign that logs what it was asked and answers `verdict`
+  const cosign = (verdict: number) => ({ cosign: `echo "$*" >>"$HOME/cosign.log"; exit ${verdict}` });
+  const ok = await install(release, "Linux", "x86_64", { fakes: cosign(0) });
+  expect(ok.code, ok.out).toBe(0);
+  expect(ok.out).toContain("Signature verified (Sigstore)");
+  const args = log(ok.home, "cosign.log");
+  expect(args).toStartWith("verify-blob --bundle ");
+  expect(args).toContain(`--certificate-identity-regexp ^https://github\\.com/${REPO}/`);
+  expect(args).toContain("--certificate-oidc-issuer https://token.actions.githubusercontent.com");
+  expect(args.trim()).toEndWith("/SHA256SUMS");
+
+  const bad = await install(release, "Linux", "x86_64", { fakes: cosign(1) });
+  expect([bad.code, bad.out.includes("SHA256SUMS isn't signed by Overhand's release workflow; not installing.")]).toEqual([1, true]);
+  expect(existsSync(join(bad.home, ".overhand"))).toBe(false);
+
+  const unsigned = await install(fakeRelease(), "Linux", "x86_64", { fakes: cosign(0) });
+  expect(unsigned.code).toBe(1);
+  expect(unsigned.out).toContain("Couldn't fetch the release's signature (SHA256SUMS.sigstore.json); not installing.");
+
+  // no cosign: no signature is asked for
+  const plain = await install(fakeRelease(), "Linux", "x86_64", { bare: true });
+  expect([plain.code, plain.out.includes("Signature verified")]).toEqual([0, false]);
+}, 30_000);
+
+test("the signer the installer trusts is this repository's release workflow, run for a version tag", () => {
+  const signer = readFileSync(INSTALLER, "utf8").match(/^SIGNER='(.+)'$/m)?.[1] ?? "";
+  expect(signer).toBe(RELEASE_SIGNER);
+  const at = (ref: string, file = "release.yml") => `https://github.com/${REPO}/.github/workflows/${file}@${ref}`;
+  expect(new RegExp(signer).test(at("refs/tags/v0.0.2"))).toBe(true);
+  expect(new RegExp(signer).test(at("refs/heads/main"))).toBe(false);
+  expect(new RegExp(signer).test(at("refs/tags/v0.0.2", "ci.yml"))).toBe(false);
+  expect(new RegExp(signer).test(`https://github.com/someone/overhand/.github/workflows/release.yml@refs/tags/v1.0.0`)).toBe(false);
+  // the release workflow signs and checks with the same rule
+  expect(readFileSync(join(import.meta.dir, "..", ".github", "workflows", "release.yml"), "utf8")).toContain(
+    "/\\.github/workflows/release\\.yml@refs/tags/v",
+  );
 });
 
 test("a download cut off part way runs nothing", () => {

@@ -1,5 +1,7 @@
 # Publishes one existing release tag to npm, by hand: for when the release workflow's npm job needs another go after a
 # fix, which a re-run can't pick up (a re-run uses the workflow as it was at the tag). The same steps as release.yml's npm job.
+# It publishes only a version tag of this repository (refs/tags/vX.Y.Z, which only an admin can push), and runs only as
+# main or a version tag has it, never a branch's copy of this file: gh workflow run npm-publish.yml -f tag=v0.0.2
 name: npm-publish
 on:
   workflow_dispatch:
@@ -7,20 +9,33 @@ on:
       tag:
         description: "Release tag to publish, e.g. v0.0.1"
         required: true
-permissions:
-  contents: read
-  id-token: write
+permissions: {}
 jobs:
   npm:
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: release/npm
     steps:
-      - uses: actions/checkout@v4
+      - name: The tag is a version tag
+        working-directory: .
+        run: |
+          if ! printf '%s' "$TAG" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::$TAG isn't a version tag like v1.2.3."
+            exit 1
+          fi
+        env:
+          TAG: ${{ inputs.tag }}
+      # refs/tags/…: a branch or commit of the same name can't stand in for the tag; checkout fails when there's no such tag
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.tag }}
-      - uses: actions/setup-node@v4
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           # npm 11.5 or later proves who it is with GitHub's OIDC token (trusted publishing): no npm token is stored
           node-version: 24

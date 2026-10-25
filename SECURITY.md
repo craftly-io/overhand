@@ -18,6 +18,9 @@ are public.
   that Claude Code alone reads, or uses an Anthropic API key you provide (docs: Agents and accounts).
 - Secrets are stored in the secret store (the macOS Keychain or the Linux keyring), never in config files or logs. On a Linux server
   without a keyring, saving a secret fails unless you opt in to a file with `OVERHAND_SECRETS_FILE` (mode 0600).
+- Releases: only a repository admin can push a `v*` tag, and the workflow it starts signs `SHA256SUMS` with Sigstore
+  under its own GitHub identity. The installer downloads over HTTPS only, checks every package's SHA-256, and with
+  `cosign` installed also verifies that signature (the install docs show the commands to check a release by hand).
 - The dashboard listens on 127.0.0.1 only and accepts actions only from its own origin and the addresses you add.
   Every answer it sends forbids framing (`X-Frame-Options: DENY`, `frame-ancestors 'none'`): every 127.0.0.1 port
   counts as one site, so without that a page on any local port, an agent's preview among them, could show the

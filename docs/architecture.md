@@ -122,11 +122,15 @@ Bump `version` in a pull request, merge, then `bun release/launch.ts` on `main`
 ([CONTRIBUTING.md](../CONTRIBUTING.md#releasing) lists every step):
 
 1. The tag `vX.Y.Z` starts `.github/workflows/release.yml`: `release/build.ts` packages every platform, a smoke test,
-   then a GitHub release with `SHA256SUMS`, then the npm launcher in `release/npm`.
+   then `SHA256SUMS` signed with Sigstore (keyless, `SHA256SUMS.sigstore.json`, checked by `RELEASE_SIGNER`), then a
+   GitHub release with all of them, then the npm launcher in `release/npm`. Each job has only the permissions it needs;
+   only the job that creates the release can write, and it runs none of the repo's code. Actions are pinned by commit.
+   A tag ruleset lets only a repository admin create, move or delete a `v*` tag.
 2. `launch.ts` deploys the installer and the site, installs from get.overhand.dev into a scratch home, checks
    `npx overhand`, pushes the Homebrew formula (`release/formula.ts`) and pushes the Docker image to GHCR.
 
-When the npm job needs another go after a fix, run the `npm-publish` workflow by hand with the tag.
+When the npm job needs another go after a fix, run the `npm-publish` workflow by hand from `main` with the tag; it
+publishes only an existing `v*` tag.
 
 ## Checks on every pull request
 
