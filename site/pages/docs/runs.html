@@ -15,6 +15,7 @@
         <li><b>The daemon</b> It runs each account's agent headless on tasks, supervises project agents, reads checks, deploys and errors, and serves the dashboard.</li>
         <li><b>One at a time per project</b> One task run per project at a time, in parallel across projects.</li>
         <li><b>Secrets</b> In your secret store (the keyring on Linux), or the file you opted in to with <code>OVERHAND_SECRETS_FILE</code>.</li>
+        <li><b>Awake while agents work</b> On macOS the login service runs under <code>caffeinate -s</code>, so the Mac doesn't sleep while it's plugged in. On Linux each agent run holds a <code>systemd-inhibit</code> lock for exactly its length, let go when it finishes, times out or is stopped. Without <code>systemd-inhibit</code>, as in a container, runs go ahead and the computer's own sleep settings decide.</li>
       </ul>
     </section>
 

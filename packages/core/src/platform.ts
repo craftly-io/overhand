@@ -9,6 +9,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, w
 import { userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { SITE } from "@overhand/contract";
+import { plainWords } from "@overhand/themes";
 
 const MAC = process.platform === "darwin";
 
@@ -224,13 +225,35 @@ export function openTerminal(cmd: string): boolean {
   return false;
 }
 
-/** Keeps the machine from sleeping while `pid` lives; the helper exits on its own after it. */
+/**
+ * Keeps the machine from sleeping while `pid` lives; the helper exits on its own after it. Without the helper (no
+ * systemd-inhibit, as in a container) it does nothing and the work goes ahead.
+ */
 export function keepAwakeWhile(pid: number): void {
   const cmd = MAC
     ? ["caffeinate", "-i", "-w", String(pid)]
-    : ["systemd-inhibit", "--what=idle:sleep", "--who=Overhand", "--why=a lead is working", "tail", `--pid=${pid}`, "-f", "/dev/null"];
-  if (!Bun.which(cmd[0] ?? "")) return;
-  Bun.spawn(cmd, { stdout: "ignore", stderr: "ignore", detached: true }).unref();
+    : [
+        "systemd-inhibit",
+        "--what=idle:sleep",
+        `--who=${plainWords.brand}`,
+        `--why=${plainWords.stateAgentWorking}`,
+        "tail",
+        `--pid=${pid}`,
+        "-f",
+        "/dev/null",
+      ];
+  const [bin = "", ...args] = cmd;
+  const helper = Bun.which(bin, { PATH: process.env.PATH ?? "" });
+  if (!helper) return;
+  Bun.spawn([helper, ...args], { stdout: "ignore", stderr: "ignore", detached: true }).unref();
+}
+
+/**
+ * Keeps the machine awake for an agent run's length (`pid` is its CLI): on Linux an inhibitor that ends with the run,
+ * however it ends; on macOS nothing more, as the service already runs under caffeinate -s (launchdPlist).
+ */
+export function keepRunAwake(pid: number): void {
+  if (!MAC) keepAwakeWhile(pid);
 }
 
 /** A process's working folder, or "" when it can't be read (macOS: libproc, with no process spawned; else lsof). */

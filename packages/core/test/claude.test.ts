@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { INSTRUCTIONS_FILE } from "../src/agent-home";
@@ -49,6 +49,14 @@ if (mode === "hang") {
   cp.execFileSync("sleep", ["300"]);
 }
 `;
+// a fake systemd-inhibit (and caffeinate) that records starting while its run lives, and stopping once the run is gone
+const awakeLog = join(bin, "awake");
+const INHIBIT = `#!/bin/sh
+pid=$(printf '%s\\n' "$@" | sed -n 's/^--pid=//p')
+kill -0 "$pid" 2>/dev/null && echo "start $(basename "$0") $*" >> "${awakeLog}"
+while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
+echo "stop" >> "${awakeLog}"
+`;
 const before = CFG;
 const path = process.env.PATH;
 
@@ -58,6 +66,10 @@ beforeAll(() => {
   rmSync(INSTRUCTIONS_FILE, { force: true });
   writeFileSync(join(bin, "claude"), FAKE);
   chmodSync(join(bin, "claude"), 0o755);
+  for (const f of ["systemd-inhibit", "caffeinate"]) {
+    writeFileSync(join(bin, f), INHIBIT);
+    chmodSync(join(bin, f), 0o755);
+  }
   process.env.PATH = [bin, path].join(":");
   applyConfig(parseConfig({ owner: { name: "someone", keychainAccount: "someone" }, accounts: ["work"], clients: [] }));
 });
@@ -160,6 +172,34 @@ test("Stop ends a running agent and everything it started, and reads as stopped,
   expect(await childLives()).toBe(false);
   expect(await stopRun("audit-hang")).toBe(false); // already over
 });
+
+/** What the fake inhibitors recorded so far. */
+const awakeCalls = (): string => (existsSync(awakeLog) ? readFileSync(awakeLog, "utf8") : "");
+
+test.skipIf(process.platform !== "linux")("on Linux every run holds a sleep inhibitor for its length, and Stop releases it", async () => {
+  bench("work", 0);
+  rmSync(awakeLog, { force: true });
+  const going = run("hang");
+  while (!awakeCalls().includes("start")) await Bun.sleep(50);
+  const pid = currentRuns().find((x) => x.name === "audit-hang")?.pid;
+  expect(awakeCalls()).toContain(`start systemd-inhibit --what=idle:sleep --who=Overhand --why=Agent working tail --pid=${pid}`);
+  expect(awakeCalls()).not.toContain("stop"); // held while the run works
+  expect(await stopRun("audit-hang")).toBe(true);
+  await going;
+  for (let i = 0; i < 40 && !awakeCalls().includes("stop"); i++) await Bun.sleep(50);
+  expect(awakeCalls()).toContain("stop");
+});
+
+test.skipIf(process.platform !== "darwin")(
+  "on macOS a run starts no keep-awake of its own: the service's caffeinate -s covers it",
+  async () => {
+    bench("work", 0);
+    rmSync(awakeLog, { force: true });
+    await run("ok");
+    await Bun.sleep(300);
+    expect(awakeCalls()).toBe("");
+  },
+);
 
 test("the time limit counts the time a run was awake: a laptop asleep past it isn't a timeout on wake", () => {
   expect(awakeFor(15_000, 15_000)).toBe(15_000);
