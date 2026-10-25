@@ -19,6 +19,7 @@
     "site/*.ts",
     "site/get/*.ts",
     "packages/*/src/**/*.ts",
+    "packages/*/plugins/**/*.ts",
     "packages/*/test/**/*.ts"
   ]
 }

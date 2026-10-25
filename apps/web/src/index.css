@@ -110,9 +110,8 @@
 }
 
 /*
- * The HUD: pane, button and live-indicator classes every world lays out with. Its chrome (chamfered glass panes with a
- * lit bevel, hazard-striped danger) belongs only to the hidden worlds, scoped to them below; the house chrome restyles
- * the rest at the bottom of this file. Timings are the system's (--m-*): a world may retint, never retime.
+ * The HUD: pane, button and live-indicator classes every world lays out with. The house chrome restyles them at the
+ * bottom of this file, the same in every look. Timings are the system's (--m-*): a world may retint, never retime.
  */
 @layer components {
   .hud-veil {
@@ -253,79 +252,8 @@
     animation-delay: calc(var(--n, 0) * var(--m-stagger) / 2 + var(--m-base));
   }
 
-  /* the hidden worlds' own chrome, as it was; they return after launch */
-  :root:is([data-theme="observatory"], [data-theme="transit"], [data-theme="koi"]) {
-    .hud-pane {
-      background: linear-gradient(
-        160deg,
-        color-mix(in srgb, var(--primary) 9%, transparent),
-        color-mix(in srgb, var(--primary) 2.5%, transparent) 38%,
-        color-mix(in srgb, var(--background) 55%, transparent)
-      );
-      border: 1px solid color-mix(in srgb, var(--primary) 14%, transparent);
-      backdrop-filter: blur(12px) saturate(140%);
-      clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
-      animation: hud-on 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-      animation-delay: calc(var(--i, 0) * 80ms);
-    }
-    /* the lit bevel, top left, and its dim twin bottom right; clip-path eats the border on the diagonals */
-    .hud-pane::before,
-    .hud-pane::after {
-      content: "";
-      position: absolute;
-      width: calc(var(--cut) * 1.42);
-      height: 1px;
-    }
-    .hud-pane::before {
-      left: 0;
-      top: var(--cut);
-      transform-origin: left;
-      transform: rotate(-45deg);
-      background: var(--primary);
-      box-shadow: 0 0 10px var(--primary);
-      animation: hud-bevel 0.5s ease-out both;
-      animation-delay: calc(var(--i, 0) * 80ms);
-    }
-    .hud-pane::after {
-      right: 0;
-      bottom: var(--cut);
-      transform-origin: right;
-      transform: rotate(-45deg);
-      background: color-mix(in srgb, var(--primary) 30%, transparent);
-    }
-    /* danger: stopping or removing; hazard-striped so it never reads as the world's primary */
-    .hud-btn-danger {
-      color: #fff;
-      border-color: color-mix(in srgb, var(--bad) 75%, transparent);
-      background: repeating-linear-gradient(
-        135deg,
-        var(--destructive) 0 10px,
-        color-mix(in srgb, var(--destructive) 82%, #000) 10px 20px
-      );
-    }
-    .hud-btn-danger:hover {
-      color: #fff;
-      background-color: var(--destructive);
-      box-shadow: 0 0 16px color-mix(in srgb, var(--bad) 45%, transparent);
-    }
-  }
 }
 
-@keyframes hud-on {
-  from {
-    opacity: 0;
-    clip-path: polygon(var(--cut) 0, 100% 0, 100% 0, calc(100% - var(--cut)) 0, 0 0, 0 0);
-  }
-  40% {
-    opacity: 1;
-  }
-}
-@keyframes hud-bevel {
-  from {
-    opacity: 0;
-    width: 0;
-  }
-}
 @keyframes hud-throb {
   50% {
     opacity: 0.35;
@@ -1096,13 +1024,20 @@
 }
 
 /*
- * Instrument, the house look (the site uses the same paper, site/public/site.css). Only what floats over content is
+ * The house chrome, in every look (the site uses the same paper, site/public/site.css). Only what floats over content is
  * frosted (the bar, the phone's jump bar, popovers, drawers, toasts); every resting pane is solid paper with a white
  * edge, an inset highlight and a soft lift, so text over the moving map stays legible and an all-day dashboard doesn't
  * pay for blur behind constant animation. Every control is a pill. Labels stay in the UI face (mono is for data only).
- * The other house worlds keep the hairline chrome above. The paper, glass and hairline values are system.css's.
+ * The paper, glass and hairline values are system.css's, Instrument's greys; every other look draws the same surfaces
+ * from its own ink, so a look changes colour and never a control.
  */
-:root[data-chrome="house"][data-theme="overhand"] {
+:root[data-chrome="house"]:not([data-theme="overhand"]) {
+  --pane: color-mix(in srgb, var(--ink-3) 60%, var(--ink-2));
+  --glass: color-mix(in srgb, var(--ink-2) 72%, transparent);
+  --glass-hi: color-mix(in srgb, var(--ink-3) 88%, transparent);
+}
+/* [data-theme] keeps the specificity this block always had over the hairline chrome above */
+:root[data-chrome="house"][data-theme] {
   .app-header,
   .jump-bar {
     background: var(--glass);

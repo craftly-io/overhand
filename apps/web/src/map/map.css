@@ -431,6 +431,10 @@
 :is(.map-ground, .attention-map) .constellation {
   color: #bcc8d8;
 }
+/* by day the constellations are inked, not lit */
+:root[data-appearance="light"] :is(.map-ground, .attention-map) .constellation {
+  color: #313d56;
+}
 :is(.map-ground, .attention-map) .c-lines {
   fill: none;
   stroke: currentColor;
@@ -554,6 +558,14 @@
 .attention-map .window {
   fill: #fff;
   opacity: 0.9;
+}
+
+/* the night edition: streets and river in the dark paper's own ink */
+:root[data-appearance="dark"] :is(.map-ground, .attention-map) .streets {
+  stroke: var(--ink-6);
+}
+:root[data-appearance="dark"] :is(.map-ground, .attention-map) .river {
+  stroke: #1d2a33;
 }
 
 /* Koi Pond */

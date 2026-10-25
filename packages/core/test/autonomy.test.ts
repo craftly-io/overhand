@@ -17,6 +17,7 @@ import type { RunInput } from "../src/runtimes/runtime";
 import { handle } from "../src/server";
 import { loadPrReview, loadState, saveState } from "../src/state";
 import type { Ticket } from "../src/trackers/types";
+import { scratchWorktree } from "./fixtures/scratch-git";
 import { localRequest } from "./local";
 
 const ROOT = join(import.meta.dir, "..", "..", "..");
@@ -142,7 +143,9 @@ test("`overhand guard`, run as the hook runs it, blocks by the level Overhand re
     return code;
   };
   expect(verdict("watch", "git push -u origin AC-1")).toBe(2);
-  expect(verdict("act", "git push -u origin AC-1")).toBe(0);
+  // on act a ticket run still doesn't push: Overhand pushes its branch when it returns done
+  expect(verdict("act", "git push -u origin AC-1")).toBe(2);
+  expect(verdict("act", "git commit -m x")).toBe(0);
   expect(verdict("propose", "gh pr create --title x")).toBe(2);
   expect(verdict("propose", "gh pr create --draft --title x")).toBe(0);
 }, 30_000);
@@ -194,7 +197,7 @@ test("Overhand opens a draft on propose, a PR on act, and nothing on watch", asy
   const path = process.env.PATH;
   process.env.PATH = [bin, path].join(":");
   try {
-    const wt = { mainRepo: bin, path: bin, branch: "AC-1", base: "main" };
+    const wt = scratchWorktree("AC-1");
     const result = { status: "done" as const, pr_title: "feat: x (AC-1)", pr_body: "b", message: "m" };
     const tk = (autonomy: Client["autonomy"]): Ticket => ({
       client: client(autonomy),

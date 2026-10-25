@@ -84,6 +84,9 @@ beforeAll(async () => {
   writeFileSync(join(home, ".claude", "settings.json"), "{}");
   writeFileSync(join(home, ".zshrc"), "");
   writeFileSync(join(home, ".ssh", "id_test"), "secret");
+  mkdirSync(join(home, ".config", "gh"), { recursive: true });
+  writeFileSync(join(home, ".config", "gh", "hosts.yml"), "secret");
+  writeFileSync(join(home, ".git-credentials"), "secret");
   mkdirSync(join(home, ".aws"), { recursive: true });
   writeFileSync(join(home, ".aws", "credentials"), "secret");
   mkdirSync(repo, { recursive: true });
@@ -192,6 +195,10 @@ describe.skipIf(!works)("inside the real sandbox, a run can't", () => {
     ["write through a symlink it made", ticket, `ln -sf ${q(join(other, "y"))} link && echo x > link`],
     ["hard-link a protected file to a writable name", lead, `ln ${q(join(common, "config"))} ${q(join(repo, "cfg"))}`],
     ["read an SSH key it isn't given", ticket, `cat ${q(join(home, ".aws", "credentials"))}`],
+    // your GitHub and SSH sign-ins: Overhand pushes a run's branch itself (agent.ts pushBranch)
+    ["read your SSH keys", ticket, `cat ${q(join(home, ".ssh", "id_test"))}`],
+    ["read gh's GitHub sign-in", ticket, `cat ${q(join(home, ".config", "gh", "hosts.yml"))}`],
+    ["read git's stored passwords", ticket, `cat ${q(join(home, ".git-credentials"))}`],
     ["read Overhand's local key", ticket, `cat ${q(join(OPS, "control", "local-key"))}`],
     ["read a browser's cookies", ticket, `cat ${q(join(home, "Library", "Application Support", "Google", "Chrome", "Cookies"))}`],
     // where git finds the repository: rewritten, the daemon's next git there would read the run's own config
@@ -309,6 +316,21 @@ describe.skipIf(!works)("inside the real sandbox, a run can", () => {
     expect(inside(ticket(), `${g} push -q origin feat`)).toBe(true);
     expect(inside(ticket(), `${g} fetch -q origin`)).toBe(true);
     expect(existsSync(join(remote, "refs", "heads", "feat"))).toBe(true);
+  });
+  // a lead still pushes and uses gh itself (#14): it keeps your sign-ins, every other run has none
+  test("as a lead, still read your SSH keys and gh's sign-in", () => {
+    expect(inside(lead(), `cat ${q(join(home, ".ssh", "id_test"))} ${q(join(home, ".config", "gh", "hosts.yml"))}`, repo)).toBe(true);
+  });
+  test("reach your SSH agent only as a lead", async () => {
+    const sock = join(real("/tmp"), `oh-agent-${process.pid}.sock`);
+    const agent = Bun.listen({ unix: sock, socket: { data() {} } });
+    process.env.SSH_AUTH_SOCK = sock;
+    try {
+      expect(inside(ticket(), connect(sock))).toBe(false);
+      expect(inside(lead(), connect(sock), repo)).toBe(true);
+    } finally {
+      agent.stop(true);
+    }
   });
   test("leave what it couldn't write as it was", () => {
     expect(readFileSync(join(home, ".zshrc"), "utf8")).toBe("");

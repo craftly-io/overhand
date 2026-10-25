@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en" class="paper">
+<head>
+{{> head}}
+{{> docmeta}}
+</head>
+<body>
+{{> header}}
+<main id="main" class="docs">
+{{> dochero}}
+  <div class="wrap">
+    <section class="block hood" id="plugins" aria-labelledby="h-plugins">
+      <h2 id="h-plugins">Small add-ons, kept apart.</h2>
+      <ul class="facts">
+        <li><b>What one is</b> A folder with a manifest and a script: a check (does your site answer?), a tracker (has the status page changed?) or a notifier. Each runs on its own schedule and reports findings.</li>
+        <li><b>Where you see them</b> A finding marked bad or warn is a card in Needs you, with its fix as a button: open the page it names, or <em>{{w.plRunAgain}}</em>. Every finding, and each plugin's last run, is in Health under <em>{{w.panePlugins}}</em>.</li>
+        <li><b>Where you manage them</b> Settings, Plugins: install, <em>{{w.plApprove}}</em>, <em>{{w.plPause}}</em> and <em>{{w.plRemove}}</em>. Each acts at once.</li>
+        <li><b>The kind</b> Every kind runs the same way today: on its schedule, reporting findings. The kind is the label the app shows.</li>
+      </ul>
+    </section>
+
+    <section class="block hood" id="review" aria-labelledby="h-review">
+      <h2 id="h-review">Installed from a pin you approve.</h2>
+      <ul class="facts">
+        <li><b>A pinned version</b> The source is a git repository at one commit (all 40 characters), or a tarball checked against its SHA-256 before it's unpacked, from an https address or a full path on this computer. Overhand fetches it with none of your git config, so no hook, filter or saved login of yours runs, which also means a private repository needs a local copy.</li>
+        <li><b>The review</b> {{pluginReview}}</li>
+        <li><b>Secrets</b> A plugin names the secrets it wants. You grant each one by name when you approve it, and it reaches the plugin as an environment variable of that name, read from your secret store at each run.</li>
+        <li><b>Nothing else on its own</b> A link or a special file in its folder stops the install, and so does a folder over 500 files or 10 MB.</li>
+      </ul>
+    </section>
+
+    <section class="block hood" id="sandbox" aria-labelledby="h-sandbox">
+      <h2 id="h-sandbox">What its sandbox enforces.</h2>
+      <ul class="facts">
+        <li><b>Enforced, not trusted</b> {{pluginStops}}</li>
+        <li><b>Where it ends</b> {{pluginLimit}}</li>
+        <li><b>The bridge</b> At most 50 requests a run and 2 MB an answer, each within 15 seconds, never to a private or loopback address. Redirects come back to the plugin, so each hop is checked against its hosts again.</li>
+      </ul>
+    </section>
+
+    <section class="block hood" id="write" aria-labelledby="h-write">
+      <h2 id="h-write">Write one.</h2>
+      <ul class="facts">
+        <li><b>The manifest</b> <code>overhand-plugin.json</code> at the top of its folder: <code>name</code>, <code>version</code>, <code>line</code> (what it does, in one line), <code>kind</code> (<code>check</code>, <code>tracker</code> or <code>notifier</code>), <code>entry</code> (a .ts, .js or .mjs file), <code>hosts</code>, <code>secrets</code>, <code>everyMin</code> (15 to 1440, 60 if left out), <code>timeoutSec</code> (up to 120, 30 if left out) and <code>memoryMb</code> (64 to 1024, 256 if left out). A host is a public name such as <code>status.example.com</code>: no address, port or local name.</li>
+        <li><b>It runs on bun</b> With plain <code>fetch</code>, which Overhand routes through the bridge. Packages aren't installed for it: ship what it needs in its folder.</li>
+        <li><b>It prints findings</b> One JSON object per line: <code>{"title": "…", "line": "…", "severity": "info" | "warn" | "bad", "fix": {"kind": "link", "url": "https://…"} | {"kind": "rerun"}}</code>. Up to 50 a run. Any other line, or a non-zero exit, fails the run, and the app says why.</li>
+        <li><b>An example</b> <a href="{{repo}}/tree/main/packages/core/plugins/site-answers"><code>packages/core/plugins/site-answers</code></a> checks that the hosts it declares answer, with tests for the sandbox beside it. Copy the folder, change its host and install it from your own repository.</li>
+      </ul>
+    </section>
+  </div>
+{{docsNav}}
+</main>
+{{> footer}}
+</body>
+</html>

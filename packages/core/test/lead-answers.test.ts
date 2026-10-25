@@ -1,14 +1,13 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { DISMISS_TEXT, ELSEWHERE_TEXT } from "@overhand/contract";
 import { answerFromTerminal } from "../src/daemon";
 import { CFG, OPS, OWNER, today, UI_PORT } from "../src/env";
 import {
   appendAnswer,
   autoDefault,
   blankLead,
-  DISMISS_TEXT,
-  ELSEWHERE_TEXT,
   type Godmode,
   heldOnQuestion,
   inboxPathOf,

@@ -45,8 +45,11 @@ are public.
   its project's package caches and its agent's own state in a folder of Overhand's: never Overhand's files, another
   project, your own agent config, your shell startup files, LaunchAgents, git config, hooks and where git finds the
   repository, or the settings, hooks, plugins and extensions that steer an agent, however the command is spelled. It
-  can't read cloud credentials, browser profiles or Overhand's local key. It doesn't filter the network: a run can
-  send what it can read to any site, and can read your GitHub and SSH logins, which agents use to push. It doesn't
+  can't read cloud credentials, browser profiles or Overhand's local key, and no run but a lead can read your GitHub
+  and SSH sign-ins (gh's login, SSH keys, git's stored passwords) or reach your SSH agent: Overhand pushes a run's
+  branch and opens its pull request itself. It doesn't filter the network: a run can send what it can read to any
+  site. A lead still reads your GitHub and SSH sign-ins, since it pushes and uses gh itself; any other run can't sign
+  its commits with a key in ~/.ssh, or install a dependency over SSH. It doesn't
   stop what a run writes into its own project from running later when you run it, or a program that asks a service
   outside it to act, such as a database or a server on a local port: tmux, screen and Docker's sockets are closed to
   it, other local sockets aren't, and on macOS neither is another app, through osascript or open. A lead can't make
@@ -58,13 +61,31 @@ are public.
   agent's own, stays closed to it (a plugin's database in its own folder in your home, or firebase-tools' login and
   log): such a tool fails under it until it can be pointed at a folder the run writes. On macOS, Xcode builds don't run
   under it: xcodebuild writes macOS's shared temp and cache folders, and Swift packages start a sandbox of their own,
-  which can't nest. macOS Keychain items stay reachable, since the agents' logins live there. It
+  which can't nest. macOS Keychain items stay reachable, since the agents' logins live there: so does a GitHub
+  sign-in gh keeps in the Keychain, to a run that asks the Keychain for it by name. It
   runs on macOS and on Linux with bubblewrap and user namespaces; elsewhere, including most Docker setups, runs have
   the guard only. A project that needs Xcode, Swift packages or firebase-tools can run without the OS sandbox: set its
   sandbox to off (Settings, Projects, or sandbox: off on the project in the config). Its runs, and the checks Overhand
   runs in its files, then have the guard only, and Settings says so. With Refuse runs without it on, the project stays
   inside the sandbox. Overhand suggests it when a project has an Xcode project or workspace, a Package.swift or a
   firebase.json, and never switches it for you.
+- Plugins (Settings, Plugins; none until you install one): A plugin runs only inside a sandbox of its own, never
+  without it: of the files on your computer it reads only the system's own programs and libraries, its own folder and a
+  scratch folder that's gone when it ends, and writes only that scratch folder. It has no network of its own: its only
+  way out is Overhand's bridge, which fetches for it only from the hosts its manifest declares, on their usual ports,
+  and refuses the rest. It gets no secret unless you grant that one by name, and runs on its schedule within its time
+  and memory limits, stopped when it goes over. It talks back only in findings, one JSON line each, which Overhand
+  checks before any reaches the app. On macOS it's sandbox-exec with a profile that denies everything it doesn't allow;
+  on Linux it's bubblewrap with its own empty network, process and file namespaces. A plugin can still send what it
+  reads, including a secret you granted, to a host it declared, and the bridge checks each host's address before
+  fetching but can't stop that host's DNS from changing right after. It can list the names, never the contents, of the
+  folders above its own. On macOS it can't start another program, and the sandbox still lets it reach the system
+  services Apple's own sandbox profile allows every program; on Linux it can start the system's own programs, inside
+  the same sandbox with no more reach than its own, and write an empty /tmp of its own that's gone when it ends. Where
+  neither sandbox runs, plugins don't run at all. There's no plugin store and no review by us yet: the review is yours.
+  Before a plugin runs, Settings shows what it does, its kind, the hosts it reaches, the secrets it asks for and its
+  pin, and nothing runs until you approve it. Your approval holds that exact code: any change to its files stops it
+  until you approve it again, and nothing updates on its own.
 - The installer and the npm launcher verify each package's SHA-256 before installing it.
 
 ## Access from anywhere (Pro and Team): the relay's trust model

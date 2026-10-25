@@ -69,8 +69,8 @@ export interface ThemeDefinition {
   tagline: string;
   /** Dashboard colours and shape. */
   tokens: Tokens;
-  /** A light set for the same theme, if it has one; without it the theme is always dark. */
-  light?: Tokens;
+  /** The same theme by day: every look follows the computer's light or dark (or the Appearance setting). */
+  light: Tokens;
   fonts: ThemeFonts;
   /** Client colours, in config order; must read as text on `background`. */
   hues: readonly string[];
@@ -96,8 +96,6 @@ export interface ThemeDefinition {
    * theme has one, and Now shows its map.
    */
   world: "instrument" | "observatory" | "transit" | "koi" | "catnap";
-  /** The only appearance `tokens` are drawn for, when the theme has no `light` set: "light" for a paper-only world. Dark by default. */
-  scheme?: "light" | "dark";
 }
 
 /** A theme's state colours and its one colour, for `fromInk`. */

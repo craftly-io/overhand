@@ -5,6 +5,7 @@
 import { z } from "zod";
 import { buildsItself } from "./autonomy";
 import type { CheckupFinding, DashboardState, Lead } from "./index";
+import { openText } from "./leads";
 import { clip, plainLine, questionLine } from "./plain";
 
 /** The dashboard's words, by key (`@overhand/themes`), for the few briefs that reuse them. */
@@ -271,7 +272,8 @@ export function leadChoices(text: string): string[] {
 function leadBrief(s: DashboardState, key: string, now: number): Body | null {
   const g: Lead | undefined = s.godmode.find((x) => x.key === key);
   if (!g) return null;
-  const text = g.inbox?.text ?? "";
+  // only what's open: the file also holds the conversation before it (answers, messages, replies)
+  const text = openText(g.inbox?.text ?? "");
   // the question as one plain sentence, outside tables and code (the whole text is under Details)
   const question = questionLine(text, 100);
   const ask = g.ask;

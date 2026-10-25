@@ -8,8 +8,9 @@ import { BillingSchema } from "./billing";
 import { CardButtonSchema, PlanPointsSchema } from "./decide";
 import { GuideSchema } from "./guide";
 import { ProjectInstructionsSchema } from "./instructions";
-import { LEAD_WORK } from "./leads";
+import { LEAD_HEARS, LEAD_WORK } from "./leads";
 import { LeakSchema } from "./outward";
+import { PluginStateSchema } from "./plugins";
 import { ProgressionSchema } from "./progression";
 import { ProofSchema } from "./proof";
 import { RuleSuggestionSchema } from "./rules";
@@ -32,6 +33,7 @@ export * from "./organise";
 export * from "./outward";
 export * from "./plain";
 export * from "./plans";
+export * from "./plugins";
 export * from "./progression";
 export * from "./proof";
 export * from "./relay";
@@ -370,6 +372,8 @@ export const LeadSchema = z.object({
   account: z.string(),
   inbox: LeadInboxSchema.nullable(),
   open: z.boolean(),
+  /** When a message you send it now reaches it (LEAD_HEARS). Absent from older daemons. */
+  hears: z.enum(LEAD_HEARS).optional(),
   /**
    * The open question: its stated default ("If there's no answer: …", "" when none), when Overhand goes with it (0 = it
    * waits for you), and why it may be out of date (issues/PRs it names that closed since; its age in hours past a day).
@@ -685,6 +689,8 @@ export const DashboardStateSchema = z.object({
   sandboxRefuse: z.string().default(""),
   /** The menu bar item is on (`menubar`); null where this computer has none (not a Mac, or not installed). */
   menubar: z.boolean().nullable().default(null),
+  /** The look last picked on this computer (`look`), which the menu bar item draws in. Optional for older daemons. */
+  look: z.string().default("overhand"),
   /** No agent has run on an earlier day: a fresh install's first day. Optional for older daemons. */
   dayOne: z.boolean().default(false),
   sessions: z.array(SessionSchema),
@@ -775,6 +781,8 @@ export const DashboardStateSchema = z.object({
   team: TeamStateSchema.nullable().default(null),
   /** Names you gave leads and work (`leadId`, `workId`): they win over every name Overhand makes. Empty for older daemons. */
   names: z.record(z.string(), z.string()).default({}),
+  /** Installed plugins, each with its state and its last run's findings (core/src/plugins.ts). Empty for older daemons. */
+  plugins: z.array(PluginStateSchema).default([]),
 });
 
 export type AccountUsage = z.infer<typeof AccountUsageSchema>;
@@ -1008,12 +1016,14 @@ export const CleanupSwitchesSchema = z.object({
 
 /**
  * `POST /api/settings/quick`: one day-to-day switch from Quick settings, saved into the config without opening the
- * whole Settings form: the daily budget (0 = off), weekly pacing, the menu bar item, or one project's autonomy.
+ * whole Settings form: the daily budget (0 = off), weekly pacing, the menu bar item, the look (from Settings → Look &
+ * sound, so the menu bar item draws in it too), or one project's autonomy.
  */
 export const QuickSettingSchema = z.union([
   z.object({ budgetUsd: z.number().min(0).max(100_000) }),
   z.object({ paceWeekly: z.boolean() }),
   z.object({ menubar: z.boolean() }),
+  z.object({ look: z.string().regex(/^[a-z]{1,40}$/) }),
   z.object({ project: z.string().min(1), autonomy: AutonomySchema }),
 ]);
 export type QuickSetting = z.infer<typeof QuickSettingSchema>;

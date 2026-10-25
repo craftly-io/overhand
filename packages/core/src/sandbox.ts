@@ -40,7 +40,7 @@ export interface SandboxPolicy {
   write: string[];
   /** Paths never writable, even under a `write` folder; each with its ancestors up to that folder (see `guarded`). */
   deny: string[];
-  /** Folders and files not readable. */
+  /** Folders and files not readable, and no unix socket at or under them connectable (an SSH agent's). */
   hide: string[];
   /** Folders whose entry can't be renamed, removed or replaced (a symlink in its place), though what's in them can be written. */
   lock?: string[];
@@ -196,6 +196,35 @@ const PROJECT_STEER = [
 const SECRETS = [".aws", ".config/gcloud", ".azure"];
 
 /**
+ * Your GitHub and SSH sign-ins: gh's login, SSH keys, git's stored passwords, netrc. No run but a lead reads them or
+ * reaches your SSH agent: Overhand pushes a run's branch and opens its PR itself (agent.ts pushBranch, openPr). Leads
+ * still push and use gh themselves.
+ */
+const SIGN_INS = [".ssh", ".config/gh", ".git-credentials", ".config/git/credentials", ".netrc", ".config/hub"];
+
+/** The variables that carry a GitHub or SSH sign-in, kept from every run but a lead's (sandboxSpawn, projectCommand). */
+export const SIGN_IN_ENV = [
+  "GH_TOKEN",
+  "GITHUB_TOKEN",
+  "GH_ENTERPRISE_TOKEN",
+  "GITHUB_ENTERPRISE_TOKEN",
+  "SSH_AUTH_SOCK",
+  "GIT_ASKPASS",
+  "SSH_ASKPASS",
+];
+
+/** A run that keeps your GitHub and SSH sign-ins: a lead's (SIGN_INS). */
+export const keepsSignIns = (run: string): boolean => run.startsWith("lead-");
+
+/** Where your sign-ins are: SIGN_INS, gh's folder where a variable moves it, your SSH agent's socket. */
+const signIns = (home: string, env: Record<string, string | undefined> = process.env): string[] => [
+  ...SIGN_INS.map((p) => join(home, p)),
+  env.GH_CONFIG_DIR ?? "",
+  env.XDG_CONFIG_HOME ? join(env.XDG_CONFIG_HOME, "gh") : "",
+  env.SSH_AUTH_SOCK ?? "",
+];
+
+/**
  * Claude Code's log folder for a run in `cwd` (its mcp-logs and errors): macOS only, where it is
  * `~/Library/Caches/claude-cli-nodejs/<cwd with every other character a dash>` and no variable moves it (on Linux it
  * follows XDG_CACHE_HOME, the project's cache). Only this run's folder, never another project's or the parent.
@@ -277,6 +306,7 @@ export function sandboxPolicy(r: RunPlaces, home = homedir(), ops = OPS): Sandbo
     join(controlDir(ops), "local-key"),
     join(ops, ".devices.json"),
     process.env.OVERHAND_SECRETS_FILE ?? "",
+    ...(keepsSignIns(r.run) ? [] : signIns(home)),
   ];
   const clean = (ps: string[]) => [...new Set(ps.filter(Boolean).map(real))];
   // the outbox's folders, made before the run: one swapped for a symlink, the daemon's intake would read and clear
@@ -349,10 +379,10 @@ export function macProfile(p: SandboxPolicy, mode: "log" | "enforce" = "enforce"
       ),
     ]),
     no("file-read*", paths(p.hide)),
-    no(
-      "network-outbound",
-      SOCKETS.map((s) => `(remote unix-socket (path-regex #"${s}"))`),
-    ),
+    no("network-outbound", [
+      ...SOCKETS.map((s) => `(remote unix-socket (path-regex #"${s}"))`),
+      ...p.hide.map((s) => `(remote unix-socket (subpath ${lit(s)}))`),
+    ]),
   ]
     .filter(Boolean)
     .join("\n");
@@ -379,7 +409,7 @@ export function bwrapArgs(p: SandboxPolicy, env: Record<string, string | undefin
   args.push("--unshare-ipc");
   // the shared /tmp stays read-only like the rest (a private tmpfs there would turn writes to anything under it into
   // writes that seem to work), with tmux's, screen's and X's sockets in it covered; none of your session's sockets in
-  // /run/user (D-Bus, the keyring, Wayland); only your SSH agent's socket comes back, since agents push over it
+  // /run/user (D-Bus, the keyring, Wayland); only your SSH agent's socket comes back, for a lead (it pushes over it; SIGN_INS)
   // every target as it is on disk now, symlinks above it resolved (/var/run is a link to /run): bwrap can't make a
   // mount point through a link, nor for something that isn't there, and a missing one needs no mask
   const cover = (s: string): string[] => {
@@ -397,7 +427,7 @@ export function bwrapArgs(p: SandboxPolicy, env: Record<string, string | undefin
   };
   for (const w of p.write) args.push(...bind(w));
   const agent = env.SSH_AUTH_SOCK ?? "";
-  if (agent) args.push(...bind(agent));
+  if (agent && !p.hide.includes(real(agent))) args.push(...bind(agent));
   for (const l of p.lock ?? []) args.push(...bind(l));
   const created: string[] = [];
   for (const a of guarded(p)) {
@@ -626,7 +656,12 @@ export function sandboxSpawn(
   // against your ~/.claude or ~/.codex, sandboxed or not
   if (st.effective === "enforce" && MOVED.has(s.runtime) && !s.configDir.startsWith(`${AGENT_HOMES}/`))
     throw new Error(plainWords.movedWaitsSandbox);
-  const env = { ...s.env, [RUN_KEY_ENV]: runKey() };
+  // no run but a lead gets your GitHub or SSH sign-ins (SIGN_INS), sandboxed or not, and none waits on a password prompt
+  const env: Record<string, string> = { ...s.env, [RUN_KEY_ENV]: runKey() };
+  if (!keepsSignIns(s.run)) {
+    for (const k of SIGN_IN_ENV) delete env[k];
+    env.GIT_TERMINAL_PROMPT = "0";
+  }
   const common = gitCommon(s.cwd);
   const gitDir = common ? gitDirOf(s.cwd) : "";
   // with the sandbox or without: where git finds this repo must be where it was, or the daemon runs no git there
@@ -823,7 +858,8 @@ export function projectCommand(
     ops,
   );
   const vars = Object.entries(runCacheEnv(runTmp, cache, process.env)).map(([k, v]) => `${k}=${v}`);
-  const { argv, created } = sandboxArgv(["/usr/bin/env", ...vars, ...cmd], policy, st.effective);
+  const unset = SIGN_IN_ENV.flatMap((k) => ["-u", k]);
+  const { argv, created } = sandboxArgv(["/usr/bin/env", ...unset, ...vars, ...cmd], policy, st.effective);
   return {
     argv,
     done: () => {

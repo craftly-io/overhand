@@ -15,7 +15,7 @@ import { loadAssignments, loadFindings } from "./assign";
 import { accountBilling, billingOf, budgetSpend, budgetUntil, refreshBilling, spendOnDay } from "./billing";
 import { callCounts } from "./calls";
 import type { Config } from "./config";
-import { loadRequests, quietEnd } from "./control";
+import { loadBeats, loadRequests, quietEnd } from "./control";
 import { snoozedItems } from "./decide";
 import { ACCOUNTS, BUNDLED, CFG, CLIENTS, HOME, INSTALL, LABEL, MIN, needsSetup, OPS, OWNER, SLACK_MCP, today } from "./env";
 import { firstWinState } from "./firstwin";
@@ -30,12 +30,14 @@ import {
   heldByCap,
   leadAsk,
   leadFreeAt,
+  leadHears,
   leadInbox,
   leadNameByLabel,
   leadPid,
+  leadRunning,
+  leadSession,
   limitBack,
   loadLeads,
-  lockHolder,
   openRefs,
   restartDelayMin,
 } from "./leads";
@@ -44,6 +46,7 @@ import { benchedUntil } from "./limits";
 import { menubarHelper } from "./menubar";
 import { diskFree, report } from "./notify";
 import { reviewRound } from "./onpreview";
+import { pluginStates } from "./plugins";
 import { loadActions, room, toCard, toSession } from "./room";
 import { gitFlagged, projectSandbox, waitsForSignIn } from "./sandbox";
 import { lastSelfCheck } from "./selfcheck";
@@ -281,6 +284,7 @@ export async function dashboardState(): Promise<DashboardState> {
   const state = loadState();
   const read = (p: string) => (existsSync(p) ? readFileSync(p, "utf8") : "");
   const leads = loadLeads();
+  const beats = loadBeats(OPS);
   // a draft waits for you until GitHub says it's ready, or you marked it ready here and the work pass hasn't seen it yet
   const markedReady = new Set(loadPrReview().ready);
   const isDraft = (key: string, url: string, draft = false): boolean =>
@@ -349,6 +353,7 @@ export async function dashboardState(): Promise<DashboardState> {
     slackSignIn: state.slackSignIn ?? null,
     sandboxRefuse: projectSandbox("").refuse ? projectSandbox("").why || "the OS sandbox can't run here" : "",
     menubar: menubarHelper() ? CFG.menubar : null,
+    look: CFG.look,
     dayOne: firstDay(),
     sessions,
     tickets: ticketCache.data,
@@ -364,6 +369,7 @@ export async function dashboardState(): Promise<DashboardState> {
     godmode: CFG.godmode.map((g) => {
       const st = leads[g.key] ?? blankLead();
       const pid = leadPid(g, st);
+      const running = leadRunning(g, st);
       const box = leadInbox(g);
       const free = leadFreeAt(g);
       return {
@@ -374,7 +380,7 @@ export async function dashboardState(): Promise<DashboardState> {
         supervised: g.supervised,
         onDemand: g.onDemand,
         watch: g.watch,
-        running: !!(pid || lockHolder(g)),
+        running,
         mine: !!pid,
         since: pid ? st.startedAt : 0,
         stopped: st.stopped,
@@ -391,6 +397,7 @@ export async function dashboardState(): Promise<DashboardState> {
         account: st.account ?? "",
         inbox: box,
         open: !!box?.open,
+        hears: leadHears(running, running ? leadSession(g, st, beats) : undefined),
         ask: leadAsk(g, st, box, openRefs(g.project)),
       };
     }),
@@ -436,6 +443,7 @@ export async function dashboardState(): Promise<DashboardState> {
     assigned: Object.values(loadAssignments()).map(({ key, project, title, by, local, at }) => ({ key, project, title, by, local, at })),
     team: teamState(),
     names: loadNames(),
+    plugins: pluginStates(CFG),
   };
 }
 

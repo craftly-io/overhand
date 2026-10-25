@@ -6,12 +6,19 @@ test("the house world is Instrument (id overhand), and its earlier ids from save
   expect(themeById("overhand").name).toBe("Instrument");
 });
 
-test("launch offers Instrument only: retired worlds and worlds not offered yet load it; all five keep their code", () => {
-  for (const id of ["nexus", "legion", "syndicate", "tokenmaxx", "observatory", "transit", "koi", "catnap"])
-    expect(themeById(id).id).toBe("overhand");
-  expect(themes.map((t) => t.id)).toEqual(["overhand"]);
-  expect(allWorlds.map((t) => t.id)).toEqual(["overhand", "observatory", "transit", "koi", "catnap"]);
-  for (const t of allWorlds) expect(t.ink?.length).toBe(12);
+test("every look can be picked, Instrument first; the retired worlds load Instrument", () => {
+  for (const id of ["nexus", "legion", "syndicate", "tokenmaxx"]) expect(themeById(id).id).toBe("overhand");
+  expect(themes.map((t) => t.id)).toEqual(["overhand", "observatory", "transit", "koi", "catnap"]);
+  for (const t of themes) expect(themeById(t.id)).toBe(t);
+});
+
+test("every look has a light and a dark set, each with its 12-step ink, so each follows the computer", () => {
+  for (const t of allWorlds) {
+    expect(t.ink?.length, t.id).toBe(12);
+    expect(t.lightInk?.length, t.id).toBe(12);
+    expect(t.light.background, t.id).not.toBe(t.tokens.background);
+    expect(t.lightHues?.length, t.id).toBe(t.hues.length);
+  }
 });
 
 test("every world keeps the house's two voices: Atkinson Hyperlegible Next for words and headings, Mono for data", () => {

@@ -13,6 +13,8 @@ the person's projects and serves a dashboard at http://127.0.0.1:4317. State liv
 - Sign-ins are the person's. Never take a key, token or password in chat.
 - Ask before you add a project or change a setting.
 - Don't merge pull requests, and don't push to protected branches.
+- Plugins are the person's to approve: point them at Settings, Plugins, and never edit a plugin's approval in the
+  config. How one is written and what its sandbox enforces: https://overhand.dev/docs/plugins.md.
 
 ## Install
 
@@ -40,6 +42,8 @@ On a new Debian or Ubuntu server, `https://overhand.dev/server/user-data.sh` is 
 
 - A lead's open question shows in the dashboard under Needs you. With the person's answer, run
   `overhand answer <lead> "<answer>"`, or `overhand answer <lead> --default` to accept the default the question gave.
+- With no question open, `overhand answer <lead> "<text>"` sends the lead a message from the person instead; its reply
+  shows in the lead's conversation in the dashboard. Send one only when the person asked you to.
 - A request handed to your session: `overhand ack <id> done`, or `overhand ack <id> refuse "<why>"`.
 - Over MCP instead: `overhand mcp` is a stdio MCP server with the same answers and requests as tools, plus `status`
   (what's running and what needs you). Add it with `claude mcp add overhand -- overhand mcp` or your agent's own way.

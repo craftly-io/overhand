@@ -11,6 +11,9 @@ import {
   PLAN_COPY,
   PLAN_KEYS,
   PLAN_TAX,
+  PLUGIN_LIMIT,
+  PLUGIN_REVIEW,
+  PLUGIN_STOPS,
   type PriceTable,
   SANDBOX_LIMIT,
   SANDBOX_PROJECT_OFF,
@@ -345,6 +348,16 @@ test("the OS sandbox's claims, what it stops and what it can't, come from one so
   expect(built.find(([r]) => r === "docs/guard.html")?.[1]).toContain("logs/sandbox-would-deny.jsonl");
 });
 
+test("the plugin sandbox's claims come from one source, on the docs page and in SECURITY, and promise no review by us", () => {
+  const page = built.find(([r]) => r === "docs/plugins.html")?.[1] ?? "";
+  const flat = (f: string) => readFileSync(join(import.meta.dir, "..", f), "utf8").replace(/\s+/g, " ");
+  for (const claim of [PLUGIN_STOPS, PLUGIN_LIMIT, PLUGIN_REVIEW]) {
+    expect(page).toContain(claim);
+    expect(flat("SECURITY.md")).toContain(claim);
+  }
+  expect(PLUGIN_REVIEW).toContain("no review by us yet");
+});
+
 const docs = built.filter(([rel]) => rel.startsWith("docs/"));
 /** Paths the deploy adds beside the built pages (site/wrangler.jsonc), and files the build writes itself. */
 const DEPLOYED = [
@@ -393,7 +406,7 @@ test("llms.txt lists every docs page and setup.md", () => {
 });
 
 test("only the What's next page names what isn't built", () => {
-  const unbuilt = /railway|fly\.io|hosted runner|\bSSO\b|single sign-on|add-on look/gi;
+  const unbuilt = /railway|fly\.io|hosted runner|\bSSO\b|single sign-on/gi;
   const next = built.find(([rel]) => rel === "docs/next.html")?.[1] ?? "";
   expect(next.match(unbuilt)?.length).toBeGreaterThanOrEqual(4);
   const others: [string, string][] = [
@@ -402,6 +415,15 @@ test("only the What's next page names what isn't built", () => {
     ["llms.txt", llmsTxt()],
   ];
   for (const [rel, html] of others) expect(html.match(unbuilt), rel).toBeNull();
+});
+
+test("every line of overhand help splits into its command and what it does (two spaces between)", () => {
+  // a command read with its description stuck to it squeezes the command reference's descriptions to one word wide
+  for (const [cmd, say] of cliCommands()) {
+    expect(cmd, cmd).toMatch(/^overhand [a-z-]+(?: [^ ].*)?$/);
+    expect(cmd.length, cmd).toBeLessThan(60);
+    expect(say.length, cmd).toBeGreaterThan(0);
+  }
 });
 
 test("the docs give only commands the CLI has, and quote only messages the code prints", () => {
