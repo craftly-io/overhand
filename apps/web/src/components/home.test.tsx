@@ -1,4 +1,4 @@
-import { beforeEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import { plainWords as w } from "@overhand/themes";
 import { useUi } from "@/app/ui";
 import { render, withDom } from "./render.test-util";
@@ -8,7 +8,14 @@ import { render, withDom } from "./render.test-util";
  * tabs for Work, Agents and Health, whose keys and links open their drawers; the map only when it's switched on.
  */
 withDom();
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  // a hidden tab: the whole App asks for nothing on return (fresh.ts), so this file leaves the shared ask gates as they were
+  Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+});
+afterEach(() => {
+  Reflect.deleteProperty(document, "visibilityState");
+});
 
 test("Now is the sentence, Needs you and In progress: no map, no tabs, no other pane", async () => {
   const { App } = await import("@/App");
