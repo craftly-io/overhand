@@ -588,3 +588,37 @@ test("the daemon and a CLI recording runs at once never drop each other's", asyn
   await Promise.all(procs.map((p) => p.exited));
   expect(Object.keys(JSON.parse(readFileSync(join(dir, "control", "runs.json"), "utf8")))).toHaveLength(200);
 }, 30_000);
+
+// how a command is quoted changes nothing about what the shell runs, so it changes nothing about what the guard decides
+test("quoting, separators inside quotes and inner scripts don't hide a refused command", () => {
+  const bash = (command: string) => check("Bash", { command }, undefined, "act", "lead-app", []);
+  const force = ["--", "force"].join("");
+  for (const command of [
+    "gh pr 'mer'ge 12",
+    'gh pr "merge" 12',
+    "gh pr me\\rge 12",
+    "git push origin 'x;' main",
+    `git push origin "$(echo x);" ${force}`,
+    "sh -c 'gh pr merge 12'",
+    `bash -c "git push ${force} origin feat"`,
+    "eval 'gh pr merge 12'",
+    "echo $(gh pr merge 12)",
+    "echo `gh pr merge 12`",
+    "env X=1 sh -c 'gh pr close 3'",
+  ])
+    expect(bash(command), command).not.toBeNull();
+  expect(bash("echo 'unclosed")).toContain("can't read that command");
+  for (const command of ["git status", "bun test && git commit -m 'fix: a; b'", `echo "it's fine"`, "ls -la # a comment"])
+    expect(bash(command), command).toBeNull();
+});
+
+test("more credentials stay closed, named in a command or opened by a file tool", () => {
+  const bash = (command: string) => check("Bash", { command });
+  for (const p of ["~/.kube/config", "~/.docker/config.json", "~/.config/gh/hosts.yml", "~/.netrc", "~/.zsh_history", "~/.bash_history"])
+    expect(bash(`cat ${p}`), p).toBe("no access to credentials");
+  expect(bash("cat $HISTFILE")).toBe("no access to credentials");
+  expect(bash("cp ~/Library/Application\\ Support/Google/Chrome/Default/Cookies /tmp/x")).toBe("no access to credentials");
+  for (const p of ["/Users/x/.kube/config", "/Users/x/.netrc", "/home/x/.bash_history", "/Users/x/Library/Cookies/Cookies.binarycookies"])
+    expect(check("Read", { file_path: p }), p).toBe("no access to credentials");
+  expect(check("Read", { file_path: "/Users/x/code/app/src/history.ts" })).toBeNull();
+});
