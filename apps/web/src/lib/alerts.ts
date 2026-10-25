@@ -8,6 +8,8 @@ import {
   type Finding,
   isNewerVersion,
   type Lead,
+  type Outage,
+  outageOf,
   questionLine,
   RUNTIME_NAMES,
   repoPulls,
@@ -71,7 +73,20 @@ type AlertTarget =
   /** Quiet mode for `hours`: heavy jobs wait while you need the laptop (a meeting starting soon). */
   | { kind: "quiet"; hours: number }
   /** A project Overhand runs on the guard only (a tool that can't run inside the OS sandbox): Keep it in the sandbox. */
-  | { kind: "sandbox"; project: string };
+  | { kind: "sandbox"; project: string }
+  /** A tracker that isn't answering (network: Retry now) or is limiting how often Overhand asks (Wait an hour). */
+  | { kind: "tracker"; client: string; outage: "network" | "rate-limit" };
+
+/** The snooze a tracker card's Wait an hour sets; it has no decision card of its own. */
+export const trackerItem = (client: string): string => `tracker:${client}`;
+
+/** What a tracker card says under its title, by the outage its error describes. */
+const TRACKER_SUB: Record<Outage, WordKey> = {
+  network: "alTrackerNetwork",
+  "rate-limit": "alTrackerLimitSub",
+  auth: "alTrackerAuth",
+  other: "alTrackerOther",
+};
 
 export interface Alert {
   /** 3 = act now, 2 = soon, 1 = for your information. */
@@ -227,14 +242,20 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
   const st = s.status;
   for (const [client, tickets] of Object.entries(s.tickets)) {
     if (!Array.isArray(tickets)) {
+      // why it isn't answering, read from its error, decides the fix: Retry now, Wait an hour (snoozes it), or Reconnect
+      const outage = outageOf(tickets);
+      if ((s.snoozed[trackerItem(client)] ?? 0) > now) continue;
       a.push({
         sev: 2,
         broken: true,
-        title: fmt(w.alTrackerDown, { client }),
-        sub: tickets.slice(0, 80),
+        title: fmt(w[outage === "rate-limit" ? "alTrackerLimit" : "alTrackerDown"], { client }),
+        sub: w[TRACKER_SUB[outage]],
         say: fmt(w.alTrackerDownSay, { client }),
-        go: w.alTrackerFix,
-        target: { kind: "settings", tab: "integrations", project: client },
+        ...(outage === "auth" || outage === "other" ? { go: w.alTrackerFix } : {}),
+        target:
+          outage === "network" || outage === "rate-limit"
+            ? { kind: "tracker", client, outage }
+            : { kind: "settings", tab: "integrations", project: client },
       });
       continue;
     }

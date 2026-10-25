@@ -25,6 +25,8 @@ export const EMAIL = "hello@overhand.dev";
 export const INSTALLER = "https://get.overhand.dev";
 /** The one line that installs Overhand, as the site, its docs and app.overhand.dev show it. */
 export const INSTALL_COMMAND = `curl -fsSL ${INSTALLER} | sh`;
+/** The command that starts Overhand (and at every login), as the dashboard shows it when it can't reach Overhand. */
+export const START_COMMAND = "overhand start";
 /** The site's step-by-step setup for an agent to follow, as people type it. */
 export const SETUP_GUIDE = `${new URL(SITE).host}/setup.md`;
 /** The prompt that has your agent install Overhand: the site's "Copy for your agent" and app.overhand.dev's. */

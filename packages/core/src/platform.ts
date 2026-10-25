@@ -23,6 +23,17 @@ const BSDINFO = { flavor: 3, size: 136, ppid: 16, startSec: 120 } as const;
  * process that's gone or another user's (root's launchd at the top of every chain), and off macOS.
  */
 export function procInfo(pid: number): { ppid: number; startSec: number } | null {
+  const buf = pidInfo(pid, BSDINFO.flavor, BSDINFO.size);
+  if (!buf) return null;
+  const v = new DataView(buf.buffer);
+  return { ppid: v.getUint32(BSDINFO.ppid, true), startSec: Number(v.getBigUint64(BSDINFO.startSec, true)) };
+}
+
+/** proc_pidinfo's PROC_PIDVNODEPATHINFO: two vnode_info_paths (152 bytes of vnode_info, then a 1024-byte path); cwd first. */
+const VNODEPATH = { flavor: 9, size: 2352, cwd: 152, max: 1024 } as const;
+
+/** One proc_pidinfo answer on macOS (libproc loaded once); null off macOS, for a process that's gone or another user's. */
+function pidInfo(pid: number, flavor: number, size: number): Uint8Array | null {
   if (!MAC || !(pid > 0)) return null;
   if (libproc === undefined) {
     try {
@@ -35,10 +46,8 @@ export function procInfo(pid: number): { ppid: number; startSec: number } | null
     }
   }
   if (!libproc) return null;
-  const buf = new Uint8Array(BSDINFO.size);
-  if (libproc.proc_pidinfo(pid, BSDINFO.flavor, 0n, ptr(buf), BSDINFO.size) !== BSDINFO.size) return null;
-  const v = new DataView(buf.buffer);
-  return { ppid: v.getUint32(BSDINFO.ppid, true), startSec: Number(v.getBigUint64(BSDINFO.startSec, true)) };
+  const buf = new Uint8Array(size);
+  return libproc.proc_pidinfo(pid, flavor, 0n, ptr(buf), size) === size ? buf : null;
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -224,7 +233,7 @@ export function keepAwakeWhile(pid: number): void {
   Bun.spawn(cmd, { stdout: "ignore", stderr: "ignore", detached: true }).unref();
 }
 
-/** A process's working folder, or "" when it can't be read. */
+/** A process's working folder, or "" when it can't be read (macOS: libproc, with no process spawned; else lsof). */
 export function cwdOf(pid: number): string {
   if (!MAC) {
     try {
@@ -233,6 +242,9 @@ export function cwdOf(pid: number): string {
       return "";
     }
   }
+  const v = pidInfo(pid, VNODEPATH.flavor, VNODEPATH.size);
+  if (v) return new TextDecoder().decode(v.subarray(VNODEPATH.cwd, VNODEPATH.cwd + VNODEPATH.max)).replace(/\0[\s\S]*$/, "");
+  if (libproc) return ""; // gone, or another user's: lsof couldn't read it either
   return (
     run(["lsof", "-a", "-p", String(pid), "-d", "cwd", "-Fn"])
       .out.split("\n")

@@ -21,6 +21,7 @@ import { Suggested } from "./Suggested";
 /** A ticket agent run: an elapsed ring that fills toward the timeout, and what it's doing. */
 function AgentRun({ cur, m }: { cur: CurrentRun; m: Model }) {
   const w = useWords();
+  const { runStop } = useActions();
   const now = useNow(1000);
   const session = m.s.sessions.find((x) => x.pid === cur.pid);
   const sec = Math.max(0, Math.floor((now - cur.startedAt) / 1000));
@@ -53,6 +54,10 @@ function AgentRun({ cur, m }: { cur: CurrentRun; m: Model }) {
           <span className="shrink-0 text-xs text-muted-foreground">
             <Term k={runKind(cur.name)} />
           </span>
+          {/* every running agent can be stopped, with everything it started (it asks first) */}
+          <Button variant="danger" size="xs" className="ml-auto shrink-0" onClick={() => void runStop(cur.name)}>
+            {w.stopLead}
+          </Button>
         </div>
         <Steps>
           {session?.lastAction ? <p className="mt-0.5 line-clamp-2 text-sm text-foreground/85">{saying(session.lastAction)}</p> : null}

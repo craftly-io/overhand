@@ -10,7 +10,7 @@ import { CFG, CLIENTS, CODE, gitRefused, HOME, OPS, safeCmd } from "./env";
 import { report } from "./notify";
 import { type FirewallConfig, scanOutward } from "./outward";
 import { tilde } from "./projects";
-import { gitEnv, isGit } from "./runtimes/runtime";
+import { gitEnv, runsGit } from "./runtimes/runtime";
 import type { LiveSession } from "./sessions";
 
 /** A worktree as `git worktree list --porcelain` names it: its folder and branch ("" when detached). */
@@ -45,10 +45,10 @@ export function whoIn(path: string, all: readonly string[], sessions: readonly L
 /** Runs a command without blocking the dashboard; "" when it fails or outlasts `timeout` ms. */
 async function out(cmd: string[], cwd: string, timeout = 15_000): Promise<string> {
   try {
-    if (isGit(cmd) && gitRefused(cwd)) return "";
+    if (runsGit(cmd) && gitRefused(cwd)) return "";
     const p = Bun.spawn(safeCmd(cmd), {
       cwd,
-      env: isGit(cmd) ? gitEnv() : process.env,
+      env: runsGit(cmd) ? gitEnv() : process.env,
       stdout: "pipe",
       stderr: "ignore",
       timeout,

@@ -60,11 +60,11 @@ import { billingOf, forgetBilling } from "./billing";
 import { BROKER_ROUTE, brokerRoute } from "./broker";
 import { noteCalls } from "./calls";
 import { type Checked, cachedCheckup } from "./checkup";
-import { refreshUsage, testAccount } from "./claude";
+import { refreshUsage, stopRun, testAccount } from "./claude";
 import { type Config, parseConfig, RUNTIME_IDS, type RuntimeId, restoreConfig, saveConfig, withQuick } from "./config";
 import { beatOf, loadBeats, loadRequests, RUN_KEY_HEADER, type RunWho, runByKey, writeAtomic } from "./control";
 import { controlRoute } from "./control-api";
-import { dashboardState, migrateLabels, roomChanged, startStateRefresh } from "./dashboard";
+import { dashboardState, migrateLabels, roomChanged, startStateRefresh, uiTickets } from "./dashboard";
 import { briefFor, moreFacts, snoozeItem } from "./decide";
 import { deviceOf, devices, hasLocalKey, isLocal, localCookie, newPairing, redeem, revoke, sessionCookie, useOpenLink } from "./devices";
 import {
@@ -1427,6 +1427,18 @@ async function route(req: Request): Promise<Response> {
       await refreshUsage(FRESH_MIN);
       return json({ ok: true });
     }
+    case "/api/run/stop": {
+      // Stop on a running agent: it and everything it started end; its task waits for Try again (agent.ts handleTicket)
+      const name = String(body.name ?? "");
+      if (!(await stopRun(name))) return json({ error: "that run has already ended; reload" }, 404);
+      report(`⏹ ${name}: you stopped it`);
+      return json({ ok: true });
+    }
+    case "/api/tickets/refresh":
+      // Retry now on a tracker that didn't answer: read every project's tickets again, the result in the next state
+      ticketCache.at = 0;
+      void uiTickets().catch(() => {});
+      return json({ ok: true });
     case "/api/lead/answer":
       return leadAnswerRoute(body);
     case "/api/name": {

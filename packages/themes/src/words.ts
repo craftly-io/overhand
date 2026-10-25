@@ -873,6 +873,11 @@ export const plainWords = {
   updatedAgo: "updated {ago}",
   stopLead: "Stop",
   startLead: "Start",
+  // Stop on a running agent run (a ticket, a task, a fix round): it and everything it started end
+  confirmRunStopTitle: "Stop {name}?",
+  confirmRunStop: "The agent and everything it started stop now; its work so far stays in its worktree, and Try again picks it up.",
+  confirmRunStopGo: "Stop the agent",
+  saidRunStopped: "Stopped {name}.",
 
   // inbox
   checkSlack: "Check Slack now",
@@ -947,6 +952,13 @@ export const plainWords = {
   /** Its fix: the project's connections, where an expired sign-in is renewed. */
   alTrackerFix: "Reconnect",
   alTrackerDownSay: "{client}'s tracker isn't answering",
+  // why it isn't, read from its error (contract outageOf), each with its own fix
+  alTrackerNetwork: "The network or the tracker isn't answering; Overhand tries again every few minutes.",
+  alTrackerLimit: "{client} tracker asks Overhand to slow down",
+  alTrackerLimitSub: "It had too many requests for now; Overhand waits and tries again on its own.",
+  alTrackerLimitGo: "Wait an hour",
+  alTrackerAuth: "Its sign-in no longer works: reconnect it.",
+  alTrackerOther: "It answered with an error; reconnecting it usually fixes that.",
   alNeedsAnswer: "{key} needs your answer",
   alNeedsAnswerSay: "{client} needs an answer from you",
   alDeployFailed: "{project} production deploy failed",
@@ -1377,6 +1389,7 @@ export const plainWords = {
   failedPush: "The work is done, but its branch couldn't be pushed.",
   failedPrOpen: "The work is pushed to {branch}, but GitHub didn't answer when its pull request was opened.",
   failedStuck: "The agent stopped before it finished; it says why under Details.",
+  failedStopped: "You stopped it before it finished.",
   failedRetryWhy: "Try again runs the same task, with its brief and branch.",
   failedDetailWhy: "Say more about what you want, and an agent tries again with that.",
   failedReopenWhy: "The work is safe on its branch; this only opens its pull request.",
@@ -1979,6 +1992,10 @@ export const plainWords = {
   saidAnswerPosted: "Answered on {key}; it's back in the agents' queue.",
   saidAnswerHeld: "{key} is on Look only: your answer is held for you to post.",
   decOpenToMerge: "Open the pull request to merge",
+  // a pull request that only deletes code (contract decide.ts prBrief): never recommended to merge without saying so
+  prRemovesOnly: "{key}'s pull request only removes code.",
+  prRemovesOnlyWhy: "It adds nothing and removes {lines} from {files}: make sure all of it is meant to go.",
+  prRemovesOnlyRec: "Read what it deletes before you merge it; close it if any of that is still needed.",
   decOpenCi: "Open the failing run",
   decOpenError: "Open the error",
   decReviewSplit: "Review the split",
@@ -2057,6 +2074,9 @@ export const plainWords = {
   // connection
   bannerInvalid: "Overhand sent data this page doesn't understand at {path}: {message}",
   bannerUnreachable: "Can't reach Overhand. Retrying every 8 seconds.",
+  bannerStartIt: "If it stopped, start it again in a terminal on its computer:",
+  /** Asks again at once: the dashboard's connection, or a tracker that didn't answer. */
+  retryNow: "Retry now",
   loading: "Connecting to Overhand…",
 } as const;
 

@@ -15,6 +15,7 @@ import {
   openSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -25,6 +26,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import type { Config } from "./config";
 import { writeAtomic } from "./control";
+import { cwdOf } from "./platform";
 
 /** Heavy job kinds, in the order a command is matched against them. */
 export const HEAVY = ["browser", "simulator", "suite", "build", "devserver"] as const;
@@ -401,6 +403,21 @@ export async function killTree(root: number, graceMs = 3000): Promise<number[]> 
   while (Date.now() < end && pids.some(alive)) await Bun.sleep(100);
   if (pids.some(alive)) send("SIGKILL");
   return pids;
+}
+
+/**
+ * What a run left running after its own process ended: processes re-parented to pid 1 (it detached them, or their parent
+ * exited) still working in its folder `dir`. Only for a worktree Overhand made for the run (`.claude/worktrees/`), so
+ * never anything of yours. (macOS hides other processes' environments, so the run's own key can't tell them.)
+ */
+export function leftBehind(dir: string, table: Proc[], cwd: (pid: number) => string = cwdOf): number[] {
+  if (!dir.includes("/.claude/worktrees/")) return [];
+  let real = dir;
+  try {
+    real = realpathSync(dir); // a process reports its folder resolved (/private/var, not /var)
+  } catch {}
+  const inside = (c: string) => c === real || c.startsWith(`${real}/`);
+  return table.flatMap((p) => (p.ppid === 1 && inside(cwd(p.pid)) ? [p.pid] : []));
 }
 
 // ---------- orphaned headless browsers ----------

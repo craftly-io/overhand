@@ -20,7 +20,7 @@ import { blankConfig, type Client, type Config, type Provider, type Runtime, sta
 import { effectiveClients } from "./groups";
 import { readSecret, SECRET_STORE } from "./platform";
 import { claudeCodeEnv } from "./runtimes/claude-code";
-import { gitEnv, gitPointersOk, isGit, safeCmd } from "./runtimes/runtime";
+import { gitEnv, gitPointersOk, runsGit, safeCmd } from "./runtimes/runtime";
 
 export const HOME = homedir();
 // where the agents' own installers put them (Claude Code's, Codex's): on PATH even when the service started without it,
@@ -236,10 +236,10 @@ const REFUSED =
 export function sh(cmd: string[], cwd = SRC, timeoutMs = 10 * 60_000): { ok: boolean; out: string; err: string } {
   // env: so PATH set at runtime (tests' fake gh) picks the binary. A timeout, because one hung gh or git call held the
   // work pass (and its .lock) for five hours on 2026-10-18 and no ticket ran meanwhile.
-  if (isGit(cmd) && gitRefused(cwd)) return { ok: false, out: "", err: REFUSED };
+  if (runsGit(cmd) && gitRefused(cwd)) return { ok: false, out: "", err: REFUSED };
   let r: Bun.SyncSubprocess<"pipe", "pipe">;
   try {
-    r = Bun.spawnSync(safeCmd(cmd), { cwd, env: isGit(cmd) ? gitEnv() : process.env, timeout: timeoutMs });
+    r = Bun.spawnSync(safeCmd(cmd), { cwd, env: runsGit(cmd) ? gitEnv() : process.env, timeout: timeoutMs });
   } catch (e) {
     return { ok: false, out: "", err: e instanceof Error ? e.message : String(e) }; // not installed (gh on a fresh machine)
   }
@@ -283,10 +283,10 @@ export async function untilExit(
 
 /** `sh` without blocking the daemon while the command runs: for work on a timer, where a sync `gh` or `git` call froze every request. */
 export async function shAsync(cmd: string[], cwd = SRC, timeoutMs = 10 * 60_000): Promise<{ ok: boolean; out: string; err: string }> {
-  if (isGit(cmd) && gitRefused(cwd)) return { ok: false, out: "", err: REFUSED };
+  if (runsGit(cmd) && gitRefused(cwd)) return { ok: false, out: "", err: REFUSED };
   let p: Bun.Subprocess<"ignore", "pipe", "pipe">;
   try {
-    p = Bun.spawn(safeCmd(cmd), { cwd, env: isGit(cmd) ? gitEnv() : process.env, timeout: timeoutMs, stdout: "pipe", stderr: "pipe" });
+    p = Bun.spawn(safeCmd(cmd), { cwd, env: runsGit(cmd) ? gitEnv() : process.env, timeout: timeoutMs, stdout: "pipe", stderr: "pipe" });
   } catch (e) {
     return { ok: false, out: "", err: e instanceof Error ? e.message : String(e) }; // not installed
   }

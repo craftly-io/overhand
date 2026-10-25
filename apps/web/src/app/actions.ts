@@ -260,6 +260,21 @@ export function useActions() {
         toast(r.other ? fmt(w.saidLeadStoppedOther, { pid: r.other }) : w.saidLeadStopped);
         refresh();
       }),
+    /** Stop on a running agent run (a ticket, a task, a fix round): it and everything it started end, once you confirm. */
+    runStop: (name: string) =>
+      guard(false, async () => {
+        const ok = await ui.confirm({ title: fmt(w.confirmRunStopTitle, { name }), body: w.confirmRunStop, go: w.confirmRunStopGo });
+        if (!ok) return;
+        await post("/api/run/stop", { name }, Ok);
+        toast(fmt(w.saidRunStopped, { name }));
+        refresh();
+      }),
+    /** Retry now on a tracker that didn't answer: every project's tickets are read again. */
+    ticketsRefresh: () =>
+      guard(false, async () => {
+        await post("/api/tickets/refresh", {}, Ok);
+        refresh();
+      }),
     /** Adds a ready-made lead to a project under its job name, switched on; it wakes for the work it was suggested for. */
     leadTemplate: (project: string, template: string, name: string) =>
       guard(false, async () => {
