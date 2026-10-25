@@ -406,9 +406,11 @@ test("llms.txt lists every docs page and setup.md", () => {
 });
 
 test("only the What's next page names what isn't built", () => {
+  // each thing not built yet is named on What's next, and nowhere else
+  const each = [/hosted runner/i, /\bSSO\b|single sign-on/i];
   const unbuilt = /railway|fly\.io|hosted runner|\bSSO\b|single sign-on/gi;
   const next = built.find(([rel]) => rel === "docs/next.html")?.[1] ?? "";
-  expect(next.match(unbuilt)?.length).toBeGreaterThanOrEqual(4);
+  for (const re of each) expect(next, String(re)).toMatch(re);
   const others: [string, string][] = [
     ...built.filter(([rel]) => rel !== "docs/next.html"),
     ["setup.md", read("pages/setup.md")],
