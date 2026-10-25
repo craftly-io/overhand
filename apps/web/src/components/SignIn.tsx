@@ -6,7 +6,7 @@ import { useWords } from "@/app/theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { get, post } from "@/lib/api";
+import { get, post, Refused } from "@/lib/api";
 import { fmt } from "@/lib/format";
 
 /** `POST /api/accounts/login`: the sign-in Overhand runs (its link, a code to enter, whether one comes back), or a terminal's command. */
@@ -29,8 +29,12 @@ export function openTab(): Window | null {
   return tab;
 }
 
-/** `via`: which of its sign-ins a CLI with more than one runs (OpenCode's, OPENCODE_ACCOUNTS). */
-type Props = { account: string; tool: string; onSignedIn: () => void; via?: string };
+/**
+ * `account`: the agent account it signs in, at `/api/accounts/login`; `path` starts another sign-in the daemon runs the
+ * same way (GitHub's, `/api/github/signin`). `via`: which of its sign-ins a CLI with more than one runs (OpenCode's,
+ * OPENCODE_ACCOUNTS).
+ */
+type Props = { account?: string; path?: string; tool: string; onSignedIn: () => void; via?: string };
 
 /**
  * An account's own sign-in without a terminal: the agent CLI runs on the daemon's machine, its sign-in page opens in
@@ -39,15 +43,27 @@ type Props = { account: string; tool: string; onSignedIn: () => void; via?: stri
  * test). A CLI that can't be run this way opens in a terminal and its command shows.
  */
 export function SignIn({ tab, ...p }: Props & { tab: Window | null }) {
-  // Try again starts afresh, from its own click: a new sign-in and tab, nothing kept from the one before
+  // Try again starts afresh, from its own click: a new sign-in and tab, nothing kept from the one before (GitHub's opens
+  // none: its code shows first, and its page opens from the button beside it)
   const [run, setRun] = useState({ n: 0, tab });
-  return <Flow key={run.n} {...p} tab={run.tab} onRetry={() => setRun((r) => ({ n: r.n + 1, tab: openTab() }))} />;
+  const again = () => (p.path ? null : openTab());
+  return <Flow key={run.n} {...p} tab={run.tab} onRetry={() => setRun((r) => ({ n: r.n + 1, tab: again() }))} />;
 }
 
-function Flow({ account, tool, onSignedIn, tab, onRetry, via }: Props & { tab: Window | null; onRetry: () => void }) {
+function Flow({
+  account,
+  path = "/api/accounts/login",
+  tool,
+  onSignedIn,
+  tab,
+  onRetry,
+  via,
+}: Props & { tab: Window | null; onRetry: () => void }) {
   const w = useWords();
   const [started, setStarted] = useState<z.infer<typeof Started> | null>(null);
   const [error, setError] = useState("");
+  // the command to run by hand on the daemon's machine when the sign-in couldn't start there
+  const [byHand, setByHand] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const told = useRef(false);
@@ -55,7 +71,7 @@ function Flow({ account, tool, onSignedIn, tab, onRetry, via }: Props & { tab: W
 
   useEffect(() => {
     let live = true;
-    post("/api/accounts/login", via ? { account, via } : { account }, Started)
+    post(path, { ...(account ? { account } : {}), ...(via ? { via } : {}) }, Started)
       .then((r) => {
         if (!live) return; // a start this one replaced
         if ("url" in r && tab && !tab.closed) tab.location.href = r.url;
@@ -66,11 +82,12 @@ function Flow({ account, tool, onSignedIn, tab, onRetry, via }: Props & { tab: W
         if (!live) return;
         tab?.close();
         setError(e instanceof Error ? e.message : String(e));
+        if (e instanceof Refused) setByHand(e.command);
       });
     return () => {
       live = false;
     };
-  }, [account, tab, via]);
+  }, [account, path, tab, via]);
 
   const id = started && "id" in started ? started.id : "";
   const state = useQuery({
@@ -108,6 +125,11 @@ function Flow({ account, tool, onSignedIn, tab, onRetry, via }: Props & { tab: W
           <Button type="button" variant="outline" size="sm" onClick={onRetry}>
             {w.signInRetry}
           </Button>
+          {byHand ? (
+            <code className="w-fit max-w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-[13px] break-all select-all">
+              {byHand}
+            </code>
+          ) : null}
         </div>
       ) : !started ? (
         // the waiting line it's about to be
@@ -124,6 +146,21 @@ function Flow({ account, tool, onSignedIn, tab, onRetry, via }: Props & { tab: W
         </>
       ) : now === "done" ? (
         <p className="text-sm text-ok">{w.signInDone}</p>
+      ) : !tab && started.code ? (
+        // no page opened yet: the code first, then the one button that opens where it goes
+        <>
+          <p className="text-sm">
+            {w.signInEnterCode} <code className="font-mono text-base tracking-wider select-all">{started.code}</code>
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button asChild size="sm" className="w-fit">
+              <a href={started.url} target="_blank" rel="noopener noreferrer">
+                {fmt(w.signInOpenTool, { tool })}
+              </a>
+            </Button>
+            <span className="text-xs text-muted-foreground">{w.signInWaiting}</span>
+          </div>
+        </>
       ) : (
         <>
           <p className="text-sm">

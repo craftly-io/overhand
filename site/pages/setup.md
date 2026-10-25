@@ -10,7 +10,7 @@ only what the installer and Overhand really do today ({{name}} is in beta, so it
   screens in their browser, or in a tool's own sign-in (for example `gh auth login`), by them.
 - Ask before adding any project, and before signing in to anything.
 - Change nothing outside Overhand's own folders (`~/.overhand`, `~/.local/bin/overhand`) and the projects the person
-  confirmed. Don't edit their shell's startup file without asking.
+  confirmed, beyond what the installer itself does (below). Don't edit their shell's startup file yourself.
 - Never merge a pull request and never push to a protected branch.
 
 ## 1. Install
@@ -23,11 +23,18 @@ macOS or Linux (arm64 or x64):
 
 The installer downloads the package for this machine from the latest release, checks it against the release's
 `SHA256SUMS` and stops if it doesn't match, unpacks it into `~/.overhand/app`, links `~/.local/bin/overhand` and starts
-Overhand. When it's done it prints `Overhand is running → http://127.0.0.1:4317`.
+Overhand, which opens the dashboard in the browser on a desktop. When it's done it prints
+`Overhand is running → http://127.0.0.1:4317`.
 
-- If it says `~/.local/bin` isn't on the PATH, it prints the exact line to add and the file to add it to. Show the
-  person that line and ask before adding it.
-- If it says `git` or `gh` isn't installed, tell the person; the setup page in Overhand shows how to get them.
+- When GitHub's command tool (`gh`) is missing it installs it: Homebrew on a Mac that has it, else GitHub's own build
+  into `~/.local/bin`; GitHub's apt or dnf repository on Linux, through `sudo` only when it asks for no password.
+  Otherwise it prints the one command to run; show it to the person and let them run it.
+- When `~/.local/bin` isn't on the PATH it adds one line, marked `# added by Overhand`, to the shell's startup file
+  (`~/.zshrc`, `~/.bash_profile` on a Mac or `~/.bashrc` on Linux, fish's `config.fish`, else `~/.profile`) and says
+  so. Tell the person before you run it; if they'd rather add it themselves, run the installer with
+  `OVERHAND_NO_PATH=1` and it prints the line instead. The terminal it ran in keeps its old PATH, so run
+  `~/.local/bin/overhand` by its full path there.
+- If it says `git` isn't installed, tell the person; the setup page in Overhand shows how to get it.
 
 ## 2. Check it's running
 
@@ -39,7 +46,8 @@ Overhand. When it's done it prints `Overhand is running → http://127.0.0.1:431
 ## 3. Reuse what's already signed in
 
 Overhand reuses the sign-ins already on this machine: GitHub through `gh`, and each coding agent's own login. Check
-GitHub with `gh auth status`. If it isn't signed in, ask the person to run `gh auth login` themselves.
+GitHub with `gh auth status`. If it isn't signed in, the setup page's Sign in to GitHub shows GitHub's one-time code
+and an Open GitHub button; the person enters the code on GitHub, and the page turns green by itself.
 
 ## 4. Finish in the browser, with the person
 

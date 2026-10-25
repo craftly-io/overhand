@@ -111,6 +111,37 @@ test("starting again stops the sign-in before it", async () => {
   await until(() => signInState(b.id, "local")?.state !== "waiting");
 });
 
+test("GitHub's sign-in runs on pipes: its one-time code and page come back, and gh's own status says when it's done", async () => {
+  // stand-in for `gh auth login --web` with no terminal (gh 2.86): the code and the page on stderr, then it waits for
+  // GitHub, here a file; with a terminal it would ask about Git first, so this one exits 1 when stdin is one
+  const gh = join(dir, "fake-gh");
+  writeFileSync(
+    gh,
+    [
+      "#!/bin/sh",
+      "[ -t 0 ] && exit 1",
+      "printf '\\n! First copy your one-time code: 6445-CEDD\\nOpen this URL to continue in your web browser: https://github.com/login/device\\n' >&2",
+      'while [ ! -e "$OUT/approved" ]; do sleep 0.05; done',
+      'touch "$OUT/ok"',
+    ].join("\n"),
+  );
+  chmodSync(gh, 0o755);
+  const r = await startSignIn({
+    key: "github",
+    by: "local",
+    argv: [gh],
+    env: { OUT: dir },
+    pipes: true,
+    verify: async () => existsSync(ok),
+  });
+  if ("error" in r) throw new Error(r.error);
+  expect([r.url, r.code, r.asks]).toEqual(["https://github.com/login/device", "6445-CEDD", false]);
+  expect(signInState(r.id, "local")?.state).toBe("waiting");
+  writeFileSync(join(dir, "approved"), ""); // you entered the code on GitHub
+  await until(() => signInState(r.id, "local")?.state !== "waiting");
+  expect(signInState(r.id, "local")).toEqual({ state: "done", why: "" });
+});
+
 test("OpenCode's key goes in by its prompt, ending on a carriage return, and only a key it takes counts", async () => {
   // stand-in for `opencode auth login -p <provider>`: reads one line ended by \r, keeps it, and exits 0 only on a key
   const oc = join(dir, "fake-opencode");

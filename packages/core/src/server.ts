@@ -1260,11 +1260,21 @@ async function route(req: Request): Promise<Response> {
       return json({ ok: true });
     }
     case "/api/github/signin": {
-      // GitHub's own browser sign-in in a terminal you can watch, so setup needs no typing; the page then sees it by itself
-      const command = "gh auth login --web --git-protocol https --hostname github.com";
+      // GitHub's own device sign-in, run here: the page shows its one-time code and opens GitHub, and sees it by itself.
+      // Without a terminal gh asks nothing more (in one it first asks about Git's credentials)
       if (!Bun.which("gh")) return json({ error: "GitHub's command tool (gh) isn't installed yet" }, 400);
-      if (!openTerminal(command)) return json({ error: NO_TERMINAL, command: withoutBrowser(command) }, 500);
-      return json({ ok: true, command });
+      const started = await startSignIn({
+        key: "github",
+        by: device?.id ?? "local",
+        argv: GH_SIGNIN,
+        env: {},
+        pipes: true,
+        verify: async () => githubLogin() !== "",
+      });
+      // it didn't start here: the same sign-in, by hand in a terminal on this machine
+      if ("error" in started) return json({ error: started.error, command: GH_SIGNIN.join(" ") }, 502);
+      report("🔑 signing in to GitHub");
+      return json({ ok: true, ...started });
     }
     case "/api/agent/connect": {
       // installs the agent you pay for when it's missing, then opens its own sign-in, in a terminal you can watch
@@ -1828,6 +1838,9 @@ async function route(req: Request): Promise<Response> {
 }
 
 /** A sign-in's answer when no terminal window can open here (a server without a desktop): the page shows the command. */
+/** GitHub's own device sign-in, with Git over HTTPS (Overhand's git calls ask gh for the credential). */
+const GH_SIGNIN = ["gh", "auth", "login", "--web", "--git-protocol", "https", "--hostname", "github.com"];
+
 export const NO_TERMINAL = "No terminal window opens on this machine. Run the command shown in a terminal on it, over SSH on a server.";
 
 /**
