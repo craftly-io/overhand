@@ -8,6 +8,7 @@
 import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { plainWords } from "@overhand/themes";
 import { z } from "zod";
 import { RUN_KEY_ENV, RUN_KEY_HEADER, writeAtomic } from "./control";
 import { OPS } from "./env";
@@ -95,11 +96,11 @@ export function redeem(code: string, userAgent: string, now = Date.now()): { tok
   const typed = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
   if (!pending || now > pending.until) {
     pending = null;
-    return { error: "That code has expired. Make a new one on the Mac: Settings, Phone, Add a device." };
+    return { error: plainWords.pairExpired };
   }
   if (!same(typed, pending.code)) {
     if (++pending.tries >= MAX_TRIES) pending = null;
-    return { error: "That code doesn't match. Check it on the Mac and try again." };
+    return { error: plainWords.pairMismatch };
   }
   pending = null;
   const token = randomBytes(32).toString("base64url");

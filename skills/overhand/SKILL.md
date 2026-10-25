@@ -26,7 +26,8 @@ curl -fsSL https://get.overhand.dev | sh
 
 On a new Debian or Ubuntu server, `https://overhand.dev/server/user-data.sh` is the same install as first-boot user data, and
 `https://overhand.dev/server/compose.yml` runs the Docker image; both stay on 127.0.0.1, reached over an SSH tunnel
-(https://overhand.dev/docs/server.md).
+(https://overhand.dev/docs/server.md). With no display, the installer and `overhand open` print that tunnel line. Setup ends only
+when its Start is pressed; Settings saved before then leave it open.
 
 ## Check it
 
