@@ -11,6 +11,9 @@ import {
   PLAN_COPY,
   PLAN_KEYS,
   PLAN_TAX,
+  PLUGIN_LIMIT,
+  PLUGIN_REVIEW,
+  PLUGIN_STOPS,
   type PriceTable,
   SANDBOX_LIMIT,
   SANDBOX_PROJECT_OFF,
@@ -343,6 +346,16 @@ test("the OS sandbox's claims, what it stops and what it can't, come from one so
   const flat = (f: string) => readFileSync(join(import.meta.dir, "..", f), "utf8").replace(/\s+/g, " ");
   for (const claim of [SANDBOX_STOPS, SANDBOX_LIMIT, SANDBOX_PROJECT_OFF]) expect(flat("SECURITY.md")).toContain(claim);
   expect(built.find(([r]) => r === "docs/guard.html")?.[1]).toContain("logs/sandbox-would-deny.jsonl");
+});
+
+test("the plugin sandbox's claims come from one source, on the docs page and in SECURITY, and promise no review by us", () => {
+  const page = built.find(([r]) => r === "docs/plugins.html")?.[1] ?? "";
+  const flat = (f: string) => readFileSync(join(import.meta.dir, "..", f), "utf8").replace(/\s+/g, " ");
+  for (const claim of [PLUGIN_STOPS, PLUGIN_LIMIT, PLUGIN_REVIEW]) {
+    expect(page).toContain(claim);
+    expect(flat("SECURITY.md")).toContain(claim);
+  }
+  expect(PLUGIN_REVIEW).toContain("no review by us yet");
 });
 
 const docs = built.filter(([rel]) => rel.startsWith("docs/"));

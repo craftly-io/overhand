@@ -52,6 +52,7 @@ const TABS: Record<string, string> = {
   leads: "leads",
   schedule: "schedule",
   system: "system",
+  plugins: "plugins",
 };
 
 /** The Settings tab a message sends you to ("Settings, Phone" → "phone"; plain "Settings" → ""), or null when it names none. */
@@ -470,6 +471,39 @@ export function useActions() {
         await post("/api/updates/test", { id }, Ok);
         toast(fmt(w.updatesTested, { name }));
       }),
+    /**
+     * Settings' and Health's plugin actions: install from a pin, approve (with the secrets granted), pause or resume,
+     * remove (after asking), run now. Resolves true when it went through.
+     */
+    plugin: (
+      a:
+        | { do: "add"; source: string; pin: string; dir: string }
+        | { do: "approve"; name: string; grant: string[] }
+        | { do: "pause"; name: string; paused: boolean }
+        | { do: "remove"; name: string }
+        | { do: "run"; name: string },
+    ): Promise<boolean> => {
+      let done = false;
+      return guard(false, async () => {
+        const name = a.do === "add" ? "" : a.name;
+        if (a.do === "remove") {
+          const ok = await ui.confirm({ title: fmt(w.plConfirmRemoveTitle, { name }), body: w.plConfirmRemove, go: w.plRemove });
+          if (!ok) return;
+        }
+        const { do: act, ...body } = a;
+        await post(`/api/plugin/${act}`, body, Ok);
+        const said = {
+          add: w.plInstalled,
+          approve: w.plApproved,
+          pause: a.do === "pause" && !a.paused ? w.plResumedSaid : w.plPausedSaid,
+          remove: w.plRemoved,
+          run: w.plRan,
+        }[act];
+        toast(fmt(said, { name: name || w.panePlugins }));
+        done = true;
+        refresh();
+      }).then(() => done);
+    },
     /** Lets the daemon run git in a checkout a run flagged, after you looked and confirmed. */
     gitAllow: (dir: string) =>
       guard(false, async () => {

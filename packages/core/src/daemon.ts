@@ -31,6 +31,7 @@ import {
   SELF_EXEC,
   SLACK_MCP,
   SRC,
+  secret,
   sh,
   today,
   UI_PORT,
@@ -58,6 +59,7 @@ import { diskFree, notify, problems, report, stampConsole } from "./notify";
 import { refreshSuggestions } from "./organise";
 import { plan } from "./plan";
 import { daemonLog, installService, isLoginService, openBrowser, readSecret, SERVICE, uninstallService } from "./platform";
+import { tickPlugins } from "./plugins";
 import { claudeSignedIn } from "./runtimes/claude-code";
 import { codexSignedIn } from "./runtimes/codex";
 import { liveDeps, runSelfCheck, SELF_CHECK_EVERY } from "./selfcheck";
@@ -167,6 +169,18 @@ export async function daemon(): Promise<void> {
   setInterval(() => needsSetup() || void tickReports(), MIN);
   setInterval(autoCleanup, 10 * MIN);
   setInterval(governorTick, MIN);
+  // plugins whose turn has come, each in its own sandbox, one at a time (plugins.ts)
+  let plugging = false;
+  setInterval(() => {
+    if (plugging || needsSetup()) return;
+    plugging = true;
+    void tickPlugins(CFG, secret)
+      .then(() => pushState())
+      .catch(() => {})
+      .finally(() => {
+        plugging = false;
+      });
+  }, MIN);
   // the dashboard looks at itself every 15 min, the first time once it has warmed up; a failure shows in Needs you
   const selfCheck = () => void runSelfCheck(liveDeps(dashboardState)).then(() => pushState().catch(() => {}));
   setTimeout(selfCheck, 2 * MIN);

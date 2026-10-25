@@ -57,9 +57,9 @@ scripts/reclaim_space.sh
 .cleanup-auto
 .release.json
 
-# local code (loadLocalCode in packages/core/src/claude.ts) and plugins: personal, never committed
+# local code (loadLocalCode in packages/core/src/claude.ts) and installed plugins (packages/core/src/plugins.ts): personal, never committed
 local-code/
-plugins/
+/plugins/
 site/public/_headers
 site/public/.assetsignore
 # temp folders a failed lead test can leave behind

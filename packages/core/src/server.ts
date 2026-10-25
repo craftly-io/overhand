@@ -138,6 +138,7 @@ import { releaseLeak } from "./outward-release";
 import { serveOnTailnet, tailscale } from "./phone";
 import { armAll, editPlan, planFile, upsertPlanItem } from "./plan";
 import { openCommand, openTerminal, readSecret, SECRET_STORE, writeSecret } from "./platform";
+import { pluginAction } from "./plugins";
 import { additions, addRepos, copyRoots, destOf, listGithubRepos, parseRepoInput, tilde } from "./projects";
 import {
   finishLink,
@@ -997,10 +998,13 @@ export async function handle(req: Request): Promise<Response> {
     }
     case "/api/settings": {
       const labelsBefore = { ...LABEL };
+      // plugins change only through their own actions (/api/plugin/*): a form's save never approves one, nor brings
+      // back one removed since the form was opened
+      const config = typeof body.config === "object" && body.config !== null ? { ...body.config, plugins: CFG.plugins } : body.config;
       try {
-        const refused = await refuseShip(parseConfig(body.config));
+        const refused = await refuseShip(parseConfig(config));
         if (refused) return json({ error: refused }, 400);
-        applyConfig(saveConfig(OPS, body.config));
+        applyConfig(saveConfig(OPS, config));
         await disarmLeaving();
         void migrateLabels(labelsBefore, LABEL); // in the background: trackers can be slow
       } catch (e) {
@@ -1055,6 +1059,20 @@ export async function handle(req: Request): Promise<Response> {
       if (!ch) return json({ error: "no such channel; save it first" }, 404);
       const error = await sendUpdate(ch, await channelSummary(ch), Date.now());
       return error ? json({ error }, 502) : json({ ok: true });
+    }
+    case "/api/plugin/add":
+    case "/api/plugin/approve":
+    case "/api/plugin/pause":
+    case "/api/plugin/remove":
+    case "/api/plugin/run": {
+      // Settings, Plugins: install from a pin, approve, pause, remove, run now (plugins.ts pluginAction)
+      try {
+        const r = await pluginAction(url.pathname.slice("/api/plugin/".length), body);
+        void pushState().catch(() => {});
+        return json(r);
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : String(e) }, 400);
+      }
     }
     case "/api/git/allow": {
       // Needs you's Allow again, after you looked: only a checkout that's on the list (or "*" for an unreadable list)

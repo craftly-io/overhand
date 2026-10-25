@@ -69,6 +69,23 @@ are public.
   runs in its files, then have the guard only, and Settings says so. With Refuse runs without it on, the project stays
   inside the sandbox. Overhand suggests it when a project has an Xcode project or workspace, a Package.swift or a
   firebase.json, and never switches it for you.
+- Plugins (Settings, Plugins; none until you install one): A plugin runs only inside a sandbox of its own, never
+  without it: of the files on your computer it reads only the system's own programs and libraries, its own folder and a
+  scratch folder that's gone when it ends, and writes only that scratch folder. It has no network of its own: its only
+  way out is Overhand's bridge, which fetches for it only from the hosts its manifest declares, on their usual ports,
+  and refuses the rest. It gets no secret unless you grant that one by name, and runs on its schedule within its time
+  and memory limits, stopped when it goes over. It talks back only in findings, one JSON line each, which Overhand
+  checks before any reaches the app. On macOS it's sandbox-exec with a profile that denies everything it doesn't allow;
+  on Linux it's bubblewrap with its own empty network, process and file namespaces. A plugin can still send what it
+  reads, including a secret you granted, to a host it declared, and the bridge checks each host's address before
+  fetching but can't stop that host's DNS from changing right after. It can list the names, never the contents, of the
+  folders above its own. On macOS it can't start another program, and the sandbox still lets it reach the system
+  services Apple's own sandbox profile allows every program; on Linux it can start the system's own programs, inside
+  the same sandbox with no more reach than its own, and write an empty /tmp of its own that's gone when it ends. Where
+  neither sandbox runs, plugins don't run at all. There's no plugin store and no review by us yet: the review is yours.
+  Before a plugin runs, Settings shows what it does, its kind, the hosts it reaches, the secrets it asks for and its
+  pin, and nothing runs until you approve it. Your approval holds that exact code: any change to its files stops it
+  until you approve it again, and nothing updates on its own.
 - The installer and the npm launcher verify each package's SHA-256 before installing it.
 
 ## Access from anywhere (Pro and Team): the relay's trust model

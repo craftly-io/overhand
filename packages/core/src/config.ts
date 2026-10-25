@@ -536,6 +536,24 @@ const ConfigSchema = z.object({
     })
     .prefault({}),
   /**
+   * Plugins (core/src/plugins.ts), each installed from `source` at `pin` (a git commit, or a tarball's SHA-256), `dir`
+   * its folder inside that. `approved`: the digest of the files you approved ("" until you do); a plugin runs only
+   * while its files still match it. `grant`: the secrets it asked for that you gave it. Never updated on its own.
+   */
+  plugins: z
+    .array(
+      z.object({
+        name: z.string(),
+        source: z.string().min(1),
+        pin: z.string().regex(/^([0-9a-f]{40}|[0-9a-f]{64})$/, "a 40-character git commit or a 64-character SHA-256"),
+        dir: z.string().default(""),
+        approved: z.string().default(""),
+        grant: z.array(z.string()).default([]),
+        paused: z.boolean().default(false),
+      }),
+    )
+    .default([]),
+  /**
    * The machine governor: heavy jobs Overhand's agents and leads start (headless browsers, full test suites, builds,
    * simulators, dev servers) share these slots across every run on this machine, and only start while the machine has
    * room. The guard hook enforces it; `overhand quiet 3h` or the dashboard holds them all off.

@@ -382,6 +382,16 @@ export const FEATURES: readonly Feature[] = [
     docs: "docs/leads.html#talk",
     tip: { text: "New: message a lead any time, not only when it asks.", where: "lead-message" },
   },
+  {
+    id: "plugins",
+    name: "Plugins",
+    line: "Small checks, trackers and notifiers in a sandbox of their own, reaching only the hosts they declare.",
+    area: "safety",
+    since: "2026-10-25",
+    source: "packages/core/src/plugins.ts",
+    place: "none",
+    docs: "docs/plugins.html#plugins",
+  },
 ];
 
 /** The features newest first; within a day, in the registry's order. */

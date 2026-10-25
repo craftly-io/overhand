@@ -1,0 +1,11 @@
+{
+  "name": "site-answers",
+  "version": "1.0.0",
+  "line": "Checks that overhand.dev answers, and says so when it doesn't.",
+  "kind": "check",
+  "entry": "check.ts",
+  "hosts": ["overhand.dev"],
+  "everyMin": 30,
+  "timeoutSec": 20,
+  "memoryMb": 128
+}

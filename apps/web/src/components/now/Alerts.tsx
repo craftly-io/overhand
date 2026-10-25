@@ -101,7 +101,7 @@ export const needsTone = (list: readonly Need[]) => (anyBroken(list) ? "var(--ba
 /** One alert; clicking it opens whatever it's about (a link, a ticket, a lead…). */
 function AlertCard({ a, brief, className }: { a: Alert; brief?: string; className?: string }) {
   const ui = useUi();
-  const { quiet, run, selfUpdate } = useActions();
+  const { plugin, quiet, run, selfUpdate } = useActions();
   // once its brief is in, the brief's what says what's asked, in place of the title and line (a plan keeps its request);
   // the decision card under it adds the one line of context and the choices
   const { data: b } = useBrief(brief);
@@ -147,6 +147,7 @@ function AlertCard({ a, brief, className }: { a: Alert; brief?: string; classNam
     else if (t.kind === "update") void selfUpdate();
     else if (t.kind === "restart") void run({ name: "restart" });
     else if (t.kind === "quiet") void quiet(t.hours);
+    else if (t.kind === "plugin") void plugin({ do: "run", name: t.name });
     else toast(a.sub || a.title);
   };
   return (
@@ -177,7 +178,7 @@ function QuickActions({ a }: { a: Alert }) {
 function Actions({ a }: { a: Alert }) {
   const w = useWords();
   const ui = useUi();
-  const { gitAllow, heldDismiss, heldPost, leadAnswer, leadStart, quiet, ruleAdd, ruleDismiss, run, selfUpdate, slackSignIn } =
+  const { gitAllow, heldDismiss, heldPost, leadAnswer, leadStart, plugin, quiet, ruleAdd, ruleDismiss, run, selfUpdate, slackSignIn } =
     useActions();
   const save = useQuickSave();
   const [open, setOpen] = useState(false);
@@ -197,6 +198,7 @@ function Actions({ a }: { a: Alert }) {
   if (t.kind === "slack") return one(w.alSlackSignInGo, () => void slackSignIn());
   if (t.kind === "quiet") return one(fmt(w.decQuiet, { h: t.hours }), () => void quiet(t.hours), "outline");
   if (t.kind === "replan") return one(w.signInRetry, () => void run({ name: "plan" }));
+  if (t.kind === "plugin") return one(w.plRunAgain, () => void plugin({ do: "run", name: t.name }));
   if (t.kind === "git") return one(w.alGitAllow, () => void gitAllow(t.dir), "outline");
   if (t.kind === "raise") return one(fmt(w.alBudgetRaiseTo, { cap: `$${t.usd}` }), () => void save({ budgetUsd: t.usd }));
   if (t.kind === "update") return one(a.go ?? w.open, () => void selfUpdate());

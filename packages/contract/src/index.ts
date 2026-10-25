@@ -11,6 +11,7 @@ import { HostedResultSchema } from "./hosted";
 import { ProjectInstructionsSchema } from "./instructions";
 import { LEAD_HEARS, LEAD_WORK } from "./leads";
 import { LeakSchema } from "./outward";
+import { PluginStateSchema } from "./plugins";
 import { ProgressionSchema } from "./progression";
 import { ProofSchema } from "./proof";
 import { RuleSuggestionSchema } from "./rules";
@@ -34,6 +35,7 @@ export * from "./organise";
 export * from "./outward";
 export * from "./plain";
 export * from "./plans";
+export * from "./plugins";
 export * from "./progression";
 export * from "./proof";
 export * from "./relay";
@@ -791,6 +793,8 @@ export const DashboardStateSchema = z.object({
   team: TeamStateSchema.nullable().default(null),
   /** Names you gave leads and work (`leadId`, `workId`): they win over every name Overhand makes. Empty for older daemons. */
   names: z.record(z.string(), z.string()).default({}),
+  /** Installed plugins, each with its state and its last run's findings (core/src/plugins.ts). Empty for older daemons. */
+  plugins: z.array(PluginStateSchema).default([]),
 });
 
 export type AccountUsage = z.infer<typeof AccountUsageSchema>;

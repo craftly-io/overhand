@@ -22,6 +22,7 @@ import { ACCOUNTS, progressionAt, ROUTING, SCORECARD } from "./history";
 import { INSTRUCTIONS, RULES } from "./instructions";
 import { samplePr, sampleUrl } from "./links";
 import { MOMENTS } from "./moments";
+import { demoPlugins } from "./plugins";
 import { demoProof } from "./proof";
 import { teamAt } from "./team";
 
@@ -773,6 +774,7 @@ export function nightAt(minutes: number): DashboardState {
         ]
       : [],
     guardrails: GUARD_BLOCKS.filter((b) => at(b.hm) <= now).map(({ hm, ...b }) => ({ ...b, at: at(hm) })),
+    plugins: demoPlugins(now),
     pending,
     // Slack was read twelve minutes ago: Needs you says so in place of a button
     slackReadAt: now - 12 * 60_000,
