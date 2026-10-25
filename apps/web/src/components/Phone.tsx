@@ -196,10 +196,11 @@ function Qr({ text, label }: { text: string; label: string }) {
 }
 
 /**
- * Settings → Phone: puts the dashboard on your tailnet (one click, or the exact command), pairs a phone with a one-time
- * code and QR, lists and removes paired devices, and sends a test notification.
+ * The phone, in two parts. Settings → Connections (the one shown answer): Access from anywhere first, then pairing a
+ * phone with a one-time code and QR, and the paired devices. Advanced → Extra origins, tailnet and notifications
+ * (`part="tailnet"`): the dashboard on your own tailnet (one click, or the exact command) and a test notification.
  */
-export function Phone() {
+export function Phone({ part = "anywhere" }: { part?: "anywhere" | "tailnet" }) {
   const w = useWords();
   const qc = useQueryClient();
   const [pairing, setPairing] = useState<z.infer<typeof PairingSchema> | null>(null);
@@ -265,9 +266,9 @@ export function Phone() {
     <section className="hud-pane gap-4" aria-labelledby="phone-title" aria-busy={phone.isPending}>
       <header className="grid gap-1">
         <h2 id="phone-title" className="font-display text-base">
-          {w.phoneTitle}
+          {part === "tailnet" ? w.phoneTailnetTitle : w.phoneTitle}
         </h2>
-        <p className="text-sm text-muted-foreground">{w.phoneHint}</p>
+        <p className="text-sm text-muted-foreground">{part === "tailnet" ? w.phoneHint : w.phoneAnywhere}</p>
       </header>
       {phone.isError ? (
         <p role="alert" className="text-sm text-bad">
@@ -275,115 +276,122 @@ export function Phone() {
         </p>
       ) : null}
 
-      {phone.isPending ? <SkeletonRows rows={3} /> : null}
-      {p && ts ? (
-        <div className="m-stagger grid gap-2">
-          {!ts.installed ? (
-            <p className="text-sm">{w.phoneNoTailscale}</p>
-          ) : !ts.running ? (
-            <p className="text-sm">{w.phoneTailscaleOff}</p>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2" style={nth(0)}>
-                <Mark key={String(usable)} tone={usable ? "ok" : "warn"} />
-                <span className="min-w-0 flex-1 text-sm break-words">
-                  {ts.served ? fmt(w.phoneServed, { origin: ts.served }) : w.phoneNotServed}
-                </span>
-                {p.local && !usable && (ts.served || ts.command) ? (
-                  <Button size="sm" variant="outline" disabled={busy === "serve"} onClick={() => void serve()}>
-                    {ts.served ? w.phoneUseButton : w.phoneServeButton}
+      {part === "tailnet" ? (
+        <>
+          {phone.isPending ? <SkeletonRows rows={3} /> : null}
+          {p && ts ? (
+            <div className="m-stagger grid gap-2">
+              {!ts.installed ? (
+                <p className="text-sm">{w.phoneNoTailscale}</p>
+              ) : !ts.running ? (
+                <p className="text-sm">{w.phoneTailscaleOff}</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2" style={nth(0)}>
+                    <Mark key={String(usable)} tone={usable ? "ok" : "warn"} />
+                    <span className="min-w-0 flex-1 text-sm break-words">
+                      {ts.served ? fmt(w.phoneServed, { origin: ts.served }) : w.phoneNotServed}
+                    </span>
+                    {p.local && !usable && (ts.served || ts.command) ? (
+                      <Button size="sm" variant="outline" disabled={busy === "serve"} onClick={() => void serve()}>
+                        {ts.served ? w.phoneUseButton : w.phoneServeButton}
+                      </Button>
+                    ) : null}
+                  </div>
+                  {!ts.served && ts.command && p.local ? (
+                    <div className="grid gap-1.5 sm:pl-8" style={nth(1)}>
+                      <p className="text-xs text-muted-foreground">{w.phoneServeHint}</p>
+                      <code className="block rounded-md border border-border bg-background px-3 py-2 font-mono text-xs break-all select-all">
+                        {ts.command}
+                      </code>
+                    </div>
+                  ) : null}
+                  {!ts.served && !ts.command ? <p className="text-xs text-muted-foreground sm:pl-8">{w.phonePortsTaken}</p> : null}
+                  {ts.funnel ? (
+                    <p role="alert" className="text-xs text-warn sm:pl-8">
+                      {w.phoneFunnel}
+                    </p>
+                  ) : null}
+                </>
+              )}
+              {!p.local ? <p className="text-xs text-muted-foreground">{w.phoneFromMac}</p> : null}
+            </div>
+          ) : null}
+
+          {p ? (
+            <div className="grid gap-2 border-t border-border pt-3">
+              <h3 className="text-sm font-semibold">{w.ntfyTitle}</h3>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <Mark tone={p.ntfy ? "ok" : "idle"} />
+                <span className="min-w-40 flex-1 text-sm text-muted-foreground">{p.ntfy ? w.ntfyOn : w.ntfyOff}</span>
+                {p.ntfy ? (
+                  <Button size="sm" variant="outline" disabled={busy === "ntfy"} onClick={() => void test()}>
+                    {w.ntfyTest}
                   </Button>
                 ) : null}
               </div>
-              {!ts.served && ts.command && p.local ? (
-                <div className="grid gap-1.5 sm:pl-8" style={nth(1)}>
-                  <p className="text-xs text-muted-foreground">{w.phoneServeHint}</p>
-                  <code className="block rounded-md border border-border bg-background px-3 py-2 font-mono text-xs break-all select-all">
-                    {ts.command}
-                  </code>
-                </div>
-              ) : null}
-              {!ts.served && !ts.command ? <p className="text-xs text-muted-foreground sm:pl-8">{w.phonePortsTaken}</p> : null}
-              {ts.funnel ? (
-                <p role="alert" className="text-xs text-warn sm:pl-8">
-                  {w.phoneFunnel}
-                </p>
-              ) : null}
-            </>
-          )}
-          {!p.local ? <p className="text-xs text-muted-foreground">{w.phoneFromMac}</p> : null}
-        </div>
-      ) : null}
-
-      {p ? <Anywhere local={p.local} /> : null}
-
-      <div className="grid gap-2 border-t border-border pt-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">{w.devicesTitle}</h3>
-          {p?.local ? (
-            <Button size="sm" variant="outline" disabled={busy === "pair"} onClick={() => void addDevice()}>
-              {w.devicesAdd}
-            </Button>
-          ) : null}
-        </div>
-        {pairing ? (
-          pairing.url ? (
-            <div className="m-enter flex flex-wrap items-center gap-4 rounded-md border border-border bg-background p-3">
-              <Qr text={pairing.url} label={w.devicesAdd} />
-              <div className="grid min-w-48 flex-1 gap-2">
-                <p className="font-mono text-2xl font-semibold tabular-nums">
-                  <span aria-hidden="true">
-                    {pairing.code.slice(0, 5)}-{pairing.code.slice(5)}
-                  </span>
-                  <span className="sr-only">{pairing.code.split("").join(" ")}</span>
-                </p>
-                <p className="text-xs text-muted-foreground">{fmt(w.devicesScan, { origin })}</p>
-                <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
-                  <span aria-hidden="true" className="m-pulse size-1.5 rounded-full bg-primary" />
-                  {w.devicesWaiting}
-                </p>
-              </div>
             </div>
-          ) : (
-            <p className="m-enter text-sm text-warn">{w.devicesNoOrigin}</p>
-          )
-        ) : null}
-        {devices.length ? (
-          <ul className="m-stagger grid divide-y divide-border">
-            {devices.map((d, i) => (
-              <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2" style={nth(i)}>
-                <span className="min-w-40 flex-1 text-sm">
-                  {d.name}
-                  {d.current ? <span className="text-muted-foreground"> · {w.devicesThis}</span> : null}
-                  <span className="block text-xs text-muted-foreground">
-                    {fmt(w.devicesSeen, { at: new Date(d.at).toLocaleDateString(), seen: ago(d.seen) })}
-                  </span>
-                </span>
-                <Button size="sm" variant="ghost" disabled={busy === d.id} onClick={() => void remove(d.id, d.name)}>
-                  {w.devicesRemove}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : list.data ? (
-          <p className="text-sm text-muted-foreground">{w.devicesNone}</p>
-        ) : null}
-      </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {phone.isPending ? <SkeletonRows rows={3} /> : null}
+          {p ? <Anywhere local={p.local} /> : null}
 
-      {p ? (
-        <div className="grid gap-2 border-t border-border pt-3">
-          <h3 className="text-sm font-semibold">{w.ntfyTitle}</h3>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <Mark tone={p.ntfy ? "ok" : "idle"} />
-            <span className="min-w-40 flex-1 text-sm text-muted-foreground">{p.ntfy ? w.ntfyOn : w.ntfyOff}</span>
-            {p.ntfy ? (
-              <Button size="sm" variant="outline" disabled={busy === "ntfy"} onClick={() => void test()}>
-                {w.ntfyTest}
-              </Button>
+          <div className="grid gap-2 border-t border-border pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">{w.devicesTitle}</h3>
+              {p?.local ? (
+                <Button size="sm" variant="outline" disabled={busy === "pair"} onClick={() => void addDevice()}>
+                  {w.devicesAdd}
+                </Button>
+              ) : null}
+            </div>
+            {pairing ? (
+              pairing.url ? (
+                <div className="m-enter flex flex-wrap items-center gap-4 rounded-md border border-border bg-background p-3">
+                  <Qr text={pairing.url} label={w.devicesAdd} />
+                  <div className="grid min-w-48 flex-1 gap-2">
+                    <p className="font-mono text-2xl font-semibold tabular-nums">
+                      <span aria-hidden="true">
+                        {pairing.code.slice(0, 5)}-{pairing.code.slice(5)}
+                      </span>
+                      <span className="sr-only">{pairing.code.split("").join(" ")}</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">{fmt(w.devicesScan, { origin })}</p>
+                    <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
+                      <span aria-hidden="true" className="m-pulse size-1.5 rounded-full bg-primary" />
+                      {w.devicesWaiting}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="m-enter text-sm text-warn">{w.devicesNoOrigin}</p>
+              )
+            ) : null}
+            {devices.length ? (
+              <ul className="m-stagger grid divide-y divide-border">
+                {devices.map((d, i) => (
+                  <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2" style={nth(i)}>
+                    <span className="min-w-40 flex-1 text-sm">
+                      {d.name}
+                      {d.current ? <span className="text-muted-foreground"> · {w.devicesThis}</span> : null}
+                      <span className="block text-xs text-muted-foreground">
+                        {fmt(w.devicesSeen, { at: new Date(d.at).toLocaleDateString(), seen: ago(d.seen) })}
+                      </span>
+                    </span>
+                    <Button size="sm" variant="ghost" disabled={busy === d.id} onClick={() => void remove(d.id, d.name)}>
+                      {w.devicesRemove}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : list.data ? (
+              <p className="text-sm text-muted-foreground">{w.devicesNone}</p>
             ) : null}
           </div>
-        </div>
-      ) : null}
+        </>
+      )}
     </section>
   );
 }

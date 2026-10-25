@@ -67,7 +67,7 @@ export function moveOnce(from: string, to: string): void {
   } catch {
     try {
       copyFileSync(from, to);
-    } catch {} // left where it was; Settings → Integrations names where it belongs
+    } catch {} // left where it was; Settings → Connections names where it belongs
   }
 }
 

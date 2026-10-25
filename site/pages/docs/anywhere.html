@@ -12,10 +12,10 @@
     <section class="block hood" id="tailscale" aria-labelledby="h-tailscale">
       <h2 id="h-tailscale">Free: your phone over Tailscale.</h2>
       <ul class="facts">
-        <li><b>Your own network</b> Settings → Phone serves {{name}} on your <a href="https://tailscale.com">Tailscale</a> network with <code>tailscale serve</code>, so only your own devices reach it.</li>
+        <li><b>Your own network</b> Settings → Advanced → Extra origins, tailnet and notifications serves {{name}} on your <a href="https://tailscale.com">Tailscale</a> network with <code>tailscale serve</code>, so only your own devices reach it.</li>
         <li><b>Pair the phone</b> Scan the QR code or type the one-time code, valid for 10 minutes. The computer's own browser needs no pairing: <code>overhand open</code> opens it signed in.</li>
         <li><b>Some settings stay on the computer</b> A phone or {{relayHost}} answers and approves as you do, but the commands {{name}} runs (a project's preview command, cleanup's own commands), the OS sandbox and the allowed addresses are read-only there: <em>{{w.changeOnComputer}}</em></li>
-        <li><b>Push</b> Set up an <a href="https://ntfy.sh">ntfy</a> topic (its URL in your secret store, its name under Settings → Integrations) and questions and alerts reach your phone. When your phone can reach {{name}}, a project agent's question carries answer buttons that work once.</li>
+        <li><b>Push</b> Set up an <a href="https://ntfy.sh">ntfy</a> topic (its URL in your secret store, its name under Settings → Advanced) and questions and alerts reach your phone. When your phone can reach {{name}}, a project agent's question carries answer buttons that work once.</li>
       </ul>
     </section>
 
@@ -32,7 +32,7 @@
       <h2 id="h-link">How linking works.</h2>
       <ul class="facts">
         <li><b>Signed up first?</b> Until a computer is linked, {{relayHost}} shows the install line first, then how to link, and says <em>{{w.homeLinked}}</em> by itself once your computer is. Linking needs no plan; reaching it from anywhere does.</li>
-        <li><b>1. Set it up</b> Settings → Phone → Access from anywhere → <em>{{w.anywhereSetUp}}</em>. Your computer makes a key of its own and opens {{relayHost}} in your browser.</li>
+        <li><b>1. Set it up</b> Settings → Connections → Access from anywhere → <em>{{w.anywhereSetUp}}</em>. Your computer makes a key of its own and opens {{relayHost}} in your browser.</li>
         <li><b>2. Confirm it's yours</b> Sign in, then check the computer's name and key fingerprint. The relay signs a link certificate for that key and hands it back to your computer.</li>
         <li><b>3. Only its own</b> Your computer takes the certificate only for its own key and its own one-time request.</li>
         <li><b>4. Kept on</b> While your plan is active, your computer renews its access every few hours, and a short outage at the relay doesn't turn hosted features off.</li>

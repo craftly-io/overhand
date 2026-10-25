@@ -241,7 +241,7 @@ export function billingPage(o: {
 ${status}${manage}${o.hosted ? minutesSection(o.hosted) : ""}${install ? `<section class="install" aria-labelledby="install">${installBlock(`${w.billingNotInstalled} ${w.billingInstall}`, "h2")}</section>` : ""}${plans}${sandbox}
 <p id="msg" role="status" aria-live="polite"></p>
 <h2>Security</h2>
-<div class="row"><button id="signout-all">Sign out everywhere</button><small>Signs every browser out of this account, this one too. Your computers stay linked; unlink one from its own Settings → Phone.</small></div>
+<div class="row"><button id="signout-all">Sign out everywhere</button><small>Signs every browser out of this account, this one too. Your computers stay linked; unlink one from its own Settings → Connections.</small></div>
 <nav class="links" aria-label="Overhand"><a href="${esc(o.site)}/pricing.html">Pricing</a><a href="${esc(o.site)}/terms.html">Terms</a><a href="${esc(o.site)}/refund.html">Refunds</a><a href="${esc(o.site)}/privacy.html">Privacy</a><a href="/">Back to Overhand</a></nav>`;
   return page("Overhand billing", main, {
     css,

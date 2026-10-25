@@ -1,4 +1,4 @@
-import { AUTONOMY_LEVELS, type GroupView, LEAD_SCOPES, type LeadScope } from "@overhand/contract";
+import { AUTONOMY_LEVELS, type GroupRules, type GroupView, LEAD_SCOPES, type LeadScope } from "@overhand/contract";
 import type { WordKey } from "@overhand/themes";
 import { type ReactNode, useState } from "react";
 import { useWords } from "@/app/theme";
@@ -26,41 +26,63 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * A group's rules: how far agents go, assigned runs, accounts, private words, the leads' push branches and quiet hours.
- * Saved together; "apply to every project" also clears what members set themselves.
+ * A group's rules: how far agents go, assigned runs, accounts, private words, the project agents' push branches and quiet
+ * hours. On its own (onboarding) they're saved together, and "apply to every project" also clears what members set
+ * themselves. In Settings (`stage`), each change goes into Settings' draft and saves with the rest; `onReset` clears
+ * what members set themselves there.
  */
-export function GroupRulesForm({ group }: { group: GroupView }) {
+export function GroupRulesForm({
+  group,
+  stage,
+  onReset,
+}: {
+  group: Pick<GroupView, "name" | "rules">;
+  stage?: (rules: GroupRules) => void;
+  onReset?: () => void;
+}) {
   const w = useWords();
   const act = useOrganiseActions();
   const r = group.rules;
-  const [autonomy, setAutonomy] = useState(r.autonomy ?? "");
-  const [assigned, setAssigned] = useState(r.assignedAutonomy ?? "");
-  const [accounts, setAccounts] = useState((r.accounts ?? []).join(", "));
-  const [words, setWords] = useState((r.private ?? []).join(", "));
-  const [push, setPush] = useState((r.pushBranches ?? []).join(", "));
-  const [quiet, setQuiet] = useState(quietText(r.windows));
+  const [v, setV] = useState({
+    autonomy: r.autonomy ?? "",
+    assigned: r.assignedAutonomy ?? "",
+    accounts: (r.accounts ?? []).join(", "),
+    words: (r.private ?? []).join(", "),
+    push: (r.pushBranches ?? []).join(", "),
+    quiet: quietText(r.windows),
+  });
   const [reset, setReset] = useState(false);
-  const level = GROUP_LEVELS.find((l) => l === autonomy);
-  const assignedLevel = assigned === "act" || assigned === "propose" ? assigned : undefined;
-  const save = () =>
-    void act.rules(
-      group.name,
-      {
-        autonomy: level,
-        assignedAutonomy: assignedLevel,
-        accounts: csv(accounts),
-        private: csv(words),
-        pushBranches: csv(push),
-        windows: parseQuiet(quiet),
-      },
-      reset,
-    );
+  const rulesOf = (x: typeof v): GroupRules => ({
+    autonomy: GROUP_LEVELS.find((l) => l === x.autonomy),
+    assignedAutonomy: x.assigned === "act" || x.assigned === "propose" ? x.assigned : undefined,
+    accounts: csv(x.accounts),
+    private: csv(x.words),
+    pushBranches: csv(x.push),
+    windows: parseQuiet(x.quiet),
+  });
+  /** Changes one rule; a pick (`now`) goes into Settings' draft at once, typing when the field is left. */
+  const put = (k: keyof typeof v, value: string, now = false) => {
+    const next = { ...v, [k]: value };
+    setV(next);
+    if (now) stage?.(rulesOf(next));
+  };
+  const left = () => stage?.(rulesOf(v));
+  const text = (k: "accounts" | "words" | "push" | "quiet", label: string, placeholder?: string) => (
+    <Field label={label}>
+      <Input aria-label={label} value={v[k]} placeholder={placeholder} onChange={(e) => put(k, e.target.value)} onBlur={left} />
+    </Field>
+  );
   return (
     <fieldset className="grid gap-2" aria-label={w.orgRules}>
       <legend className="mb-1 font-display text-xs tracking-widest text-muted-foreground uppercase">{w.orgRules}</legend>
       <div className="grid gap-2 sm:grid-cols-2">
         <Field label={w.orgRuleAutonomy}>
-          <select aria-label={w.orgRuleAutonomy} className={SELECT} value={autonomy} onChange={(e) => setAutonomy(e.target.value)}>
+          <select
+            aria-label={w.orgRuleAutonomy}
+            className={SELECT}
+            value={v.autonomy}
+            onChange={(e) => put("autonomy", e.target.value, true)}
+          >
             <option value="">{w.orgRuleInherit}</option>
             {[...GROUP_LEVELS].reverse().map((l) => (
               <option key={l} value={l}>
@@ -70,34 +92,39 @@ export function GroupRulesForm({ group }: { group: GroupView }) {
           </select>
         </Field>
         <Field label={w.orgRuleAssigned}>
-          <select aria-label={w.orgRuleAssigned} className={SELECT} value={assigned} onChange={(e) => setAssigned(e.target.value)}>
+          <select
+            aria-label={w.orgRuleAssigned}
+            className={SELECT}
+            value={v.assigned}
+            onChange={(e) => put("assigned", e.target.value, true)}
+          >
             <option value="">{w.orgRuleInherit}</option>
             <option value="act">{w.autonomyActName}</option>
             <option value="propose">{w.autonomyProposeName}</option>
           </select>
         </Field>
       </div>
-      <Field label={w.orgRuleAccounts}>
-        <Input aria-label={w.orgRuleAccounts} value={accounts} onChange={(e) => setAccounts(e.target.value)} />
-      </Field>
-      <Field label={w.orgRulePrivate}>
-        <Input aria-label={w.orgRulePrivate} value={words} onChange={(e) => setWords(e.target.value)} />
-      </Field>
-      <Field label={w.orgRulePush}>
-        <Input aria-label={w.orgRulePush} value={push} onChange={(e) => setPush(e.target.value)} />
-      </Field>
-      <Field label={w.orgRuleWindows}>
-        <Input aria-label={w.orgRuleWindows} value={quiet} onChange={(e) => setQuiet(e.target.value)} placeholder="09:00-17:00" />
-      </Field>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Switch checked={reset} onCheckedChange={setReset} aria-label={w.orgRuleReset} />
-          <span aria-hidden="true">{w.orgRuleReset}</span>
-        </span>
-        <Button size="sm" variant="outline" onClick={save}>
-          {w.orgRuleSave}
-        </Button>
-      </div>
+      {text("accounts", w.orgRuleAccounts)}
+      {text("words", w.orgRulePrivate)}
+      {text("push", w.orgRulePush)}
+      {text("quiet", w.orgRuleWindows, "09:00-17:00")}
+      {stage ? (
+        onReset ? (
+          <Button size="sm" variant="outline" className="justify-self-start" onClick={onReset}>
+            {w.orgRuleReset}
+          </Button>
+        ) : null
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Switch checked={reset} onCheckedChange={setReset} aria-label={w.orgRuleReset} />
+            <span aria-hidden="true">{w.orgRuleReset}</span>
+          </span>
+          <Button size="sm" variant="outline" onClick={() => void act.rules(group.name, rulesOf(v), reset)}>
+            {w.orgRuleSave}
+          </Button>
+        </div>
+      )}
     </fieldset>
   );
 }

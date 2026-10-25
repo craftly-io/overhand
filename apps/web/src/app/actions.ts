@@ -42,20 +42,30 @@ const ReleasedSchema = z.object({ hits: z.array(LeakHitSchema).optional() });
 const RuleAddedSchema = z.union([z.object({ url: z.string() }), z.object({ suggest: z.string(), file: z.string() })]);
 
 /** Every action the dashboard can take. Each one says what happened in a toast (and aloud, when asked by voice). */
-/** Settings' tabs by the names messages give them. */
+/**
+ * Settings' places by the names messages give them: the five sections, Advanced and its groups, and the tabs older
+ * messages still name (lib/settings-places.ts says where each went).
+ */
 const TABS: Record<string, string> = {
-  phone: "phone",
-  integrations: "integrations",
   projects: "projects",
-  "agent accounts": "accounts",
-  accounts: "accounts",
-  leads: "leads",
+  "project agents": "project-agents",
+  agents: "agents",
+  "agent accounts": "agents",
+  accounts: "agents",
+  connections: "connections",
+  integrations: "connections",
+  phone: "connections",
+  safety: "safety",
+  you: "you",
+  team: "you",
+  system: "you",
+  advanced: "advanced",
+  leads: "project-agents",
   schedule: "schedule",
-  system: "system",
   plugins: "plugins",
 };
 
-/** The Settings tab a message sends you to ("Settings, Phone" → "phone"; plain "Settings" → ""), or null when it names none. */
+/** The Settings place a message sends you to ("Settings, Connections" → "connections"; plain "Settings" → ""), or null when it names none. */
 export function settingsPlace(msg: string): string | null {
   const m = /\bSettings\b(?:\s*(?:,|→)\s*(.*))?/.exec(msg);
   if (!m) return null;

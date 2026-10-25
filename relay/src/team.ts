@@ -417,7 +417,7 @@ async function join(req: Request, env: Env, url: URL, now: number): Promise<Resp
   if (already)
     return html(
       "Invite",
-      `<p>You're in ${esc(already.team.name)} already. Leave it in Overhand (Settings → Team) before joining another team.</p>`,
+      `<p>You're in ${esc(already.team.name)} already. Leave it in Overhand (Settings → You → Team) before joining another team.</p>`,
       409,
     );
   if (req.method === "GET")
@@ -447,6 +447,6 @@ async function join(req: Request, env: Env, url: URL, now: number): Promise<Resp
   await tellRoom(env, inv.team, "roster");
   return html(
     "Joined",
-    `<h1>You're in ${esc(inv.name)}.</h1><p>In Overhand on your computer, open Settings → Team: it links this account if it isn't yet, then your team appears on Now.</p>`,
+    `<h1>You're in ${esc(inv.name)}.</h1><p>In Overhand on your computer, open Settings → You → Team: it links this account if it isn't yet, then your team appears on Now.</p>`,
   );
 }

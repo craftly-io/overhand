@@ -15,7 +15,7 @@ the person's projects and serves a dashboard at http://127.0.0.1:4317. State liv
   them; Overhand notices when it's done.
 - Ask before you add a project or change a setting.
 - Don't merge pull requests, and don't push to protected branches.
-- Plugins are the person's to approve: point them at Settings, Plugins, and never edit a plugin's approval in the
+- Plugins are the person's to approve: point them at Settings → Advanced → Plugins, and never edit a plugin's approval in the
   config. How one is written and what its sandbox enforces: https://overhand.dev/docs/plugins.md.
 
 ## Install

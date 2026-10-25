@@ -1,7 +1,7 @@
 # Leads
 
 A lead is a long-running agent session that runs a whole project. Start a ready-made one from the project's own view
-in Crew, or add your own in Settings → Leads. Ready-made leads are suggested from the project's own work, each with the
+in Crew, or add your own in Settings → Advanced → Project agent details. Ready-made leads are suggested from the project's own work, each with the
 count behind it: *Answer review comments* (your open PRs with changes requested), *Keep CI green* (red builds, failing
 checks, failed production deploys), *Fix new errors* (new Sentry errors; it asks you to connect Sentry first), *Keep
 dependencies safe* (open GitHub Dependabot alerts, read with your signed-in `gh`; offered only where alerts are on and
@@ -95,7 +95,7 @@ at every start, act on them, and remove the questions it has handled.
 <your answer>
 ```
 
-With phone notifications (ntfy) and a dashboard address your phone can reach (Settings → Phone), the push carries
+With phone notifications (ntfy) and a dashboard address your phone can reach (Settings → Connections), the push carries
 answer buttons: the two choices of a question that ends with a line `Options: <first> | <second>`, else "Go with your
 recommendation" when the question makes one, plus Open. Each push's buttons share one random token that works once,
 for 24 hours, and only while the question is unchanged; Overhand writes only the reply it offered.

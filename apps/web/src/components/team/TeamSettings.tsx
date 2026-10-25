@@ -1,5 +1,5 @@
 /**
- * Settings → Team: create a team or see yours; members and roles, invites, each project's owner and backup, seats, and
+ * Settings → You → Team: create a team or see yours; members and roles, invites, each project's owner and backup, seats, and
  * whether your results share PR links. The relay checks every role on its side; this only hides what you can't do.
  */
 import { memberName, type TeamRoster } from "@overhand/contract";
@@ -222,7 +222,7 @@ function Ownership({ r, projects }: { r: TeamRoster; projects: string[] }) {
   );
 }
 
-/** The Team tab in Settings. */
+/** Settings → You → Team. */
 export function TeamSettings() {
   const m = useModel();
   const relay = useQuery({ queryKey: ["relay"], queryFn: () => get("/api/relay", RelaySchema) });
@@ -236,7 +236,7 @@ export function TeamSettings() {
   if (relay.data && !relay.data.linked)
     return (
       <p className="text-sm text-muted-foreground">
-        A team works through your Overhand account. Link this computer first: Settings → Phone → Access from anywhere → Set it up.
+        A team works through your Overhand account. Link this computer first: Settings → Connections → Access from anywhere → Set it up.
       </p>
     );
   if (!t) return <Create app={app} />;

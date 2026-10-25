@@ -108,14 +108,14 @@ export function Tonight({ m, win }: { m: Model; win: FirstWin }) {
       <ul className="grid gap-2">
         {done.includes("report") ? null : (
           <TonightCard
-            change={() => ui.openDrawer({ kind: "settings", tab: "schedule" })}
+            change={() => ui.openDrawer({ kind: "settings", tab: "you" })}
             accept={
               at >= 0 ? (
                 <Button size="sm" variant="outline" onClick={() => accept("report")}>
                   {fmt(w.tonightReportKeep, { time })}
                 </Button>
               ) : (
-                <Button size="sm" variant="outline" onClick={() => ui.openDrawer({ kind: "settings", tab: "schedule" })}>
+                <Button size="sm" variant="outline" onClick={() => ui.openDrawer({ kind: "settings", tab: "you" })}>
                   {w.tonightReportOn}
                 </Button>
               )

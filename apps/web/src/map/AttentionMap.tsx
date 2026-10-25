@@ -2,7 +2,7 @@
  * The attention map: you at the centre; the inner ring is what needs you, the middle what's working, the outer what's
  * idle or done; each project a sector. One component for every world (`World` draws the ground, the centre and the
  * characters). It renders on change only (the model's signature), its motion is CSS transforms and opacity, it stops
- * in a hidden tab, and under reduced motion (or Settings › Look & sound › Still) it is a still frame. The ground is a
+ * in a hidden tab, and under reduced motion (or Settings › You › Still) it is a still frame. The ground is a
  * layer of its own, so the little that moves never repaints it.
  */
 

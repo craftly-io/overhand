@@ -21,7 +21,7 @@ interface LinearIssue {
 }
 
 async function linear<T>(t: Linear, query: string, variables: Record<string, unknown> = {}): Promise<T> {
-  if (!t.secret) throw new Error("Linear isn't connected: connect it in Settings → Integrations, or add a token");
+  if (!t.secret) throw new Error("Linear isn't connected: connect it in Settings → Connections, or add a token");
   const r = await http<{ data?: T; errors?: { message: string }[] }>("https://api.linear.app/graphql", {
     method: "POST",
     headers: { Authorization: secret(t.secret), "Content-Type": "application/json" },

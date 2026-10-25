@@ -4,7 +4,7 @@ import { Field, FieldCard, useForm } from "./SettingsFields";
 const str = (x: Json | undefined) => (typeof x === "string" ? x : "");
 
 /**
- * Settings → Integrations → Work reports: the weekly schedule, and which status update channels the weekly report also
+ * Settings → Advanced → Status updates and work reports: the weekly schedule, and which status update channels the weekly report also
  * goes to (each gets only its own projects, through the outward firewall). Any range is on demand from Health.
  */
 export function SettingsReports() {

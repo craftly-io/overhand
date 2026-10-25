@@ -99,7 +99,7 @@ export function HostedPublic({ w, prices, onSignIn }: { w: Words; prices: Hosted
 }
 
 /**
- * No computer answers yet: one click opens Overhand on this computer at Settings → Phone, where Set it up links it; or
+ * No computer answers yet: one click opens Overhand on this computer at Settings → Connections, where Set it up links it; or
  * the install line for a computer without Overhand. The link itself stays a click on that computer, never this page's.
  */
 function HostedLink({ w }: { w: Words }) {
@@ -108,7 +108,7 @@ function HostedLink({ w }: { w: Words }) {
   return (
     <Card title={w.hostedLinkTitle} body={w.hostedLinkBody}>
       <Button asChild>
-        <a href={`http://localhost:${LOCAL_PORT}/?settings=phone`} target="_blank" rel="noopener noreferrer">
+        <a href={`http://localhost:${LOCAL_PORT}/?settings=connections`} target="_blank" rel="noopener noreferrer">
           {w.hostedOpenLocal}
         </a>
       </Button>

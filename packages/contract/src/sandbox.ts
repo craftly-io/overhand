@@ -37,7 +37,7 @@ export const guardOnly = (s: { mode: SandboxStatus["mode"]; required: boolean },
 
 /** The per-project way out, for the docs: said once, here. */
 export const SANDBOX_PROJECT_OFF =
-  "A project with an Xcode project or workspace, a Package.swift or a firebase.json runs without the OS sandbox, set by Overhand itself, since those tools can't run inside it: its runs, and the checks Overhand runs in its files, have the guard only, and Needs you says so, with Keep it in the sandbox to put it back (sandbox: keep on the project in the config). Any other project can leave it too: set its sandbox to off (Settings, Projects, or sandbox: off on the project in the config). With Refuse runs without it on (Settings, Advanced), every project stays inside the sandbox.";
+  "A project with an Xcode project or workspace, a Package.swift or a firebase.json runs without the OS sandbox, set by Overhand itself, since those tools can't run inside it: its runs, and the checks Overhand runs in its files, have the guard only, and Needs you says so, with Keep it in the sandbox to put it back (sandbox: keep on the project in the config). Any other project can leave it too: set its sandbox to off (Settings, Safety, or sandbox: off on the project in the config). With Refuse runs without it on (Settings, Advanced), every project stays inside the sandbox.";
 
 /** The sandbox switch's one sentence in Settings: what it does, said once, here. */
 export const SANDBOX_SWITCH =

@@ -11,7 +11,8 @@ import { Pane } from "../Pane";
 /** Colour by how close a window is to its limit. */
 const tone = (f: number) => (f >= 0.85 ? "var(--bad)" : f >= 0.6 ? "var(--warn)" : "var(--ok)");
 
-function AccountRow({ a, m }: { a: Account; m: Model }) {
+/** One account's line: its name, agent and how it's paid for, ready or cooling down, and its usage as a bar. */
+export function AccountRow({ a, m }: { a: Account; m: Model }) {
   const w = useWords();
   const now = m.s.now;
   const u = a.usage;
@@ -89,7 +90,7 @@ export function Accounts({ m }: { m: Model }) {
         ))}
       </ul>
       <div className="mt-1 flex flex-wrap gap-x-4">
-        <Button variant="link" size="xs" className="px-0" onClick={() => ui.openDrawer({ kind: "settings", tab: "accounts" })}>
+        <Button variant="link" size="xs" className="px-0" onClick={() => ui.openDrawer({ kind: "settings", tab: "agents" })}>
           {w.manageAccounts}
         </Button>
       </div>

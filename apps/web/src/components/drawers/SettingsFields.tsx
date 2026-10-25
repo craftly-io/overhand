@@ -188,6 +188,20 @@ export function FieldCard({
   );
 }
 
+/**
+ * Inside a card, the fields most visits never need, folded under "More" (closed until opened, or opened for a deep link
+ * with `open`). Its fields lay out like the card's own.
+ */
+export function More({ open = false, children }: { open?: boolean; children: ReactNode }) {
+  const w = useWords();
+  return (
+    <details className="group sm:col-span-2" open={open || undefined}>
+      <summary className="flex min-h-11 cursor-pointer items-center text-xs text-muted-foreground select-none">{w.setMore}</summary>
+      <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">{children}</div>
+    </details>
+  );
+}
+
 /** What ops checks on this machine; a missing token can be stored straight into the secret store from here. */
 export function CheckRows({ checks, store }: { checks: Check[]; store: (service: string, value: string) => void }) {
   const [values, setValues] = useState<Record<string, string>>({});

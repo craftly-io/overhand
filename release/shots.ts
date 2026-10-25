@@ -63,21 +63,7 @@ export const THEMES = [
   { id: "catnap-dark", theme: "catnap", appearance: "dark" },
 ] as const;
 
-const SETTINGS_TABS = [
-  "projects",
-  "accounts",
-  "leads",
-  "schedule",
-  "rules",
-  "integrations",
-  "plugins",
-  "phone",
-  "team",
-  "look",
-  "health",
-  "system",
-  "json",
-];
+const SETTINGS_TABS = ["projects", "agents", "connections", "safety", "you", "advanced"];
 const LANDING = ["landing-top", "landing-mid", "landing-install", "landing-footer"];
 /** The site's other pages, by path under site/public: each a screen of its own, shot in the site's sweep. */
 export const SITE_PAGES = [

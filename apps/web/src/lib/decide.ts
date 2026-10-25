@@ -219,7 +219,7 @@ export function insightFor(surface: Surface, s: DashboardState, w: Words): Insig
       if (s.budgetUsd <= 0)
         return {
           text: fmt(w.insBudgetNone, { spent: money(s.budgetSpent) }),
-          go: { label: w.insBudgetGo, to: { kind: "settings", tab: "schedule" } },
+          go: { label: w.insBudgetGo, to: { kind: "settings", tab: "safety" } },
         };
       const billedBy = new Set(s.accounts.filter((a) => isBilled(a.billing) || !a.billingSure).map((a) => a.name));
       const paid = s.runs.filter((r) => r.cost > 0 && billedBy.has(r.account ?? ""));

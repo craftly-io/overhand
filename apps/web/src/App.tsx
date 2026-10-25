@@ -71,7 +71,7 @@ function StateBanner() {
  * it; then Needs you and In progress, side by side from 1024. The first win leads Now on a phone while it's under way
  * (firstwin.ts SHOW_MS takes it away once it's days old), else it follows Needs you, which stays in view above the
  * fold. The map shows above the two lists
- * only when it's switched on (Settings › Look & sound); with a team, Me / Team swaps the lists for the Team view.
+ * only when it's switched on (Settings › You); with a team, Me / Team swaps the lists for the Team view.
  */
 function Home({ m }: { m: Model }) {
   const phone = usePhone();

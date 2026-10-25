@@ -1124,9 +1124,9 @@ export const CleanupSwitchesSchema = z.object({
 });
 
 /**
- * `POST /api/settings/quick`: one day-to-day switch from Quick settings, saved into the config without opening the
- * whole Settings form: the daily budget (0 = off), weekly pacing, the menu bar item, the look (from Settings → Look &
- * sound, so the menu bar item draws in it too), one project's autonomy, or whether it runs hosted while the computer is off,
+ * `POST /api/settings/quick`: one day-to-day switch (a Needs you card's fix, Tonight's, the site's rules piece), saved
+ * into the config without opening the whole Settings form: the daily budget (0 = off), weekly pacing, the menu bar
+ * item, the look (from Settings → You, so the menu bar item draws in it too), one project's autonomy, or whether it runs hosted while the computer is off,
  * or Needs you's Keep it in the sandbox for one project: only "keep", which can only hold a run tighter, so a paired
  * device may send it though the sandbox is otherwise LOCAL_ONLY.
  */

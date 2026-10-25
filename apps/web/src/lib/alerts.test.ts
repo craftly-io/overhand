@@ -414,7 +414,7 @@ test("every problem's card carries its fix: restart when offline, start a crashe
   const tracker = computeAlerts({ ...base, tickets: { Acme: "401 Unauthorized" } }, parsePlan([]), plainWords, NOW).find(
     (a) => a.title === "Acme tracker isn't responding",
   );
-  expect(tracker?.target).toEqual({ kind: "settings", tab: "integrations", project: "Acme" });
+  expect(tracker?.target).toEqual({ kind: "settings", tab: "connections", project: "Acme" });
   expect(tracker?.go).toBe("Reconnect");
   expect(tracker?.sub).toBe(plainWords.alTrackerAuth);
   // no card can be left with nothing to click: AlertTarget has no "none" (tsc fails on one); each kind has its button
@@ -441,8 +441,8 @@ test("a sandbox that can't run, a failed plan and blocked git each come with the
   const base = state({});
   const by = (s: typeof base) => computeAlerts(s, parsePlan([]), plainWords, NOW);
   const sb = by({ ...base, sandboxRefuse: "sandbox-exec is missing" }).find((a) => a.title === plainWords.alSandboxRefuse);
-  // the sandbox switch is in Agent accounts
-  expect([sb?.sub, sb?.target]).toEqual(["sandbox-exec is missing", { kind: "settings", tab: "accounts" }]);
+  // the sandbox switch is in Safety
+  expect([sb?.sub, sb?.target]).toEqual(["sandbox-exec is missing", { kind: "settings", tab: "safety" }]);
   // a project Overhand put on the guard only says so, with Keep it in the sandbox as its fix
   const auto = by({ ...base, sandboxAuto: { "Mac app": "Xcode" } }).find((a) => a.target.kind === "sandbox");
   expect(auto).toMatchObject({

@@ -18,7 +18,7 @@ import { z } from "zod";
 import { buildDirs, sourceCommands } from "./cleanup-sources";
 
 /**
- * Linear and Jira are read through Overhand's own MCP sign-in when it's connected (Settings → Integrations); `secret`
+ * Linear and Jira are read through Overhand's own MCP sign-in when it's connected (Settings → Connections); `secret`
  * names a secret store item holding an API token, the fallback when it isn't. Empty: no token.
  */
 const Linear = z.object({ kind: z.literal("linear"), secret: z.string().default("") });
@@ -99,7 +99,7 @@ const RuntimeSchema = z.object({
    * login, so two accounts of one CLI keep separate logins. Only CLIs whose login can move (Codex, by CODEX_HOME).
    */
   ownLogin: z.boolean().optional(),
-  // Per-agent tuning (Settings → Agent accounts). Each is passed only to CLIs that take it (runtimes/tune.ts); every
+  // Per-agent tuning (Settings → Agents). Each is passed only to CLIs that take it (runtimes/tune.ts); every
   // field is optional so a config that never set one stays as it was.
   /** Effort or reasoning level: Claude Code --effort, Codex model_reasoning_effort, Cursor's model [effort=…], Aider --reasoning-effort, OpenCode --variant. */
   effort: z.string().optional(),

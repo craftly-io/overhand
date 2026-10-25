@@ -1,30 +1,22 @@
 import { AUTONOMY_LEVELS, type QuickSetting } from "@overhand/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Pause } from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useActions } from "@/app/actions";
 import { type Model, STATE_KEY } from "@/app/data";
-import { setFocus, useFocus } from "@/app/focus";
-import { useSound } from "@/app/sound";
-import { store } from "@/app/store";
 import { useTheme } from "@/app/theme";
 import { useUi } from "@/app/ui";
-import { FeatureTip } from "@/components/FeatureTip";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { post } from "@/lib/api";
 import { fmt, hm, uptime } from "@/lib/format";
 import { LEVEL_WORDS, MEANS_WORDS } from "@/lib/leads";
-import { budgetApplies } from "@/lib/spend";
 
 const Ok = z.object({});
-/** The budget a switched-off cap comes back at: the last one set in this browser, else a first day's. */
-const LAST_BUDGET = "overhand-last-budget";
 /** How long "I need my laptop" lasts when switched on. */
 const QUIET_HOURS = 3;
 
@@ -76,7 +68,7 @@ export function useQuickSave(): (q: QuickSetting) => Promise<void> {
 
 /**
  * How far agents go on each project, one row each: its name, the level (saved as soon as it's picked) and what that
- * level means in one line, the same words Settings uses. In quick settings, and live on the site as the rules piece.
+ * level means in one line, the same words Settings uses. Live on the site as the rules piece.
  */
 export function ProjectRules({ m }: { m: Model }) {
   const { words: w } = useTheme();
@@ -132,30 +124,14 @@ export function ProjectRules({ m }: { m: Model }) {
 }
 
 /**
- * Pause, one tap from the header: pause new work and quiet mode first, then the day-to-day switches, each one live (no
- * Save) and each one the same setting Settings shows: Focus, the daily budget, pacing, the menu bar item, sound, and how
- * far agents go on each project. Everything else stays in Settings, one link away. Paused, the button says so in amber.
+ * Pause, one tap from the header: pausing new work and quiet mode, each live (no Save). Every other setting has its one
+ * home in Settings, one link away. Paused, the button says so in amber.
  */
 export function QuickSettings({ m }: { m: Model }) {
   const { words: w } = useTheme();
   const { run } = useActions();
   const ui = useUi();
-  const sound = useSound();
-  const focus = useFocus();
   const [open, setOpen] = useState(false);
-  const budgetId = useId();
-
-  const budget = m.s.budgetUsd;
-  const [amount, setAmount] = useState("");
-
-  const save = useQuickSave();
-  const setBudget = (usd: number) => {
-    if (usd > 0) store.set(LAST_BUDGET, String(usd));
-    void save({ budgetUsd: usd });
-  };
-  // pacing reads the weekly window Claude Code reports; no Claude account, nothing to pace
-  const paceable = m.s.accounts.some((a) => a.runtime === "claude-code");
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <Tooltip>
@@ -183,56 +159,6 @@ export function QuickSettings({ m }: { m: Model }) {
           <Switch aria-label={w.pause} checked={m.s.paused} onCheckedChange={(on) => void run({ name: on ? "pause" : "resume" })} />
         </Row>
         <QuietRow m={m} />
-        <Row label={w.focus} hint={w.focusHint}>
-          <Switch aria-label={w.focus} checked={focus} onCheckedChange={setFocus} />
-        </Row>
-        <FeatureTip at="quick-focus" />
-        {/* the budget caps billed money only: with every account on a plan or this computer, it says it doesn't apply */}
-        <Row
-          label={w.quickBudget}
-          hint={[budgetApplies(m.s) ? w.quickBudgetHint : w.quickBudgetNA, w.budgetUnknown, w.plansLimit].join(" ")}
-        >
-          <Switch
-            aria-label={w.quickBudget}
-            checked={budget > 0}
-            onCheckedChange={(on) => setBudget(on ? Number(store.get(LAST_BUDGET)) || 10 : 0)}
-          />
-        </Row>
-        {budget > 0 ? (
-          <label htmlFor={budgetId} className="-mt-1 flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">$</span>
-            <Input
-              key={budget}
-              id={budgetId}
-              type="number"
-              min={1}
-              step={1}
-              aria-label={w.quickBudgetAmount}
-              defaultValue={budget}
-              className="h-8 w-24"
-              onChange={(e) => setAmount(e.target.value)}
-              onBlur={() => {
-                const usd = Number(amount);
-                if (amount && usd > 0 && usd !== budget) setBudget(usd);
-              }}
-            />
-          </label>
-        ) : null}
-        {paceable ? (
-          <Row label={w.quickPace} hint={w.quickPaceHint}>
-            <Switch aria-label={w.quickPace} checked={m.s.paceWeekly} onCheckedChange={(on) => void save({ paceWeekly: on })} />
-          </Row>
-        ) : null}
-        {/* only where this computer has one: a Mac with the helper installed */}
-        {m.s.menubar !== null ? (
-          <Row label={w.menubar} hint={w.menubarHint}>
-            <Switch aria-label={w.menubar} checked={m.s.menubar} onCheckedChange={(on) => void save({ menubar: on })} />
-          </Row>
-        ) : null}
-        <Row label={w.soundSetting} hint={w.soundChimes}>
-          <Switch aria-label={sound.on ? w.soundOff : w.soundOn} checked={sound.on} onCheckedChange={sound.toggle} />
-        </Row>
-        <ProjectRules m={m} />
         <Button
           variant="ghost"
           size="sm"

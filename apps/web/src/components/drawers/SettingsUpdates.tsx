@@ -11,7 +11,7 @@ const str = (x: Json | undefined) => (typeof x === "string" ? x : "");
 const objects = (x: Json | undefined): JsonObject[] => (Array.isArray(x) ? x.filter(isObject) : []);
 
 /**
- * Settings → Integrations → Status updates: channels that each get a summary of their projects. The webhook URL goes
+ * Settings → Advanced → Status updates and work reports: channels that each get a summary of their projects. The webhook URL goes
  * straight to the secret store from the check row and is never shown again.
  */
 export function StatusUpdates({ checks, store }: { checks: Check[]; store: (service: string, value: string) => void }) {

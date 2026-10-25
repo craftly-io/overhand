@@ -32,7 +32,7 @@ are public.
   page on the computer gets 401 like an unpaired device. An agent isn't stopped unless the OS sandbox is on (below): it
   runs as you, so it can read the key file (the guard blocks naming the control folder, not every way of reading it).
   Under the sandbox a run gets its own key instead, which opens only `overhand ask`, `ack` and `answer`, as that run.
-  Any other device (a phone through `tailscale serve`) is paired once with a one-time code from Settings → Phone and
+  Any other device (a phone through `tailscale serve`) is paired once with a one-time code from Settings → Connections and
   then carries a random session cookie (HttpOnly, SameSite=Strict, Secure over https); only its hash is stored, and Settings lists and removes devices. Without one, every page and API answers
   401. Answer buttons in a phone notification carry their own token, which allows only the replies it offered, once,
   within 24 hours. A paired device, or the hosted page, can't change what the daemon runs as a command (a project's
@@ -47,7 +47,7 @@ are public.
   closed when it can't start. Its limit: it judges the command an agent asks for, not what a script that command runs
   does next, so give agent accounts credentials without admin or deploy rights all the same. Confirmed blocking in a real run: Claude Code, Codex and OpenCode. Aider has no pre-tool hook: it runs no shell commands (confirmed), and the OS sandbox, when on, holds its writes to the run's folder as it does every agent's. Set up to each agent's documented pre-tool hook, not yet confirmed in a real run: Cursor Agent and Gemini CLI. See the
   guard page in the docs (overhand.dev/docs/guard.html).
-- The OS sandbox (Settings, Agent accounts; on by default where this computer can run it, one switch to turn it off): With the OS sandbox on, each agent run
+- The OS sandbox (Settings, Safety; on by default where this computer can run it, one switch to turn it off): With the OS sandbox on, each agent run
   Overhand starts, and each check Overhand itself runs in a project's own files (its package manager, lint script,
   virtualenv or screenshot preview), can write only its own folder, the git data its commits need, its own temp folder (gone when it ends),
   its project's package caches and its agent's own state in a folder of Overhand's: never Overhand's files, another
@@ -73,10 +73,10 @@ are public.
   the guard only. A project with an Xcode project or workspace, a Package.swift or a firebase.json runs without the
   OS sandbox, set by Overhand itself, since those tools can't run inside it: its runs, and the checks Overhand runs in
   its files, have the guard only, and Needs you says so, with Keep it in the sandbox to put it back (sandbox: keep on
-  the project in the config). Any other project can leave it too: set its sandbox to off (Settings, Projects, or
+  the project in the config). Any other project can leave it too: set its sandbox to off (Settings, Safety, or
   sandbox: off on the project in the config). With Refuse runs without it on (Settings, Advanced), every project stays
   inside the sandbox.
-- Plugins (Settings, Plugins; none until you install one): A plugin runs only inside a sandbox of its own, never
+- Plugins (Settings → Advanced → Plugins; none until you install one): A plugin runs only inside a sandbox of its own, never
   without it: of the files on your computer it reads only the system's own programs and libraries, its own folder and a
   scratch folder that's gone when it ends, and writes only that scratch folder. It has no network of its own: its only
   way out is Overhand's bridge, which fetches for it only from the hosts its manifest declares, on their usual ports,
@@ -97,7 +97,7 @@ are public.
 
 ## Access from anywhere (Pro and Team): the relay's trust model
 
-The relay (`relay/`, a Cloudflare Worker) is off unless you turn it on in Settings → Phone. It signs you in, links your
+The relay (`relay/`, a Cloudflare Worker) is off unless you turn it on in Settings → Connections. It signs you in, links your
 computer to your account, brokers WebRTC connections and sells the plan. It never carries or sees the dashboard: that
 flows browser ↔ daemon over WebRTC (DTLS), through Cloudflare TURN only when NAT requires it, still encrypted end to end.
 
@@ -129,7 +129,7 @@ flows browser ↔ daemon over WebRTC (DTLS), through Cloudflare TURN only when N
   dashboard's own request handler: a channel request is always remote (never "local"), needs a paired device's session
   exactly like a phone on your tailnet, and passes the same Origin check. Computer-only actions (adding devices, linking,
   setup, and the config fields above that only the computer changes) refuse it. Weak point, stated plainly: first use without the pairing link trusts the key the relay reports;
-  compare the fingerprint in Settings → Phone if that matters to you.
+  compare the fingerprint in Settings → Connections if that matters to you.
 - **On the hosted page** the paired device's session token lives in localStorage on the hosted origin (a data channel
   carries no cookies), so an XSS on that origin could read it. The page's Content-Security-Policy runs only the origin's
   own script files (no inline script, no eval, nothing third-party), allows no plugins or `<base>`, and forbids
@@ -149,7 +149,7 @@ flows browser ↔ daemon over WebRTC (DTLS), through Cloudflare TURN only when N
 - **Secrets** (signing key, WorkOS, TURN and Paddle API keys, Paddle webhook secret) are Worker secrets, never in the
   repository. The Paddle client token is public by design. Only `PADDLE_ENV=production` reaches Paddle's live API.
 - **Revocation:** "Sign out everywhere" on the billing page voids every session issued before it, checked on each request.
-  It also closes the workspace's open browser sockets. "Unlink this computer" in its Settings → Phone revokes its key at the
+  It also closes the workspace's open browser sockets. "Unlink this computer" in its Settings → Connections revokes its key at the
   relay, checked on every daemon request, then deletes the key. A WebRTC connection already open survives both; the
   daemon's device pairing still guards it, so remove the device too if one was lost.
 - **TURN budget:** TURN credentials are handed out at most `TURN_MONTHLY_GRANTS` times per workspace per month (300 by
@@ -159,7 +159,7 @@ flows browser ↔ daemon over WebRTC (DTLS), through Cloudflare TURN only when N
   - **The feed is an allowlist.** Every message is a strict schema (an unknown field fails it whole), every text is
     short, and text that looks like code, a diff or a secret is refused. Your daemon checks this before sending, and the
     team's room checks it again. The room stamps the sender from the authenticated socket and drops anything else.
-  - **PR links** in results are off unless you turn them on in Settings → Team.
+  - **PR links** in results are off unless you turn them on in Settings → You → Team.
   - **Who may do what.** Every team route reads membership and role from D1 on each request:
     - members read the team;
     - admins invite, remove members and set project owners;

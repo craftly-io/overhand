@@ -255,7 +255,7 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
         target:
           outage === "network" || outage === "rate-limit"
             ? { kind: "tracker", client, outage }
-            : { kind: "settings", tab: "integrations", project: client },
+            : { kind: "settings", tab: "connections", project: client },
       });
       continue;
     }
@@ -339,7 +339,7 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       target: ps.length > 1 ? { kind: "link", url: repoPulls(one.url, "author:@me") } : prTarget(one.url),
     });
   }
-  // this checkout being behind lives in Settings → Look (a fact, not a call); an installed copy's release is the one
+  // this checkout being behind lives in Settings → You (a fact, not a call); an installed copy's release is the one
   // way its owner hears of an update: a calm note, no voice line; the update itself runs from a terminal
   if (isNewerVersion(s.update.latest, s.update.current))
     a.push({
@@ -561,7 +561,7 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       title: fmt(w.alBillingAsk, { account: acc.name }),
       sub: fmt(w.alBillingAskSub, { guess: billingLabel(acc, w) }),
       say: fmt(w.alBillingAskSay, { account: acc.name }),
-      target: { kind: "settings", tab: "accounts" },
+      target: { kind: "settings", tab: "agents" },
     });
   // a fresh install's first day: one calm line on how careful it starts, while a project is still on propose
   if (s.dayOne && s.clients.some((c) => c.autonomy === "propose"))
@@ -592,7 +592,7 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       sub: s.sandboxRefuse,
       say: w.alSandboxRefuseSay,
       go: w.alSandboxFix,
-      target: { kind: "settings", tab: "accounts" },
+      target: { kind: "settings", tab: "safety" },
     });
   for (const [project, tool] of Object.entries(s.sandboxAuto))
     a.push({

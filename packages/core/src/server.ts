@@ -709,7 +709,7 @@ function unpaired(req: Request, url: URL): Response {
   return json({ error: "pair this device" }, 401);
 }
 
-/** What Settings → Phone shows: Tailscale, the addresses the dashboard answers on, and whether ntfy is set up. */
+/** What Settings → Advanced shows: Tailscale, the addresses the dashboard answers on, and whether ntfy is set up. */
 async function phoneFacts(local: boolean) {
   return {
     local,
@@ -1051,7 +1051,7 @@ async function route(req: Request): Promise<Response> {
       return json(await phoneFacts(local));
     }
     case "/api/phone/test": {
-      if (!CFG.ntfySecret) return json({ error: "Name your ntfy topic's secret first (Settings, Integrations)." }, 400);
+      if (!CFG.ntfySecret) return json({ error: "Name your ntfy topic's secret first (Settings → Advanced)." }, 400);
       const ok = await push("Overhand", "Test notification: this is where Overhand's alerts arrive.");
       return ok ? json({ ok: true }) : json({ error: "ntfy didn't take it; check the topic URL in the secret store." }, 502);
     }
@@ -1138,7 +1138,7 @@ async function route(req: Request): Promise<Response> {
     case "/api/plugin/pause":
     case "/api/plugin/remove":
     case "/api/plugin/run": {
-      // Settings, Plugins: install from a pin, approve, pause, remove, run now (plugins.ts pluginAction)
+      // Settings → Advanced → Plugins: install from a pin, approve, pause, remove, run now (plugins.ts pluginAction)
       try {
         const r = await pluginAction(url.pathname.slice("/api/plugin/".length), body);
         void pushState().catch(() => {});
@@ -1482,7 +1482,7 @@ async function route(req: Request): Promise<Response> {
     case "/api/lead/start":
     case "/api/lead/stop": {
       const g = CFG.godmode.find((x) => x.key === String(body.key ?? "").toLowerCase());
-      if (!g?.supervised) return json({ error: "that lead isn't switched on: turn it on in Settings, Leads" }, 400);
+      if (!g?.supervised) return json({ error: "that lead isn't switched on: turn it on in Settings, Projects" }, 400);
       const leads = loadLeads();
       const st = leadOf(leads, g.key);
       if (url.pathname.endsWith("/start")) {
