@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CFG, MIN, OPS, today } from "../src/env";
 import { blankLead, type Godmode, leadAccount, limitBack, recordLeadExit } from "../src/leads";
-import { backAt, bench, benched, benchedUntil, outOfUsage, resetAt } from "../src/limits";
+import { backAt, bench, benched, benchedUntil, markSignedOut, outOfUsage, resetAt, signedOut, signedOutAccounts } from "../src/limits";
 
 const lead = (key: string, account = "acct"): Godmode => ({
   key,
@@ -61,6 +61,34 @@ test("each CLI's limit wording is a limit; other failures aren't", () => {
     expect(outOfUsage(said, null, now)).toBeGreaterThan(now);
   expect(outOfUsage("TypeError: cannot read properties of undefined", null, now)).toBe(0);
   expect(outOfUsage("fixed issue #4290 in 12 files", null, now)).toBe(0);
+  // a project's own rate limiting, as an agent's last words about its failing tests: not the CLI's limit
+  for (const said of [
+    "Stopped: the rate limit test still fails (expected 429)",
+    "rateLimit middleware should return 429 Too Many Requests",
+    "The quota check in billing.ts is wrong; the API is overloaded with calls",
+  ])
+    expect(outOfUsage(said, null, now)).toBe(0);
+  // Claude Code's rate_limit_event saying rejected is a limit whatever the text
+  const rejected = { fiveHour: -1, fiveHourResetsAt: 0, sevenDay: -1, sevenDayResetsAt: 0, status: "rejected", at: now };
+  expect(outOfUsage("", rejected, now)).toBe(cooldown);
+});
+
+test("each CLI's expired sign-in is a sign-in to renew, kept across restarts until it's signed in again", () => {
+  for (const said of [
+    'Failed to authenticate. API Error: 401 {"type":"error","error":{"type":"authentication_error"}} · Please run /login',
+    "OAuth token has expired. Please obtain a new token or refresh your existing token.",
+    "Your access token could not be refreshed. Please log out and sign in again.",
+    "Authentication required. Please run 'cursor-agent login' first",
+    "API key not valid. Please pass a valid API key.",
+    "invalid x-api-key",
+  ])
+    expect(signedOut(said)).toBe(true);
+  expect(signedOut("Stopped: the login test still fails (expected 401)")).toBe(false);
+  expect(signedOut("You've hit your session limit · resets 3am")).toBe(false);
+  markSignedOut("acct", true);
+  expect(signedOutAccounts().acct).toBeGreaterThan(0);
+  markSignedOut("acct", false);
+  expect(signedOutAccounts().acct).toBeUndefined();
 });
 
 test("the reset a message gives is when the account is back, in its time zone", () => {
@@ -100,6 +128,19 @@ test("a usage-limit exit benches the account for every lead, says when it's back
   expect(readLog()).toContain(`⏸ Lead limit-one hit the usage limit on acme-max (back at ${backAt(until)})`);
   bench("acme-max", 0);
   expect(leadAccount(two)).toBe("acme-max");
+});
+
+test("a lead whose sign-in expired waits for it without a crash; a 429 in its own work is an ordinary crash", () => {
+  const g = lead("signed-out", "acme-auth");
+  const st = exit(g, "Failed to authenticate. API Error: 401 · Please run /login", blankLead(), "acme-auth");
+  expect(st.crashes).toHaveLength(0);
+  expect(benchedUntil("acme-auth")).toBe(0);
+  expect(leadAccount(g)).toBe(""); // passed over until it's signed in again
+  markSignedOut("acme-auth", false);
+  expect(leadAccount(g)).toBe("acme-auth");
+  const tests = exit(g, "Stopped: the rate limit test still fails (expected 429)", blankLead(), "acme-auth");
+  expect(tests.crashes).toHaveLength(1);
+  expect(benchedUntil("acme-auth")).toBe(0);
 });
 
 test("a Claude limit's reset time is the bench", () => {

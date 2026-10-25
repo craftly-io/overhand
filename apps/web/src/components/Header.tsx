@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { Command } from "@/lib/commands";
 import { explainSpend } from "@/lib/explain";
 import { fmt, hm, uptime } from "@/lib/format";
+import { resumesAt } from "@/lib/pipeline";
 import { headline } from "@/lib/spend";
 import { stopSpeaking, useSpeaking } from "@/lib/voice";
 import { Explain } from "./Explain";
@@ -43,6 +44,9 @@ function StatusLine({ m, unreachable }: { m: Model | undefined; unreachable: boo
   } else if (m.s.running.length) {
     text = w.stateAgentWorking;
     live = true;
+  } else if (resumesAt(m.s)) {
+    color = "var(--warn)";
+    text = fmt(w.stateWaitLimit, { t: hm(resumesAt(m.s)) });
   } else {
     const n = m.s.godmode.filter((g) => g.running).length;
     if (n) text = n > 1 ? w.stateLeadsWorking : w.stateLeadWorking;
