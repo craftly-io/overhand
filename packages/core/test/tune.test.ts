@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { copyFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { QuickSettingSchema } from "@overhand/contract";
 import { blankConfig, deniedFlags, loadConfig, saveConfig, withQuick } from "../src/config";
 import { RUNTIMES } from "../src/runtimes";
 import type { RunInput } from "../src/runtimes/runtime";
@@ -119,7 +120,7 @@ test("pacing holds an account ahead of an even weekly pace until the week catche
   expect(exhaustedUntil({ ...u, sevenDay: -1 }, now, true)).toBe(0); // no weekly window reported
 });
 
-test("Quick settings change one thing each: the budget, pacing, a project's autonomy", () => {
+test("Quick settings change one thing each: the budget, pacing, the look, a project's autonomy", () => {
   const dir = mkdtempSync(join(tmpdir(), "overhand-quick-"));
   copyFileSync(join(import.meta.dir, "..", "..", "..", "overhand.config.example.json"), join(dir, "overhand.config.json"));
   const c = loadConfig(dir);
@@ -127,6 +128,9 @@ test("Quick settings change one thing each: the budget, pacing, a project's auto
   expect(withQuick(c, { budgetUsd: 25 }).limits.dailyBudgetUsd).toBe(25);
   expect(withQuick(c, { budgetUsd: 0 }).limits.dailyBudgetUsd).toBe(0);
   expect(withQuick(c, { paceWeekly: true }).limits.paceWeekly).toBe(true);
+  expect(c.look).toBe("overhand");
+  expect(saveConfig(dir, withQuick(c, { look: "koi" })).look).toBe("koi");
+  expect(QuickSettingSchema.safeParse({ look: "../x" }).success).toBe(false);
   const watched = withQuick(c, { project: name, autonomy: "watch" });
   expect(watched.clients[0]?.autonomy).toBe("watch");
   expect(watched.clients.slice(1)).toEqual(c.clients.slice(1));

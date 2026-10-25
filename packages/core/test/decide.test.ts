@@ -318,6 +318,16 @@ test("a lead's question offers its own choices and default, with the deadline as
   expect(b?.what).toContain("Remove the old CSV route?");
   expect(b?.ifNothing).toEqual({ text: "Bluekite lead goes with: I keep both.", at: NOW + 3_600_000 });
   expect(b?.recommend.option).toBe("answer-default");
+  // the conversation above the question (a message and its reply) is never taken for it
+  const before =
+    "## Answer from Sam (message, 2026-10-23 08:00)\n\nWhy two PRs?\n\n## Reply (2026-10-23 08:10)\n\nWhy? They fell behind.\nOptions: A | B\n\n";
+  const talked = {
+    ...s,
+    godmode: s.godmode.map((g) => (g.key === "kite" && g.inbox ? { ...g, inbox: { ...g.inbox, text: `${before}${g.inbox.text}` } } : g)),
+  };
+  const t = factsBrief(talked, "lead:kite", {}, NOW);
+  expect(t?.what).toBe(b?.what);
+  expect(t?.options).toEqual(b?.options);
 });
 
 test("PRs: a draft can be marked ready (never merged); a cut corner sends you to review", () => {

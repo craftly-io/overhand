@@ -45,6 +45,17 @@
       </ul>
     </section>
 
+    <section class="block hood" id="talk" aria-labelledby="h-talk">
+      <h2 id="h-talk">Talk to a lead.</h2>
+      <ul class="facts">
+        <li><b>Any time</b> <em>{{w.leadTalk}}</em> in Crew opens a lead's drawer: one conversation with it, and a box that's always there. Ask why something is the way it is, or tell it what to do from now on. With a question open, the same box answers it. It works the same from your phone, through Access from anywhere.</li>
+        <li><b>When it reads it</b> The line under the box says which: at its next step (a Claude Code run takes it mid-run), when its run ends (any other agent), or {{name}} starts it to read it.</li>
+        <li><b>Its reply</b> The run's last words come back as its reply, with a notification that carries none of its words. The newest five replies are kept.</li>
+        <li><b>Its limits stay</b> A message is words in the lead's own file, nothing more: the lead keeps its project's <a href="modes.html">mode</a>, the guard and the sandbox, and its reply goes nowhere but the conversation. Only you send messages; an agent run can't, not even the lead's own.</li>
+        <li><b>Agents on tickets</b> To tell a running agent something, send its session a request under <em>{{w.paneRequests}}</em>; it's handed over at its next step and its answer shows there.</li>
+      </ul>
+    </section>
+
     <section class="block hood" id="own" aria-labelledby="h-own">
       <h2 id="h-own">Your own lead.</h2>
       <ul class="facts">

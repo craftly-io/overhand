@@ -6,6 +6,7 @@ import { useMapMode } from "@/app/mapMode";
 import { useSound } from "@/app/sound";
 import { useTheme } from "@/app/theme";
 import { setTipsOn, useTipsOn } from "@/app/tips";
+import { FeatureTip } from "@/components/FeatureTip";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { fmt } from "@/lib/format";
@@ -39,7 +40,7 @@ function Choices<T extends string>({
 
 /** How the dashboard looks and sounds: one world picker, appearance, the map's motion, sounds. Kept in this browser. */
 export function LookTab() {
-  const { theme, setTheme, appearance, setAppearance } = useTheme();
+  const { theme, setTheme, appearance, setAppearance, light } = useTheme();
   const sound = useSound();
   const [motion, setMotion] = useMapMode();
   const tips = useTipsOn();
@@ -47,8 +48,8 @@ export function LookTab() {
     <>
       <p className="text-sm text-muted-foreground">Kept in this browser; other devices pick their own.</p>
       <FieldCard title={w.theme}>
-        {/* a picker only once there's more than one world on offer (packages/themes LAUNCH) */}
-        <div hidden={worlds.length < 2} className="grid gap-2 sm:col-span-2 sm:grid-cols-2 sm:[&>:last-child:nth-child(odd)]:col-span-2">
+        <FeatureTip at="settings-look" className="sm:col-span-2" />
+        <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2 sm:[&>:last-child:nth-child(odd)]:col-span-2">
           {worlds.map((t) => (
             <button
               key={t.id}
@@ -60,9 +61,9 @@ export function LookTab() {
               <span
                 aria-hidden="true"
                 className="grid size-10 place-items-center rounded-md border border-border"
-                style={{ background: t.tokens.background }}
+                style={{ background: (light ? t.light : t.tokens).background }}
               >
-                <span className="size-2.5" style={{ background: t.tokens["you-fill"] }} />
+                <span className="size-2.5" style={{ background: (light ? t.light : t.tokens)["you-fill"] }} />
               </span>
               <span className="min-w-0">
                 <b className="block text-sm font-medium">{t.name}</b>
@@ -71,18 +72,16 @@ export function LookTab() {
             </button>
           ))}
         </div>
-        {theme.light ? (
-          <Choices
-            label={w.appearance}
-            value={appearance}
-            options={[
-              ["system", w.appearanceSystem],
-              ["light", w.appearanceLight],
-              ["dark", w.appearanceDark],
-            ]}
-            onPick={setAppearance}
-          />
-        ) : null}
+        <Choices
+          label={w.appearance}
+          value={appearance}
+          options={[
+            ["system", w.appearanceSystem],
+            ["light", w.appearanceLight],
+            ["dark", w.appearanceDark],
+          ]}
+          onPick={setAppearance}
+        />
         <Choices
           label={w.sceneSetting}
           value={motion}

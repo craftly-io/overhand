@@ -88,9 +88,7 @@ export function Palette({ m }: { m: Model | undefined }) {
       act: close(() => goPlace(p)),
     };
   };
-  // themes are offered only once there's more than one world (packages/themes LAUNCH)
-  const choosing = themes.length > 1;
-  const theming = choosing && text.trim().toLowerCase().startsWith("theme");
+  const theming = text.trim().toLowerCase().startsWith("theme");
   const groups: [Place, Line[]][] = [
     [
       "now",
@@ -140,23 +138,21 @@ export function Palette({ m }: { m: Model | undefined }) {
       "settings",
       [
         place("settings"),
-        theming || !choosing ? null : { kw: "theme", desc: `${w.theme}…`, act: () => setText("theme ") },
+        theming ? null : { kw: "theme", desc: `${w.theme}…`, act: () => setText("theme ") },
         ...(theming
           ? themes
               .filter((t) => t.id !== theme.id)
               .map((t) => cmd(`theme ${t.id}`, fmt(w.cmdTheme, { name: t.name }), { name: "theme", id: t.id }))
           : []),
-        ...(theme.light
-          ? (
-              [
-                ["system", w.appearanceSystem],
-                ["light", w.appearanceLight],
-                ["dark", w.appearanceDark],
-              ] as const
-            )
-              .filter(([a]) => a !== appearance)
-              .map(([a, name]) => ({ kw: `appearance ${a}`, desc: fmt(w.cmdAppearance, { name }), act: close(() => setAppearance(a)) }))
-          : []),
+        ...(
+          [
+            ["system", w.appearanceSystem],
+            ["light", w.appearanceLight],
+            ["dark", w.appearanceDark],
+          ] as const
+        )
+          .filter(([a]) => a !== appearance)
+          .map(([a, name]) => ({ kw: `appearance ${a}`, desc: fmt(w.cmdAppearance, { name }), act: close(() => setAppearance(a)) })),
         { kw: "sound", desc: sound.on ? w.soundOff : w.soundOn, act: close(sound.toggle) },
         cmd("sweep", `${w.sweep}…`, { name: "sweep" }),
         cmd("feedback", `${w.feedback}…`, { name: "feedback" }),

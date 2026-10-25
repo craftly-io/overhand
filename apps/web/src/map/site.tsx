@@ -12,7 +12,7 @@ import { WORLDS, type WorldId } from "./worlds";
 /** What one map on the page shows. */
 export interface Scene {
   world: WorldId;
-  /** Drawn on paper. Transit is always paper and Observatory and Koi always night, whatever this says. */
+  /** Drawn on paper, in the world's light set. */
   light: boolean;
   /** Freeze every motion (reduced motion, or off screen). */
   still: boolean;
@@ -20,7 +20,7 @@ export interface Scene {
   agents: readonly Draft[];
 }
 
-/** The world's own ink and its one colour on `el`, so a world looks like itself on any page; whether it's drawn on paper. */
+/** The world's own ink and its one colour on `el`, by day or night, so a world looks like itself on any page; whether it's drawn on paper. */
 export function paint(el: HTMLElement, world: WorldId, light: boolean): boolean {
   const t = worlds.find((x) => x.world === world);
   if (!t || world === "instrument") {
@@ -28,11 +28,12 @@ export function paint(el: HTMLElement, world: WorldId, light: boolean): boolean 
     for (let n = 1; n <= 12; n++) el.style.removeProperty(`--ink-${n}`);
     return light;
   }
-  t.ink?.forEach((v, i) => {
+  const tokens = light ? t.light : t.tokens;
+  (light ? (t.lightInk ?? t.ink) : t.ink)?.forEach((v, i) => {
     el.style.setProperty(`--ink-${i + 1}`, v);
   });
-  for (const k of ["you", "you-fill", "you-ink", "ok", "bad", "background"] as const) el.style.setProperty(`--${k}`, t.tokens[k]);
-  return t.scheme === "light";
+  for (const k of ["you", "you-fill", "you-ink", "ok", "bad", "background"] as const) el.style.setProperty(`--${k}`, tokens[k]);
+  return light;
 }
 
 /**

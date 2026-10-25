@@ -225,3 +225,75 @@ export const workId = (project: string, branch: string): string => `work:${proje
 export const leadId = (key: string): string => `lead:${key}`;
 /** Where the names something went by before its latest rename are kept (newest first, one per line), so older log lines still name it. */
 export const wasId = (id: string): string => `${id}#was`;
+
+/**
+ * When a message sent to a lead now reaches it: at its next step (a running session that takes requests), when this run
+ * ends (any other running agent), or Overhand starts it for it.
+ */
+export const LEAD_HEARS = ["now", "after-run", "starts"] as const;
+export type LeadHears = (typeof LEAD_HEARS)[number];
+
+/** One part of a lead's questions file, read as a conversation. */
+export interface ThreadEntry {
+  /** You (an answer or message from you, or a teammate on your behalf), Overhand (its own answers), or the lead. */
+  who: "you" | "overhand" | "lead";
+  kind: "question" | "answer" | "message" | "report" | "reply";
+  /** A question's own heading; "" for the rest. */
+  title: string;
+  /** When it was written, from the heading's stamp (UTC "YYYY-MM-DD HH:MM"); 0 when it has none. */
+  at: number;
+  body: string;
+}
+
+/** The body Overhand writes for an answer you gave outside it, when you add no note. */
+export const ELSEWHERE_TEXT = "Answered outside Overhand: re-read the current state before continuing.";
+/** The note beside that answer's stamp. */
+export const ELSEWHERE_NOTE = "given outside Overhand";
+/** The body of a dismissed question. */
+export const DISMISS_TEXT = "Dismissed: this no longer applies; re-read the current state.";
+/** The note beside a message's stamp: an answer you sent with no question open. */
+export const MESSAGE_NOTE = "message";
+
+/** A questions file section's heading as Overhand writes it: "## <head> (<note>, <stamp>)", stamped in UTC to the minute. */
+export const sectionHeading = (head: string, note: string, at: Date): string =>
+  `## ${head} (${[note, at.toISOString().slice(0, 16).replace("T", " ")].filter(Boolean).join(", ")})`;
+
+/** "## <heading> (<notes>, <stamp>)": the heading and what its brackets hold. */
+const HEADING = /^## (.*?)(?:\s+\(([^()]*)\))?\s*$/;
+const STAMP = /^\d{4}-\d\d-\d\d \d\d:\d\d$/;
+
+/**
+ * A lead's questions file as a conversation, oldest first: "## Answer from Overhand" is Overhand's, any other "## Answer
+ * from" is yours (a message when its note says so), "## Report" and "## Reply" are the lead's, and every other heading is
+ * the lead's question. Text before the first heading, or a file with none, is the lead's too.
+ */
+export function threadOf(text: string): ThreadEntry[] {
+  return text
+    .split(/^(?=## )/m)
+    .filter((p) => p.trim())
+    .map((p): ThreadEntry => {
+      if (!p.startsWith("## ")) return { who: "lead", kind: "question", title: "", at: 0, body: p.trim() };
+      const [first = "", ...rest] = p.split("\n");
+      const body = rest.join("\n").trim();
+      const [, head = "", note = ""] = first.match(HEADING) ?? [];
+      const stamp = note.split(", ").at(-1) ?? "";
+      const at = STAMP.test(stamp) ? Date.parse(`${stamp.replace(" ", "T")}:00Z`) : 0;
+      if (head.startsWith("Answer from ")) {
+        const overhand = head === "Answer from Overhand";
+        const kind = !overhand && note.split(", ")[0] === MESSAGE_NOTE ? "message" : "answer";
+        return { who: overhand ? "overhand" : "you", kind, title: "", at, body };
+      }
+      if (head === "Reply" || head === "Report") return { who: "lead", kind: head === "Reply" ? "reply" : "report", title: "", at, body };
+      return { who: "lead", kind: "question", title: first.slice(3).trim(), at: 0, body };
+    });
+}
+
+/** What's still open in a conversation: everything the lead wrote after the newest answer, message or reply. */
+export const openPart = (thread: readonly ThreadEntry[]): ThreadEntry[] =>
+  thread.slice(thread.findLastIndex((e) => e.who !== "lead" || e.kind === "reply") + 1);
+
+/** The open part of a lead's questions file as Markdown again: the question, never the conversation above it. */
+export const openText = (text: string): string =>
+  openPart(threadOf(text))
+    .map((e) => [e.title && `## ${e.title}`, e.body].filter(Boolean).join("\n\n"))
+    .join("\n\n");

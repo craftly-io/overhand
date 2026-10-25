@@ -1,13 +1,15 @@
 /** Supervised godmode leads. This module owns the running lead processes (leadChildren). */
 
-import { appendFileSync, copyFileSync, existsSync, type FSWatcher, mkdirSync, readFileSync, statSync, watch } from "node:fs";
+import { appendFileSync, copyFileSync, existsSync, type FSWatcher, mkdirSync, readFileSync, statSync, watch, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import {
+  type LeadHears,
   type LeadWorkKind,
   leadId,
   leadWork,
   OVERHAND_MARK,
   questionLine,
+  sectionHeading,
   type Ticket,
   WAY_OF_WORKING,
   type WorkSignals,
@@ -18,7 +20,7 @@ import { leadRules } from "./autonomy";
 import { budgetUntil, recordedBilling } from "./billing";
 import { accountsFor, mainCheckout, readyHome } from "./claude";
 import type { Config } from "./config";
-import { ingestOutboxes, recordSpawn } from "./control";
+import { addRequest, type Beat, ingestOutboxes, recordSpawn } from "./control";
 import { ACCOUNTS, CFG, CLIENTS, CODE, clientOf, LABEL, MIN, OPS, OWNER, providerOf, runtimeOf, SRC, sh, shAsync, today } from "./env";
 import { autonomyFor, groupOf, leadAccounts } from "./groups";
 import { GUARD_LOG } from "./guard";
@@ -76,6 +78,10 @@ export interface LeadState {
   opened?: { url: string; log: string; from: number; to: number }[];
   /** Branches its runs pushed by name (`branchesPushed`), with the run's log and when it ran: a fresh proof for a lead PR. */
   pushed?: { branch: string; log: string; from: number; to: number }[];
+  /** A message from you waits for the lead's next start, which brings it in its brief (messageLead). */
+  message?: boolean;
+  /** This run owes you a reply: its final message is filed as `## Reply` when it exits (recordLeadExit). */
+  replyDue?: boolean;
 }
 
 export type RunMode = "sandboxed" | "guard only" | "unsandboxed";
@@ -229,6 +235,16 @@ const focused = [
   "2. What Overhand woke you for (listed at the end): that is your work. Stay on your goal; other kinds of work belong to other leads, so leave them.",
 ];
 
+/** How a lead tells your message from an answer, and that its replies are Overhand's to keep. */
+const MESSAGE_LINE = `An answer with no question above it is a message from ${OWNER}: a question to answer or direction to follow, within the same rules as everything else here. Leave "## Reply" sections in place; Overhand writes and trims them.`;
+
+/**
+ * What tells a lead a message from you waits: its brief when it starts for it, or a Control Room request handed to its
+ * running session at its next tool call. It points at the file and never carries the message: only Overhand writes it.
+ */
+export const messageText = (g: Godmode): string =>
+  `${OWNER} left you a message in ${inboxPathOf(g)}; read it now. Your final message is shown to ${OWNER} as your reply, so start it with the answer.`;
+
 /**
  * The lead's first instruction: the configured one (a repo's own lead skill), else ops' generic lead, which keeps its
  * notes and questions in ops' leads/<key>/ folder so nothing extra lands in the project's repo.
@@ -249,6 +265,7 @@ export function leadPrompt(g: Godmode, brief = ""): string {
       WAY_OF_WORKING,
       rules,
       `End every question you leave for ${OWNER} with a line "If there's no answer: <what you'll do>". ${waitLine(g)}`,
+      MESSAGE_LINE,
       woken,
     ]
       .filter(Boolean)
@@ -272,6 +289,7 @@ export function leadPrompt(g: Godmode, brief = ""): string {
     "",
     `Questions: decide yourself whenever a reasonable engineer could. Ask ${OWNER} only for product decisions, money, legal, access you don't have, or anything irreversible. Append each question under its own "## " heading to ${inboxPathOf(g)}, with your recommendation, and end it with a line "If there's no answer: <what you'll do>", then carry on with other work. ${waitLine(g)} When it's a choice between two, put a line "Options: <first> | <second>" above that one so ${OWNER} can answer from the notification. Overhand shows these to ${OWNER} and as a notification.`,
     `${OWNER}'s answers appear in that file under "## Answer from ${OWNER}". Read them at the start of every run, act on them, and remove questions once handled. Leave the file empty when none are open: any text in it shows as a question.`,
+    MESSAGE_LINE,
     "",
     "Before you stop, write a short report at the top of your notes: what you fixed (with PR links), what's still red and why, and what you're waiting on. Stop when nothing else can move.",
     rules && `\n${rules}`,
@@ -281,17 +299,25 @@ export function leadPrompt(g: Godmode, brief = ""): string {
     .join("\n");
 }
 
-/** The lead's questions file; open until your answer is its newest heading (the lead asks again under a new heading). */
+/** A heading that closes what's above it: your answer (or Overhand's), or the lead's reply to your message. */
+const CLOSING = /^## (Answer from|Reply\b)/;
+/** How much of a lead's questions file the dashboard gets: the newest of it. */
+const INBOX_MAX = 16_000;
+
+/**
+ * The lead's questions file, its newest INBOX_MAX characters from a "## " heading (so the conversation never starts
+ * halfway through someone's words); open until an answer or a reply is its newest heading (the lead asks again under a
+ * new heading).
+ */
 export function leadInbox(g: Godmode): { text: string; at: number; open: boolean } | null {
   const f = inboxPathOf(g);
   if (!existsSync(f)) return null;
   const text = readFileSync(f, "utf8").trim();
   if (!text) return null;
-  const open = !text
-    .match(/^## .*/gm)
-    ?.at(-1)
-    ?.startsWith("## Answer from");
-  return { text: text.slice(-4000), at: statSync(f).mtimeMs, open };
+  const open = !CLOSING.test(text.match(/^## .*/gm)?.at(-1) ?? "");
+  const tail = text.slice(-INBOX_MAX);
+  const from = text.length > INBOX_MAX ? tail.indexOf("\n## ") + 1 : 0;
+  return { text: tail.slice(from), at: statSync(f).mtimeMs, open };
 }
 
 const HOUR = 60 * MIN;
@@ -306,7 +332,7 @@ export function openQuestions(text: string): string[] {
   if (!/^## /m.test(text)) return text.trim() ? [text.trim()] : [];
   const sections = text.split(/^(?=## )/m).filter((x) => x.startsWith("## "));
   const answered = sections.findLastIndex((x) => x.startsWith("## Answer from"));
-  return sections.slice(answered + 1).filter((x) => !x.startsWith("## Report"));
+  return sections.slice(answered + 1).filter((x) => !/^## (Report|Reply)\b/.test(x));
 }
 
 const DEFAULT_LINE = /^[\s>*-]*\**\s*if there(?:['’]s| is) no answer\s*\**\s*:\s*\**\s*(.+?)\s*$/gim;
@@ -451,10 +477,6 @@ export function leadAsk(
   };
 }
 
-/** The body Overhand writes for an answer you gave outside it, when you add no note. */
-export const ELSEWHERE_TEXT = "Answered outside Overhand: re-read the current state before continuing.";
-/** The body of a dismissed question. */
-export const DISMISS_TEXT = "Dismissed: this no longer applies; re-read the current state.";
 /** The body of an answer that goes with the lead's default. */
 export const defaultText = (def: string): string =>
   def.includes("\n") ? `Go with your defaults:\n${def}` : `Go with your default: ${def}`;
@@ -464,10 +486,54 @@ export const defaultText = (def: string): string =>
  * mtime, so the caller can mark the change as seen (an answer isn't news that the lead needs you).
  */
 export function appendAnswer(g: Godmode, by: string, body: string, note = "", now = new Date()): number {
-  const stamp = now.toISOString().slice(0, 16).replace("T", " ");
+  return appendSection(g, `Answer from ${by}`, body, note, now);
+}
+
+/** Appends "## <heading> (<note>, <stamp>)" and its body to a lead's questions file; returns the file's new mtime. */
+function appendSection(g: Godmode, heading: string, body: string, note = "", now = new Date()): number {
   mkdirSync(dirname(inboxPathOf(g)), { recursive: true });
-  appendFileSync(inboxPathOf(g), `\n\n## Answer from ${by} (${[note, stamp].filter(Boolean).join(", ")})\n\n${body}\n`);
+  appendFileSync(inboxPathOf(g), `\n\n${sectionHeading(heading, note, now)}\n\n${body}\n`);
   return statSync(inboxPathOf(g)).mtimeMs;
+}
+
+/** How many of a lead's replies its questions file keeps; older ones are trimmed after it exits. */
+export const KEEP_REPLIES = 5;
+/** The longest reply or report filed; a reply is told to start with the answer, so its start is kept. */
+const REPLY_MAX = 6000;
+
+/** A questions file with only its newest `keep` "## Reply" sections; everything else stays as it is. */
+export function trimReplies(text: string, keep = KEEP_REPLIES): string {
+  const parts = text.split(/^(?=## )/m);
+  const replies = parts.flatMap((p, i) => (p.startsWith("## Reply") ? [i] : []));
+  const drop = new Set(replies.slice(0, Math.max(0, replies.length - keep)));
+  return parts.filter((_, i) => !drop.has(i)).join("");
+}
+
+/** True while the lead runs: Overhand's own run, or one someone started by hand that holds its lock. */
+export const leadRunning = (g: Godmode, st: LeadState): boolean => !!(leadPid(g, st) || lockHolder(g));
+
+/**
+ * The Control Room session of the lead's current run (its run is `lead-<key>` and it beat since this run started), if
+ * any: only a CLI whose hook reports sessions takes a message mid-run.
+ */
+export const leadSession = (g: Godmode, st: LeadState, beats: readonly Beat[]): Beat | undefined =>
+  beats.find((b) => b.run === `lead-${g.key}` && b.lastAt >= st.startedAt);
+
+/** When a message sent now reaches the lead: at its next step, when this run ends, or Overhand starts it for it. */
+export const leadHears = (running: boolean, session: Beat | undefined): LeadHears => (!running ? "starts" : session ? "now" : "after-run");
+
+/**
+ * After you left a lead a message (an answer with no question open): a running session that takes requests gets one
+ * at its next tool call and owes you a reply; otherwise the message waits for the lead's next start, which the
+ * supervisor makes at once (or as soon as this run ends), with the message in its brief. Returns when it hears it.
+ */
+export function messageLead(g: Godmode, st: LeadState, running: boolean, beats: readonly Beat[]): LeadHears {
+  const session = running ? leadSession(g, st, beats) : undefined;
+  if (session) {
+    addRequest(OPS, { from: OWNER, to: session.id, toLabel: leadName(g), text: messageText(g), by: 0 });
+    st.replyDue = true;
+  } else st.message = true;
+  return leadHears(running, session);
 }
 
 /**
@@ -667,6 +733,8 @@ function startLead(g: Godmode, st: LeadState, account: string, brief = ""): void
   leadChildren.set(g.key, proc);
   const ran: RunMode = spawn.sandboxed ? "sandboxed" : spawn.guardOnly ? "guard only" : "unsandboxed";
   Object.assign(st, { pid: proc.pid, startedAt: Date.now(), account, log: logPath, waitingLimit: false, startNow: false, ran });
+  // a waiting message rode in on this run's brief: this run owes the reply
+  Object.assign(st, { replyDue: !!st.message, message: false });
   delete st.cantStart;
   report(
     `⚡ ${leadName(g)} started headless (pid ${proc.pid}, ${account}${spawn.guardOnly ? ", guard only: its project runs without the OS sandbox" : ""})`,
@@ -689,13 +757,20 @@ export function recordLeadExit(g: Godmode, st: LeadState, box: ReturnType<typeof
   if (opened.length) st.opened = [...(st.opened ?? []), ...opened];
   const pushed = log ? branchesPushed(whole).map((branch) => ({ branch, ...ran })) : [];
   if (pushed.length) st.pushed = [...(st.pushed ?? []), ...pushed];
-  if (autonomyFor(CFG, g.project) === "watch" && parsed.ok && parsed.text.trim()) {
+  const final = parsed.ok ? parsed.text.trim() : "";
+  if (st.replyDue && final) {
+    // its final message answers yours: filed as its reply (on watch too, instead of a report, so it isn't held), the
+    // oldest replies trimmed now that nothing else writes the file, and a push that carries none of its words
+    appendSection(g, "Reply", final.slice(0, REPLY_MAX));
+    writeFileSync(inboxPathOf(g), trimReplies(readFileSync(inboxPathOf(g), "utf8")));
+    st.inboxAt = statSync(inboxPathOf(g)).mtimeMs; // a reply isn't a question: no "Question from" for it
+    notify(plainWords.alLeadReplied.replace("{lead}", leadName(g)), "");
+  } else if (autonomyFor(CFG, g.project) === "watch" && final) {
     // a lead on watch runs read-only and can't write its questions file: its final message is the report, filed for you
-    const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
-    mkdirSync(join(inboxPathOf(g), ".."), { recursive: true });
-    appendFileSync(inboxPathOf(g), `\n\n## Report (${stamp})\n\n${parsed.text.trim().slice(-6000)}\n`);
+    appendSection(g, "Report", final.slice(-REPLY_MAX));
     st.waiting = true; // the next look comes after you've read it and answered (or pressed Start)
   }
+  st.replyDue = false;
   const cost = parsed.cost;
   mkdirSync(join(OPS, "runs"), { recursive: true });
   const run = {
@@ -858,6 +933,18 @@ export async function releaseLeadPrs(armed: readonly [string, TrackedPr][], run:
 }
 
 /**
+ * Whether the lead starts now and with what brief, or null while it rests. It starts at once for an answered question
+ * (`waiting`), Start (`startNow`) or a message waiting for it; else an on-demand lead for new work (`demand`, from
+ * demandBrief) and an always-on one once it has rested restartDelayMin. A waiting message rides in the brief.
+ */
+export function wakeBrief(g: Godmode, st: LeadState, demand: string, now = Date.now()): string | null {
+  const due = st.waiting || st.startNow || st.message;
+  const rests = g.onDemand ? !demand || demand === st.lastBrief : now - st.lastExit < restartDelayMin(g, st) * MIN;
+  if (!due && rests) return null;
+  return [demand, st.message ? messageText(g) : ""].filter(Boolean).join("\n");
+}
+
+/**
  * Runs every minute: keeps exactly one lead per supervised godmode entry, restarts it restartDelayMin after an exit,
  * stops restarting after maxCrashesPerHour failed exits, and notifies when its inbox file changes.
  */
@@ -893,14 +980,14 @@ export function superviseLeads(): void {
     if (!g.supervised || st.stopped || existsSync(join(OPS, "PAUSE")) || lockHolder(g) || diskLow()) continue;
     if (isAgent(st.pid) && st.pid !== child?.pid) continue; // ours from before a daemon restart, still starting up
     if (heldOnQuestion(st, box)) continue; // still unanswered: restarting would only re-ask
-    const answered = st.waiting;
-    let brief = "";
+    let demand = "";
     if (g.onDemand) {
       const tix = ticketCache.data[g.project];
-      brief = demandBrief(g.project, status, Array.isArray(tix) ? tix : [], LABEL.queue, g.watch);
-      if (!brief) st.lastBrief = ""; // nothing now: the same trouble returning later wakes it again
-      if (!answered && !st.startNow && (!brief || brief === st.lastBrief)) continue;
-    } else if (!answered && !st.startNow && Date.now() - st.lastExit < restartDelayMin(g, st) * MIN) continue;
+      demand = demandBrief(g.project, status, Array.isArray(tix) ? tix : [], LABEL.queue, g.watch);
+      if (!demand) st.lastBrief = ""; // nothing now: the same trouble returning later wakes it again
+    }
+    const brief = wakeBrief(g, st, demand);
+    if (brief === null) continue;
     const account = leadAccount(g);
     if (!account) {
       const free = leadFreeAt(g);
@@ -913,9 +1000,9 @@ export function superviseLeads(): void {
       continue;
     }
     if (leadShipHolds(g)) continue; // the armed lead PRs of every project it may push to go back to waiting first
+    if (st.waiting || st.startNow || st.message || demand) st.idle = 0; // there is something to do now: back to the normal pace
     st.waiting = false;
-    if (answered || st.startNow || brief) st.idle = 0; // there is something to do now: back to the normal pace
-    if (brief) st.lastBrief = brief;
+    if (demand) st.lastBrief = demand;
     startLead(g, st, account, brief); // an answered question resumes at once rather than after restartAfterMin
   }
   saveLeads(leads);

@@ -1,11 +1,13 @@
 import { plainWords, type ThemeDefinition, TOKEN_KEYS, themeById, type WordKey, type Words } from "@overhand/themes";
 import { createContext, type ReactNode, use, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { z } from "zod";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { post } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { store } from "./store";
 
-/** Light or dark, or whatever the system says; only themes with a light set can be light. */
+/** Light or dark, or whatever the system says; every theme has both. */
 export type Appearance = "system" | "light" | "dark";
 const toAppearance = (a: string | null): Appearance => (a === "light" || a === "dark" ? a : "system");
 
@@ -13,7 +15,10 @@ interface ThemeContext {
   /** The active theme with the tokens and hues of the appearance it's drawn in. */
   theme: ThemeDefinition;
   words: Words;
+  /** Picks a look: kept in this browser, and told to the daemon so the menu bar item draws in it too. */
   setTheme: (id: string) => void;
+  /** Shows and keeps a look without telling the daemon: the menu bar item following the dashboard's pick. */
+  showTheme: (id: string) => void;
   appearance: Appearance;
   /** Whether the page is drawn light right now. */
   light: boolean;
@@ -40,9 +45,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [base.id]);
   const [appearance, setAppearanceState] = useState(() => toAppearance(store.get("overhand-appearance")));
   const systemDark = useSyncExternalStore(subscribeDark, () => darkQuery().matches);
-  const light = base.light !== undefined ? appearance === "light" || (appearance === "system" && !systemDark) : base.scheme === "light";
+  const light = appearance === "light" || (appearance === "system" && !systemDark);
   const theme = useMemo(
-    () => (light && base.light ? { ...base, tokens: base.light, hues: base.lightHues ?? base.hues, ink: base.lightInk ?? base.ink } : base),
+    () => (light ? { ...base, tokens: base.light, hues: base.lightHues ?? base.hues, ink: base.lightInk ?? base.ink } : base),
     [base, light],
   );
 
@@ -77,17 +82,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [theme, light]);
 
-  const setTheme = useCallback((id: string) => {
+  const showTheme = useCallback((id: string) => {
     const next = themeById(id);
     store.set("overhand-theme", next.id);
     setThemeState(next);
   }, []);
+  const setTheme = useCallback(
+    (id: string) => {
+      showTheme(id);
+      // the menu bar item has its own browser storage: it reads the pick from the daemon. Not told is no harm.
+      post("/api/settings/quick", { look: themeById(id).id }, z.object({})).catch(() => undefined);
+    },
+    [showTheme],
+  );
   const setAppearance = useCallback((a: string) => {
     const next = toAppearance(a);
     store.set("overhand-appearance", next);
     setAppearanceState(next);
   }, []);
-  return <Ctx value={{ theme, words: theme.words, setTheme, appearance, light, setAppearance }}>{children}</Ctx>;
+  return <Ctx value={{ theme, words: theme.words, setTheme, showTheme, appearance, light, setAppearance }}>{children}</Ctx>;
 }
 
 /** The active theme, its words and a way to switch. */

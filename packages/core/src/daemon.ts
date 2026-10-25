@@ -241,8 +241,8 @@ const USAGE = `Overhand ${VERSION}: mission control for your AI coding agents.
   overhand status    whether it's running: port, version, last heartbeat, agents at work, free disk
   overhand logs      the daemon's log (-f keeps following it)
   overhand update    update to the latest release
-  overhand uninstall stop it and remove the program; --remove-data also deletes ~/.overhand (asks first),
-                     --dry-run only lists what it would remove and keep
+  overhand uninstall  stop it and remove the program; --remove-data also deletes ~/.overhand (asks first),
+                      --dry-run only lists what it would remove and keep
   overhand doctor    check what Overhand needs on this machine
   overhand version   print the version
   overhand answer <lead> "<text>"   answer a lead's open question (--default: go with the default it gave)
