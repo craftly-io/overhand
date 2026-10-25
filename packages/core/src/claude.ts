@@ -15,7 +15,7 @@ import { comboOfAccount, identityOf, nameParts, projectOf, projectRows } from ".
 import { allowSubscriptionTokens } from "./legacy-token";
 import { backAt, bench, benchedUntil, markSignedOut, outOfUsage, signedOut, signedOutAccounts } from "./limits";
 import { report } from "./notify";
-import { readSecret } from "./platform";
+import { keepRunAwake, readSecret } from "./platform";
 import { routeOrder } from "./routing";
 import { RUNTIMES } from "./runtimes";
 import { writeRunFiles } from "./runtimes/claude-code";
@@ -333,6 +333,7 @@ async function runOnce(
   // its own process group, so it ends with everything it started (endRun)
   const proc = Bun.spawn(argv, { cwd, env, stdout: "pipe", stderr: "pipe", detached: true });
   recordSpawn(OPS, proc, env, boxed.sandboxed, cwd, boxed.guardOnly);
+  keepRunAwake(proc.pid); // every run, as long as it lives: done, timed out or stopped (endRun)
   const startedAt = Date.now();
   const { account } = input;
   const pm = argv.indexOf("--permission-mode");
