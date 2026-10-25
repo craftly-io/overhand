@@ -362,11 +362,18 @@ interface PrStatus {
  */
 export const notPerson = (login: string, body: string): boolean => /\[bot\]$|-bot$|^bot$/i.test(login) || fromOverhand(body);
 
-async function prStatus(pr: TrackedPr): Promise<PrStatus> {
+/** A gh call's output; a failed call throws with its first line, never reads as empty (a PR with nothing on it). */
+async function ghOut(args: string[]): Promise<string> {
+  const r = await shAsync(["gh", ...args]);
+  if (!r.ok) throw new Error(`gh ${args.slice(0, 2).join(" ")}: ${r.err.split("\n")[0] || "no answer"}`);
+  return r.out;
+}
+
+/** A PR's state, reviews and checks; throws when GitHub or Bitbucket can't be read (the caller says so once). */
+export async function prStatus(pr: TrackedPr): Promise<PrStatus> {
   if (pr.host === "github") {
     const v = JSON.parse(
-      (await shAsync(["gh", "pr", "view", pr.url, "--json", "state,reviewDecision,statusCheckRollup,reviews,comments,headRefOid"])).out ||
-        "{}",
+      (await ghOut(["pr", "view", pr.url, "--json", "state,reviewDecision,statusCheckRollup,reviews,comments,headRefOid"])) || "{}",
     ) as {
       state?: string;
       reviewDecision?: string;
@@ -377,7 +384,7 @@ async function prStatus(pr: TrackedPr): Promise<PrStatus> {
     };
     // REST, not `gh pr view`: GraphQL drops a bot's "[bot]" suffix ("coderabbitai"), so only `user.type` tells a bot
     type Said = { body: string | null; user: { login: string; type?: string } };
-    const rest = async <T>(path: string): Promise<T[]> => JSON.parse((await shAsync(["gh", "api", path])).out || "[]") as T[];
+    const rest = async <T>(path: string): Promise<T[]> => JSON.parse((await ghOut(["api", path])) || "[]") as T[];
     const inline = await rest<Said & { path: string; line: number | null }>(`repos/${pr.repo}/pulls/${pr.number}/comments`);
     const said = [
       ...(await rest<Said>(`repos/${pr.repo}/pulls/${pr.number}/reviews`)),
@@ -475,7 +482,29 @@ async function checkCorners(key: string, pr: TrackedPr): Promise<void> {
 
 // ---------- work ----------
 
-function taskPrompt(tk: Ticket, wt: Worktree): string {
+/**
+ * What an earlier run left uncommitted in a worktree, as `git status` lines (it stopped part-way: a usage limit, its time
+ * limit, a Stop); empty when it's clean. The next run is told (leftoverLines), so it never commits them unseen.
+ */
+export async function leftovers(path: string): Promise<string[]> {
+  const st = await shAsync(["git", "status", "--porcelain", "--untracked-files=all"], path);
+  return st.ok ? st.out.split("\n").filter(Boolean) : [];
+}
+
+/** What a run is told about an earlier run's uncommitted changes (leftovers); nothing when there are none. */
+export function leftoverLines(left: string[]): string[] {
+  if (!left.length) return [];
+  const more = left.length > 30 ? [`  … and ${left.length - 30} more`] : [];
+  return [
+    "",
+    "An earlier run on this task stopped part-way and left these changes uncommitted in the worktree (git status):",
+    ...left.slice(0, 30).map((l) => `  ${l}`),
+    ...more,
+    "Check each before you build on it: keep and finish what is right, undo what isn't. Never commit any of it unseen.",
+  ];
+}
+
+function taskPrompt(tk: Ticket, wt: Worktree, left: string[] = []): string {
   return [
     `Ticket ${tk.key} for client ${tk.client.name}: ${tk.title}`,
     tk.local ? "There is no ticket in a tracker: the owner assigned you this from Overhand." : `URL: ${tk.url}`,
@@ -489,6 +518,7 @@ function taskPrompt(tk: Ticket, wt: Worktree): string {
     "",
     `You are in a prepared worktree of ${wt.mainRepo}: ${wt.path}`,
     `Branch ${wt.branch}, based on origin/${wt.base} (the PR will target ${wt.base}). Work only inside this worktree.`,
+    ...leftoverLines(left),
     "Follow the workflow in your agent instructions and finish with the structured result.",
     ticketRules(tk.client.autonomy),
   ]
@@ -496,10 +526,11 @@ function taskPrompt(tk: Ticket, wt: Worktree): string {
     .trimEnd();
 }
 
-function fixPrompt(key: string, pr: TrackedPr, feedback: string, c: Client): string {
+function fixPrompt(key: string, pr: TrackedPr, feedback: string, c: Client, left: string[]): string {
   return [
     `Your PR for ${key} needs another round: ${pr.url}`,
     `You are in its worktree on branch ${pr.branch}. Overhand brought it up to date with what others pushed.`,
+    ...leftoverLines(left),
     "",
     "Feedback and failing checks:",
     feedback || "(CI failing, see the PR checks)",
@@ -511,6 +542,13 @@ function fixPrompt(key: string, pr: TrackedPr, feedback: string, c: Client): str
     .join("\n")
     .trimEnd();
 }
+
+/**
+ * Whether a fix round answered its PR's feedback, so it's marked seen: it finished, or you stopped it. A round that
+ * failed didn't, and the next pass runs another (up to maxFixes, then the PR needs you), never silently none.
+ */
+export const roundAnswered = (r: Pick<AgentResult, "status">, failure?: FailureReason): boolean =>
+  r.status !== "failed" || failure === "stopped";
 
 /**
  * Books whether a ticket's run stopped at its account's usage limit (`limited`). Waiting for capacity uses no attempt, but
@@ -556,7 +594,10 @@ export async function handleTicket(state: State, tk: Ticket, told?: (r: AgentRes
   }
   const wt = await prepareWorktree(repo, tk.key);
   let limited = false;
-  const run = await claude<AgentResult>(state, taskPrompt(tk, wt), wt.path, RESULT_SCHEMA, tk.key, {
+  // a run that stopped part-way (its limit, its time limit, a Stop) left its edits here: this one is told, never sweeps them in unseen
+  const left = await leftovers(wt.path);
+  if (left.length) report(`↻ ${tk.key}: its last run left ${left.length} uncommitted change(s); this run is told to check them`);
+  const run = await claude<AgentResult>(state, taskPrompt(tk, wt, left), wt.path, RESULT_SCHEMA, tk.key, {
     client: tk.client,
     onLimit: () => {
       limited = true;
@@ -640,14 +681,17 @@ export async function handleTicket(state: State, tk: Ticket, told?: (r: AgentRes
     notify(`Question on ${tk.key}`, r.message.slice(0, 120));
     return "ok";
   }
-  // running it again changes nothing for an empty PR or a pushed branch whose PR didn't open: those stop at once
+  // running it again changes nothing for an empty PR or a pushed branch whose PR didn't open, and one you stopped stays
+  // stopped: those stop at once
+  const stopped = failure === "stopped";
   const attempts = (state.attempts[tk.key] ?? 0) + 1;
-  const stop = failure === "no-changes" || failure === "pr-open" || attempts >= CFG.limits.maxAttempts;
+  const stop = stopped || failure === "no-changes" || failure === "pr-open" || attempts >= CFG.limits.maxAttempts;
   state.attempts[tk.key] = stop ? Math.max(attempts, CFG.limits.maxAttempts) : attempts;
   const said = failureLine(failure, wt.branch);
   if (stop) {
-    // where Overhand may post, the ticket says it; elsewhere its card does, with the button that fixes it (decide.ts failedBrief)
-    if (mayPost(tk))
+    // where Overhand may post, the ticket says it; elsewhere its card does, with the button that fixes it (decide.ts
+    // failedBrief). One you stopped is yours to pick up: its card, never a comment on the ticket
+    if (mayPost(tk) && !stopped)
       await comment(tk, `I couldn't finish this after ${attempts === 1 ? "1 attempt" : `${attempts} attempts`}: ${said}\n\n${r.message}`);
     else
       holdFinding({
@@ -659,12 +703,12 @@ export async function handleTicket(state: State, tk: Ticket, told?: (r: AgentRes
         from: "agent",
         failed: { reason: failure, task: tk.key, account: run.account, branch: wt.branch },
       });
-    await setLabels(tk, [LABEL.blocked], [LABEL.working]);
-    notify(`Stuck on ${tk.key}`, said);
+    await setLabels(tk, stopped ? [] : [LABEL.blocked], [LABEL.working]);
+    if (!stopped) notify(`Stuck on ${tk.key}`, said);
   } else {
     await setLabels(tk, [], [LABEL.working]);
   }
-  recordOutcome(OPS, { key: tk.key, event: "failed" });
+  if (!stopped) recordOutcome(OPS, { key: tk.key, event: "failed" }); // your Stop isn't the account's failure
   report(`✗ ${tag} attempt ${attempts}: ${said}`);
   return "ok";
 }
@@ -719,7 +763,8 @@ async function runFirstWin(state: State): Promise<boolean> {
       return true;
     }
     if (r.status !== "done") {
-      save({ state: "failed", message: r.message, ...spent });
+      // the CLI's own trouble (a timeout, a crash) in its one plain sentence; the agent's own words when it said it was stuck
+      save({ state: "failed", message: run.failure ? failureLine(run.failure) : r.message, ...spent });
       report(`✗ ${tag} first task: ${failureLine(run.failure ?? "stuck")}`);
       return true;
     }
@@ -777,7 +822,7 @@ async function runGuides(state: State, budget: number): Promise<number> {
         continue;
       }
       if (next === "failed") {
-        save({ run: "failed", message: r.message });
+        save({ run: "failed", message: run.failure ? failureLine(run.failure) : r.message });
         report(`✗ ${tag} onboarding guide: ${failureLine(run.failure ?? "stuck")}`);
         continue;
       }
@@ -847,6 +892,8 @@ const taskTicket = (c: Client, a: StoredAssignment): Ticket => ({
 
 // ponytail: in memory, so a restart rechecks every labelled ticket once; a label someone else added is rechecked every 30 min
 const labelChecked = new Map<string, number>();
+/** PRs whose status couldn't be read on an earlier pass: said once, and again only once they read. */
+const unread = new Set<string>();
 
 /**
  * On a watch or propose project, the queue label counts as you assigning an agent only when you added it yourself
@@ -934,11 +981,14 @@ export async function work(): Promise<boolean> {
     const fixRound = async ([key, pr]: [string, TrackedPr]): Promise<boolean> => {
       if (budget <= 0) return false;
       if (interrupted[key]) return true;
+      // GitHub or Bitbucket not answering: said once, then read again every pass until it does
       const s = await prStatus(pr).catch((e: unknown) => {
-        report(`⚠ ${key}: couldn't read ${pr.url}: ${String(e)}`);
+        if (!unread.has(key)) report(`⚠ ${key}: couldn't read ${pr.url} (${errorText(e)}); Overhand tries again every pass`);
+        unread.add(key);
         return null;
       });
       if (!s) return true;
+      if (unread.delete(key)) report(`✓ ${key}: ${pr.url} reads again`);
       if (s.state !== "open") {
         const c = clientOf(key);
         const tk = c && !isTaskKey(key) ? (await tickets(runClient(c, key), { key }).catch(() => []))[0] : undefined;
@@ -991,7 +1041,8 @@ export async function work(): Promise<boolean> {
       await shAsync(["git", "merge", "--ff-only", `origin/${pr.branch}`], wt);
       const feedback = [s.feedback, fromSlack && `From the owner and Slack:\n${fromSlack}`].filter(Boolean).join("\n");
       if (s.changes) pr.changes = (pr.changes ?? 0) + 1;
-      const run = await claude<AgentResult>(state, fixPrompt(key, pr, feedback, c), wt, RESULT_SCHEMA, `${key}-fix`, { client: c });
+      const prompt = fixPrompt(key, pr, feedback, c, await leftovers(wt));
+      const run = await claude<AgentResult>(state, prompt, wt, RESULT_SCHEMA, `${key}-fix`, { client: c });
       if (!run) return false;
       pr.fixes++;
       pr.extra = undefined;
@@ -1012,11 +1063,13 @@ export async function work(): Promise<boolean> {
           ...(shots ? { shots } : {}),
         });
       }
-      pr.seen = (await prStatus(pr).catch(() => s)).fingerprint;
+      const failed = !roundAnswered(run.out, run.failure);
+      if (!failed) pr.seen = (await prStatus(pr).catch(() => s)).fingerprint;
       await checkCorners(key, pr);
       // a round that failed says why in one plain line; the agent's own words are in its run log
       const said = run.out.status === "done" ? run.out.message.slice(0, 160) : failureLine(run.failure ?? "stuck", pr.branch);
-      report(`${run.out.status === "done" ? "🔧" : "✗"} ${key} fix round ${pr.fixes} (${run.account}): ${said}`);
+      const again = failed ? (pr.fixes < CFG.limits.maxFixes ? "; another round runs on the next pass" : "") : "";
+      report(`${run.out.status === "done" ? "🔧" : "✗"} ${key} fix round ${pr.fixes} (${run.account}): ${said}${again}`);
       saveState(state);
       return true;
     };

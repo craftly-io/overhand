@@ -48,14 +48,19 @@ export class Refused extends Error {
   }
 }
 
-/** Reads a GET endpoint and validates it against its schema. */
-export async function get<S extends z.ZodType>(url: string, schema: S): Promise<z.infer<S>> {
+/** How long a read may take before it counts as failed: a frozen Overhand (asleep, stuck) shows as unreachable. */
+export const GET_TIMEOUT_MS = 10_000;
+
+/** Reads a GET endpoint and validates it against its schema; one that doesn't answer in `timeoutMs` fails. */
+export async function get<S extends z.ZodType>(url: string, schema: S, timeoutMs = GET_TIMEOUT_MS): Promise<z.infer<S>> {
   if (DEMO) {
     const sample = demoGet(url);
     if (sample === undefined) throw new Error(DEMO_REFUSAL);
     return schema.parse(sample);
   }
-  const r = await apiFetch(url);
+  // the signal ends an HTTP read; the race also ends one over the data channel, which has no abort
+  const late = new Promise<never>((_, fail) => setTimeout(() => fail(new Error(`${url}: no answer`)), timeoutMs));
+  const r = await Promise.race([apiFetch(url, { signal: AbortSignal.timeout(timeoutMs) }), late]);
   if (r.status === 401) throw new Unpaired(url);
   if (!r.ok) throw new Error(`${url}: ${r.status} ${r.statusText}`);
   const parsed = schema.safeParse(await r.json());

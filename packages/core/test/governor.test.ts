@@ -13,6 +13,7 @@ import {
   govern,
   holders,
   KILLED_EXIT,
+  leftBehind,
   type Machine,
   orphanBrowsers,
   type Proc,
@@ -275,6 +276,21 @@ test("orphaned headless browsers: only ones whose parent died and that an agent 
   ];
   const env = (pid: number) => (pid === 30 || pid === 32 || pid === 33 ? "PATH=/bin OVERHAND_RUN=HC-1" : "PATH=/bin");
   expect(orphanBrowsers(table, env).map((p) => p.pid)).toEqual([30]);
+});
+
+test("what a run left behind: orphans still in its own worktree, never yours, never outside a worktree Overhand made", () => {
+  const wt = "/code/shop/.claude/worktrees/ac-1";
+  const table: Proc[] = [
+    { pid: 40, ppid: 1, pgid: 40, cmd: "next dev" }, // the dev server it detached
+    { pid: 41, ppid: 1, pgid: 41, cmd: "vite" }, // started in a folder of the worktree
+    { pid: 42, ppid: 1, pgid: 42, cmd: "next dev" }, // yours, in the main checkout
+    { pid: 43, ppid: 900, pgid: 43, cmd: "watch" }, // its parent lives: not left behind
+    { pid: 44, ppid: 1, pgid: 44, cmd: "next dev" }, // another task's worktree
+  ];
+  const cwds: Record<number, string> = { 40: wt, 41: `${wt}/apps/web`, 42: "/code/shop", 43: wt, 44: `${wt}2` };
+  const cwd = (pid: number) => cwds[pid] ?? "";
+  expect(leftBehind(wt, table, cwd)).toEqual([40, 41]);
+  expect(leftBehind("/code/shop", table, cwd)).toEqual([]);
 });
 
 test("protected processes: stop, kill and restart commands that hit a protected port, name or container are blocked", () => {

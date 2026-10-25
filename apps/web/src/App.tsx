@@ -1,5 +1,7 @@
+import { START_COMMAND } from "@overhand/contract";
 import { AlertTriangle } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useActions } from "@/app/actions";
 import { type Model, useLiveState, useModel, useStateQuery } from "@/app/data";
 import { useFreshOnReturn } from "@/app/fresh";
@@ -7,6 +9,7 @@ import { useEventChimes } from "@/app/sound";
 import { Term, useTheme } from "@/app/theme";
 import { useDock, usePhone, useUi, useViewport } from "@/app/ui";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Boot } from "./components/Boot";
 import { DrawerHost, PlaceBody } from "./components/drawers/DrawerHost";
 import { Header } from "./components/Header";
@@ -35,13 +38,38 @@ import { cn } from "./lib/utils";
 /** Says plainly when the daemon is unreachable or sends data the contract rejects, naming the field. */
 function StateBanner() {
   const w = useTheme().words;
-  const { error } = useStateQuery();
+  const { error, refetch, isFetching } = useStateQuery();
   if (!error) return null;
-  const text = error instanceof ContractError ? fmt(w.bannerInvalid, { path: error.path, message: error.message }) : w.bannerUnreachable;
+  const invalid = error instanceof ContractError;
+  const text = invalid ? fmt(w.bannerInvalid, { path: error.path, message: error.message }) : w.bannerUnreachable;
   return (
     <Alert variant="destructive" className="mx-4 mt-3 w-auto border-bad/60 lg:mx-6" role="alert">
       <AlertTriangle aria-hidden="true" />
-      <AlertDescription className="text-foreground">{text}</AlertDescription>
+      <AlertDescription className="grid gap-2 text-foreground">
+        <span>{text}</span>
+        {/* unreachable: what starts it again (the page can't), and asking again now */}
+        {invalid ? null : (
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground">{w.bannerStartIt}</span>
+            <code className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs">{START_COMMAND}</code>
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() =>
+                void navigator.clipboard.writeText(START_COMMAND).then(
+                  () => toast(w.hostedCopied),
+                  () => undefined,
+                )
+              }
+            >
+              {w.hostedCopy}
+            </Button>
+            <Button size="xs" variant="outline" disabled={isFetching} onClick={() => void refetch()}>
+              {w.retryNow}
+            </Button>
+          </span>
+        )}
+      </AlertDescription>
     </Alert>
   );
 }

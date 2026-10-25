@@ -416,7 +416,25 @@ test("every problem's card carries its fix: restart when offline, start a crashe
   );
   expect(tracker?.target).toEqual({ kind: "settings", tab: "integrations", project: "Acme" });
   expect(tracker?.go).toBe("Reconnect");
+  expect(tracker?.sub).toBe(plainWords.alTrackerAuth);
   // no card can be left with nothing to click: AlertTarget has no "none" (tsc fails on one); each kind has its button
+});
+
+test("a tracker card offers the fix for its cause: Retry now for a network drop, Wait for a rate limit, Reconnect for a sign-in", () => {
+  const base = state({});
+  const card = (error: string, s = base) =>
+    computeAlerts({ ...s, tickets: { Acme: error } }, parsePlan([]), plainWords, NOW).find((a) => a.title.startsWith("Acme tracker"));
+  const down = card("Error: gh issue list on acme/web: error connecting to api.github.com");
+  expect([down?.sub, down?.target]).toEqual([plainWords.alTrackerNetwork, { kind: "tracker", client: "Acme", outage: "network" }]);
+  const limited = card("HTTP 403: API rate limit exceeded for user ID 1");
+  expect(limited?.title).toBe("Acme tracker asks Overhand to slow down");
+  expect(limited?.target).toEqual({ kind: "tracker", client: "Acme", outage: "rate-limit" });
+  // never the raw error on the card
+  expect(down?.sub).not.toContain("gh issue list");
+  // Wait an hour snoozes it: it stays out until then, and comes back if the tracker still isn't answering
+  const snoozed = { ...base, snoozed: { "tracker:Acme": NOW + 3_600_000 } };
+  expect(card("rate limit exceeded", snoozed)).toBeUndefined();
+  expect(card("rate limit exceeded", { ...base, snoozed: { "tracker:Acme": NOW - 1 } })).toBeDefined();
 });
 
 test("a sandbox that can't run, a failed plan and blocked git each come with their fix", () => {

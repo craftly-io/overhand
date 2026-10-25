@@ -22,6 +22,8 @@ export interface Model {
 }
 
 export const STATE_KEY = ["state"] as const;
+/** Longer than this without a pushed state, the live stream counts as stalled (the daemon pushes every 25 s at most). */
+const STREAM_SILENT_MS = 40_000;
 
 // whether the live stream is delivering; while it is, nothing polls
 let live = false;
@@ -48,7 +50,9 @@ export function useLiveState(play?: Play): void {
   useEffect(() => {
     if (DEMO) return followParent(qc, STATE_KEY, play);
     const es = openEvents("/api/events");
+    let heard = Date.now();
     es.onmessage = (e) => {
+      heard = Date.now();
       const parsed = DashboardStateSchema.safeParse(JSON.parse(e.data));
       if (!parsed.success) return; // the poll reports the contract error, naming the field
       qc.setQueryData(STATE_KEY, parsed.data);
@@ -57,7 +61,13 @@ export function useLiveState(play?: Play): void {
     es.onerror = () => {
       if (es.readyState === STREAM_CLOSED || live) setLive(false); // reconnecting or gone: poll meanwhile
     };
+    // the daemon sends the state at least every 25 s; a stream silent for longer is a frozen Overhand, so the poll (and
+    // its timeout) takes over and says so, and the next message hands back to the stream
+    const quiet = setInterval(() => {
+      if (live && Date.now() - heard > STREAM_SILENT_MS) setLive(false);
+    }, 5000);
     return () => {
+      clearInterval(quiet);
       es.close();
       setLive(false);
     };
