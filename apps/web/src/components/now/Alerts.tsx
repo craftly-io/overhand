@@ -141,6 +141,7 @@ function AlertCard({ a, brief, className }: { a: Alert; brief?: string; classNam
     else if (t.kind === "review") ui.openDrawer({ kind: "review", key: t.key });
     else if (t.kind === "notes" || t.kind === "sweep") ui.openDrawer({ kind: t.kind });
     else if (t.kind === "settings") ui.openDrawer({ kind: "settings", tab: t.tab, project: t.project });
+    else if (t.kind === "sandbox") ui.openDrawer({ kind: "settings", tab: "projects", project: t.project });
     else if (t.kind === "rule") ui.openDrawer({ kind: "instructions", project: t.project });
     else if ((t.kind === "held" && t.key) || t.kind === "interrupted") ui.openDrawer({ kind: "ticket", key: t.key });
     else if (t.kind === "card") ui.openDrawer({ kind: "crew" });
@@ -217,6 +218,7 @@ function Actions({ a }: { a: Alert }) {
   if (t.kind === "replan") return one(w.signInRetry, () => void run({ name: "plan" }));
   if (t.kind === "plugin") return one(w.plRunAgain, () => void plugin({ do: "run", name: t.name }));
   if (t.kind === "git") return one(w.alGitAllow, () => void gitAllow(t.dir), "outline");
+  if (t.kind === "sandbox") return one(w.sandboxKeep, () => void save({ project: t.project, sandbox: "keep" }));
   if (t.kind === "raise") return one(fmt(w.alBudgetRaiseTo, { cap: `$${t.usd}` }), () => void save({ budgetUsd: t.usd }));
   if (t.kind === "update") return one(a.go ?? w.open, () => void selfUpdate());
   if (t.kind === "link") return one(a.go ?? w.open, () => void window.open(t.url, "_blank", "noopener,noreferrer"));

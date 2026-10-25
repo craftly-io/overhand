@@ -33,7 +33,16 @@ export function useForm(): SettingsForm {
 }
 
 /** `fallback`: what a select shows when the config leaves the field out (the daemon's default for it); `labels`: plain words for its values. */
-type Kind = "text" | "num" | "csv" | "list" | "bool" | { options: string[]; fallback?: string; labels?: Readonly<Record<string, string>> };
+/** A switch over two strings: on writes `on`, off writes `off`; any value but `off` shows on. */
+type Toggle = { off: string; on: string };
+type Kind =
+  | "text"
+  | "num"
+  | "csv"
+  | "list"
+  | "bool"
+  | Toggle
+  | { options: string[]; fallback?: string; labels?: Readonly<Record<string, string>> };
 const NONE = "__none";
 
 /** On a device, under a field only the computer changes: where to change it instead. */
@@ -57,18 +66,26 @@ export function Field({ label, path, kind = "text" }: { label: string; path: str
   const locked = !f.local && localOnly(path);
   const why = locked ? `${id}-why` : undefined;
   const note = why ? <OnComputer id={why} /> : null;
-  if (kind === "bool")
+  if (kind === "bool" || (typeof kind === "object" && "on" in kind)) {
+    const toggle = typeof kind === "object" ? kind : null;
     return (
       <div className="grid gap-1">
         <div className="flex items-center justify-between gap-3 py-1">
           <Label htmlFor={id} className="text-xs text-muted-foreground">
             {label}
           </Label>
-          <Switch id={id} checked={v === true} disabled={locked} aria-describedby={why} onCheckedChange={(on) => f.set(path, on)} />
+          <Switch
+            id={id}
+            checked={toggle ? v !== undefined && v !== toggle.off : v === true}
+            disabled={locked}
+            aria-describedby={why}
+            onCheckedChange={(on) => f.set(path, toggle ? (on ? toggle.on : toggle.off) : on)}
+          />
         </div>
         {note}
       </div>
     );
+  }
   if (typeof kind === "object")
     return (
       <div className="grid min-w-0 gap-1">

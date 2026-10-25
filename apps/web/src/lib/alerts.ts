@@ -69,7 +69,9 @@ type AlertTarget =
   /** A control-room action card: its buttons are what Overhand does, with your authority. */
   | { kind: "card"; card: ActionCard }
   /** Quiet mode for `hours`: heavy jobs wait while you need the laptop (a meeting starting soon). */
-  | { kind: "quiet"; hours: number };
+  | { kind: "quiet"; hours: number }
+  /** A project Overhand runs on the guard only (a tool that can't run inside the OS sandbox): Keep it in the sandbox. */
+  | { kind: "sandbox"; project: string };
 
 export interface Alert {
   /** 3 = act now, 2 = soon, 1 = for your information. */
@@ -569,7 +571,15 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       sub: s.sandboxRefuse,
       say: w.alSandboxRefuseSay,
       go: w.alSandboxFix,
-      target: { kind: "settings", tab: "system" },
+      target: { kind: "settings", tab: "accounts" },
+    });
+  for (const [project, tool] of Object.entries(s.sandboxAuto))
+    a.push({
+      sev: 1,
+      title: fmt(w.alSandboxAuto, { project }),
+      sub: fmt(w.alSandboxAutoSub, { tool }),
+      item: `sandbox:${project}`,
+      target: { kind: "sandbox", project },
     });
   // today's plan failed when its newest word is a failure, not "plan written"
   const planned = s.reports.findLastIndex((l) => l.includes("plan written"));

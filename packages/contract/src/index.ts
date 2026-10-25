@@ -695,6 +695,11 @@ export const DashboardStateSchema = z.object({
   slackSignIn: z.object({ clients: z.array(z.string()), account: z.string() }).nullish(),
   /** Why no run can start on this computer when the OS sandbox can't run here and the config requires it; "" when runs can. */
   sandboxRefuse: z.string().default(""),
+  /**
+   * Projects Overhand itself runs on the guard only while the OS sandbox is on, by name, with the tool that can't run
+   * inside it (core/src/sandbox.ts sandboxAuto): Needs you says so, with Keep it in the sandbox.
+   */
+  sandboxAuto: z.record(z.string(), z.string()).default({}),
   /** The menu bar item is on (`menubar`); null where this computer has none (not a Mac, or not installed). */
   menubar: z.boolean().nullable().default(null),
   /**
@@ -944,7 +949,7 @@ export const SettingsSchema = z.object({
   /** Each account's config folder (read-only in Settings); empty from older daemons. */
   homes: z.record(z.string(), z.string()).default({}),
   /** The OS sandbox on this machine; off from older daemons. */
-  sandbox: SandboxStatusSchema.default({ mode: "off", effective: "off", ok: true, why: "", refuse: false, platform: "", suggest: {} }),
+  sandbox: SandboxStatusSchema.default({ mode: "off", effective: "off", ok: true, why: "", refuse: false, platform: "", tools: {} }),
   /** This browser is on the computer itself, so it may change the LOCAL_ONLY fields; older daemons let every caller. */
   local: z.boolean().default(true),
 });
@@ -1109,7 +1114,9 @@ export const CleanupSwitchesSchema = z.object({
 /**
  * `POST /api/settings/quick`: one day-to-day switch from Quick settings, saved into the config without opening the
  * whole Settings form: the daily budget (0 = off), weekly pacing, the menu bar item, the look (from Settings → Look &
- * sound, so the menu bar item draws in it too), one project's autonomy, or whether it runs hosted while the computer is off.
+ * sound, so the menu bar item draws in it too), one project's autonomy, or whether it runs hosted while the computer is off,
+ * or Needs you's Keep it in the sandbox for one project: only "keep", which can only hold a run tighter, so a paired
+ * device may send it though the sandbox is otherwise LOCAL_ONLY.
  */
 export const QuickSettingSchema = z.union([
   z.object({ budgetUsd: z.number().min(0).max(100_000) }),
@@ -1118,6 +1125,7 @@ export const QuickSettingSchema = z.union([
   z.object({ look: z.string().regex(/^[a-z]{1,40}$/) }),
   z.object({ project: z.string().min(1), autonomy: AutonomySchema }),
   z.object({ project: z.string().min(1), hosted: z.boolean() }),
+  z.object({ project: z.string().min(1), sandbox: z.literal("keep") }),
 ]);
 export type QuickSetting = z.infer<typeof QuickSettingSchema>;
 

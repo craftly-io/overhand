@@ -39,3 +39,34 @@ test("on the computer itself the same field is editable, with no note", async ()
   expect([...el.querySelectorAll("input")].every((i) => !i.readOnly)).toBe(true);
   expect(el.textContent).not.toContain(w.changeOnComputer);
 });
+
+test("the sandbox is one switch: on writes enforce, off writes off, and log only (config-only) shows as on", async () => {
+  const sets: [string, unknown][] = [];
+  const at = (mode: string): SettingsForm => {
+    const f = form(true, (path, v) => sets.push([path, v]));
+    return { ...f, draft: { ...f.draft, sandbox: { mode } } };
+  };
+  const flip = async (mode: string) => {
+    const el = await render(
+      () => (
+        <FormCtx value={at(mode)}>
+          <Field label={w.sandboxSwitch} path="sandbox.mode" kind={{ off: "off", on: "enforce" }} />
+        </FormCtx>
+      ),
+      true,
+    );
+    const sw = el.querySelector<HTMLButtonElement>("button[role=switch]");
+    const checked = sw?.getAttribute("aria-checked");
+    const { act } = await import("react");
+    await act(async () => sw?.click());
+    return checked;
+  };
+  expect(await flip("off")).toBe("false");
+  expect(await flip("enforce")).toBe("true");
+  expect(await flip("log")).toBe("true");
+  expect(sets).toEqual([
+    ["sandbox.mode", "enforce"],
+    ["sandbox.mode", "off"],
+    ["sandbox.mode", "off"],
+  ]);
+});
