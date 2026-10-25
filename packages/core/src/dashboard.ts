@@ -44,6 +44,7 @@ import { benchedUntil } from "./limits";
 import { menubarHelper } from "./menubar";
 import { diskFree, report } from "./notify";
 import { reviewRound } from "./onpreview";
+import { pluginStates } from "./plugins";
 import { loadActions, room, toCard, toSession } from "./room";
 import { gitFlagged, projectSandbox, waitsForSignIn } from "./sandbox";
 import { lastSelfCheck } from "./selfcheck";
@@ -436,6 +437,7 @@ export async function dashboardState(): Promise<DashboardState> {
     assigned: Object.values(loadAssignments()).map(({ key, project, title, by, local, at }) => ({ key, project, title, by, local, at })),
     team: teamState(),
     names: loadNames(),
+    plugins: pluginStates(CFG),
   };
 }
 

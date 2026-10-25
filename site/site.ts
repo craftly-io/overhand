@@ -3,6 +3,9 @@ import {
   GUARD_LIMIT,
   GUARD_REACH,
   NO_MERGE_CLAIM,
+  PLUGIN_LIMIT,
+  PLUGIN_REVIEW,
+  PLUGIN_STOPS,
   QUIET_CLAIM,
   SANDBOX_LIMIT,
   SANDBOX_PROJECT_OFF,
@@ -46,6 +49,9 @@ export const CLAIMS = {
   sandboxStops: SANDBOX_STOPS,
   sandboxLimit: SANDBOX_LIMIT,
   sandboxProjectOff: SANDBOX_PROJECT_OFF,
+  pluginStops: PLUGIN_STOPS,
+  pluginLimit: PLUGIN_LIMIT,
+  pluginReview: PLUGIN_REVIEW,
 } as const;
 
 /**
@@ -72,6 +78,7 @@ export const DOCS = [
   { slug: "leads", title: "Leads", line: "Long-running agents that look after a whole project." },
   { slug: "guard", title: "The guard", line: "What it stops before it runs, and how it reaches each agent." },
   { slug: "runs", title: "How agents run", line: "Each agent's flags, what every run is told, and the scorecard." },
+  { slug: "plugins", title: "Plugins", line: "Small add-ons in a sandbox of their own, installed from a pin you approve." },
   {
     slug: "anywhere",
     title: "Phone and Access from anywhere",

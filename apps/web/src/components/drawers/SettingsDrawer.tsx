@@ -47,6 +47,7 @@ import { DrawerHead } from "./DrawerHost";
 import { AgentTuning } from "./SettingsAgent";
 import { CheckRows, Field, FieldCard, FormCtx, type SettingsForm, useForm } from "./SettingsFields";
 import { LookTab, SystemTab } from "./SettingsLook";
+import { PluginsTab } from "./SettingsPlugins";
 import { SettingsReports } from "./SettingsReports";
 import { HouseRulesTab } from "./SettingsRules";
 import { StatusUpdates } from "./SettingsUpdates";
@@ -58,6 +59,7 @@ const TABS = [
   ["schedule", "Schedule & limits"],
   ["rules", "House rules"],
   ["integrations", "Integrations"],
+  ["plugins", "Plugins"],
   ["phone", "Phone"],
   ["team", "Team"],
   ["look", "Look & sound"],
@@ -1011,6 +1013,9 @@ export function SettingsDrawer({ tab: opening = "projects", project }: { tab?: s
         <TabsContent value="integrations" className="grid gap-3">
           <IntegrationsTab checks={checks} store={(s, v) => void storeSecret(s, v)} />
         </TabsContent>
+        <TabsContent value="plugins" className="grid gap-3">
+          <PluginsTab />
+        </TabsContent>
         <TabsContent value="phone" className="grid gap-3">
           <Phone />
         </TabsContent>
@@ -1053,9 +1058,9 @@ export function SettingsDrawer({ tab: opening = "projects", project }: { tab?: s
           {error}
         </p>
       ) : null}
-      {/* look, system and team act at once; everything else is a draft until Save */}
+      {/* look, system, team and plugins act at once; everything else is a draft until Save */}
       <div
-        hidden={tab === "look" || tab === "system" || tab === "team"}
+        hidden={tab === "look" || tab === "system" || tab === "team" || tab === "plugins"}
         className="sticky -bottom-5 -mx-5 mt-4 flex gap-2 border-t border-border bg-popover px-5 pt-3 pb-5 max-lg:bottom-[calc(4.5rem+env(safe-area-inset-bottom))]"
       >
         <Button onClick={() => void save()}>{w.save}</Button>

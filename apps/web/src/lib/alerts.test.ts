@@ -2,7 +2,8 @@ import { expect, test } from "bun:test";
 import { factsBrief } from "@overhand/contract";
 import { NOW, state } from "@overhand/contract/fixtures/state";
 import { plainWords, worldById } from "@overhand/themes";
-import { askNotes, brokenCount, computeAlerts } from "./alerts";
+import { demoPlugins } from "@/demo/plugins";
+import { askNotes, brokenCount, computeAlerts, pluginAlerts } from "./alerts";
 import { briefing } from "./briefing";
 import { parsePlan } from "./plan";
 
@@ -459,4 +460,19 @@ test("a Slack inbox signed out of Slack says for which projects, with Sign in to
   );
   expect(card?.title).toBe("Slack needs signing in again for Acme, Kite");
   expect(computeAlerts(base, parsePlan([]), plainWords, NOW).some((a) => a.target.kind === "slack")).toBe(false);
+});
+
+test("each plugin alert comes with its fix: review it, open the page its finding names, or run it again", () => {
+  const [on, waiting] = demoPlugins(NOW);
+  if (!on || !waiting) throw new Error("the demo has two plugins");
+  const failed = { ...on, name: "failed", last: { at: NOW, ok: false, why: "it ran past its 20 s limit" } };
+  const a = pluginAlerts([on, waiting, { ...on, name: "changed", state: "changed" }, failed], plainWords);
+  expect(a.map((x) => [x.title, x.target.kind])).toEqual([
+    ["site-answers: shop.example.com/checkout is slow", "link"],
+    ["Plugin status-page waits for your approval", "settings"],
+    ["Plugin changed changed since you approved it", "settings"],
+    ["Plugin failed failed", "plugin"],
+  ]);
+  // an info finding stays in Health; a paused plugin asks nothing
+  expect(pluginAlerts([{ ...on, state: "paused" }], plainWords)).toEqual([]);
 });

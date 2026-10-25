@@ -11,6 +11,7 @@ import { Accounts } from "../health/Accounts";
 import { Guardrails } from "../health/Guardrails";
 import { HealthPane } from "../health/HealthPane";
 import { Machine } from "../health/Machine";
+import { Plugins } from "../health/Plugins";
 import { WorkReports } from "../health/Reports";
 import { Scorecard } from "../health/Scorecard";
 import { Spend } from "../health/Spend";
@@ -194,6 +195,7 @@ export function ViewDrawer({ m, view, project }: { m: Model; view: View; project
             <Machine m={m} />
             <Guardrails m={m} />
             <Updates m={m} />
+            <Plugins m={m} />
           </div>
           <Scorecard m={m} />
           <WorkReports m={m} />

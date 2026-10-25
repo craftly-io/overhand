@@ -38,6 +38,8 @@ type AlertTarget =
   | { kind: "restart" }
   /** Today's plan failed: plan again. */
   | { kind: "replan" }
+  /** A plugin's finding or failed run whose fix is to run it again. */
+  | { kind: "plugin"; name: string }
   /** No daemon git in `dir` ("*" = every checkout) until you allow it again, after looking. */
   | { kind: "git"; dir: string }
   /** A lead that crashed out: Start it again, or open its log. */
@@ -131,6 +133,41 @@ export function askNotes(ask: NonNullable<Lead["ask"]>, w: Words, now: number): 
         ? fmt(long ? w.askDefaultAtLong : w.askDefaultAt, { t: hm(ask.deadline), default: ask.default })
         : fmt(long ? w.askDefaultLateLong : w.askDefaultLate, { default: ask.default });
   return [...(why ? [fmt(w.askStale, { why })] : []), next];
+}
+
+/**
+ * What plugins need of you: one waiting for approval, changed since, or unreadable (Review it, in Settings), a failed
+ * run (Run again), and each warn or bad finding with the fix it came with. Info findings stay in Health.
+ */
+export function pluginAlerts(plugins: DashboardState["plugins"], w: Words): Alert[] {
+  return plugins.flatMap((p): Alert[] => {
+    if (p.state === "waiting" || p.state === "changed" || p.state === "broken")
+      return [
+        {
+          sev: 1,
+          title: fmt(p.state === "waiting" ? w.alPluginWaiting : w.alPluginChanged, { name: p.name }),
+          sub: p.state === "waiting" ? w.alPluginWaitingSub : p.state === "changed" ? w.plChanged : fmt(w.plBroken, { why: p.why }),
+          go: w.alPluginReview,
+          target: { kind: "settings", tab: "plugins" },
+        },
+      ];
+    if (p.state !== "on") return [];
+    if (p.last && !p.last.ok)
+      return [
+        { sev: 1, broken: true, title: fmt(w.alPluginFailed, { name: p.name }), sub: p.last.why, target: { kind: "plugin", name: p.name } },
+      ];
+    return p.findings
+      .filter((f) => f.severity !== "info")
+      .map(
+        (f): Alert => ({
+          sev: f.severity === "bad" ? 2 : 1,
+          ...(f.severity === "bad" ? { broken: true } : {}),
+          title: `${p.name}: ${f.title}`,
+          sub: f.line,
+          target: f.fix.kind === "link" ? { kind: "link", url: f.fix.url } : { kind: "plugin", name: p.name },
+        }),
+      );
+  });
 }
 
 /** Each kind of action card's title and detail words. */
@@ -462,6 +499,7 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
   const planned = s.reports.findLastIndex((l) => l.includes("plan written"));
   if (s.reports.findLastIndex((l) => l.includes("plan failed")) > planned)
     a.push({ sev: 2, broken: true, title: w.alPlanFailed, sub: w.alPlanFailedSub, say: w.alPlanFailedSay, target: { kind: "replan" } });
+  a.push(...pluginAlerts(s.plugins, w));
   for (const dir of s.gitBlocked)
     a.push({
       sev: 3,

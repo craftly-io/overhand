@@ -16,6 +16,7 @@ import { Accounts } from "@/components/health/Accounts";
 import { Guardrails } from "@/components/health/Guardrails";
 import { HealthPane } from "@/components/health/HealthPane";
 import { Machine } from "@/components/health/Machine";
+import { Plugins } from "@/components/health/Plugins";
 import { WorkReports } from "@/components/health/Reports";
 import { Scorecard } from "@/components/health/Scorecard";
 import { Spend } from "@/components/health/Spend";
@@ -103,6 +104,7 @@ const SETTINGS_TABS = [
   "schedule",
   "rules",
   "integrations",
+  "plugins",
   "phone",
   "team",
   "look",
@@ -375,6 +377,7 @@ export const PATTERNS: Entry[] = [
   )),
   pane("week", "Week", "The week", "Agent PRs opened, and first-try success.", (m) => <Week m={m} />),
   pane("updates", "Updates", "Updates", "What changed in the agents and Overhand itself.", (m) => <Updates m={m} />),
+  pane("plugins", "Plugins", "Plugins", "Each plugin, its last run, and every finding with its fix.", (m) => <Plugins m={m} />),
   pane("work-reports", "WorkReports", "Reports", "The work report per project, to send to whoever needs it.", (m) => <WorkReports m={m} />),
   // jscpd:ignore-end
   // the chrome
@@ -509,6 +512,7 @@ export const PATTERNS: Entry[] = [
       "HouseRulesTab",
       "SettingsReports",
       "StatusUpdates",
+      "PluginsTab",
       "AgentTuning",
       "TeamSettings",
       "Field",

@@ -66,6 +66,7 @@ const SETTINGS_TABS = [
   "schedule",
   "rules",
   "integrations",
+  "plugins",
   "phone",
   "team",
   "look",
