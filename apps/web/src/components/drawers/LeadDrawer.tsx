@@ -1,9 +1,11 @@
-import { type Lead, LeadLogSchema } from "@overhand/contract";
+import { type Lead, type LeadHears, LeadLogSchema, plainLine, type ThreadEntry, threadOf } from "@overhand/contract";
+import type { WordKey } from "@overhand/themes";
 import { useQuery } from "@tanstack/react-query";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useActions } from "@/app/actions";
 import type { Model } from "@/app/data";
 import { Term, useWords } from "@/app/theme";
+import { FeatureTip } from "@/components/FeatureTip";
 import { AnsweredElsewhere } from "@/components/now/Alerts";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,6 +17,7 @@ import { onWatch, reportTitle } from "@/lib/assign";
 import { ago, fmt } from "@/lib/format";
 import { parseMarkdown } from "@/lib/markdown";
 import { leadName, leadState } from "@/lib/sessions";
+import { cn } from "@/lib/utils";
 import { AssignButton } from "../AssignButton";
 import { DecisionCard } from "../DecisionCard";
 import { Markdown } from "../Markdown";
@@ -68,7 +71,7 @@ function LeadText({ g }: { g: Lead }) {
   return (
     <details className="mt-4 text-sm">
       <summary className="cursor-pointer font-display text-xs tracking-widest text-primary uppercase select-none">
-        {g.open ? w.leadQuestions : w.leadAnswered} · {ago(g.inbox.at)}
+        {w.leadQuestions} · {ago(g.inbox.at)}
       </summary>
       <div className="mt-2 max-h-96 overflow-auto bg-muted/50 p-3">
         <Markdown blocks={parseMarkdown(g.inbox.text)} />
@@ -77,7 +80,58 @@ function LeadText({ g }: { g: Lead }) {
   );
 }
 
-/** One lead: its state, open questions with an answer box, live output, start and stop. */
+/** When the lead reads a message, under the box (contract LEAD_HEARS). */
+const HEARS = {
+  now: "leadHearsNow",
+  "after-run": "leadHearsAfterRun",
+  starts: "leadHearsStarts",
+} as const satisfies Record<LeadHears, WordKey>;
+
+/**
+ * The lead's questions file as a conversation, oldest first, kept scrolled to the newest. Each entry is one plain line
+ * with its full words behind Details; a lead's words are text only, never links or buttons.
+ */
+function Thread({ text, lead }: { text: string; lead: string }) {
+  const w = useWords();
+  const box = useRef<HTMLOListElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (el && text) el.scrollTop = el.scrollHeight; // to the newest each time the file changes, not on every render
+  }, [text]);
+  const who = { you: w.threadYou, overhand: w.brand, lead } as const;
+  const kind: Partial<Record<ThreadEntry["kind"], string>> = { reply: w.threadReply, report: w.threadReport };
+  return (
+    <ol
+      ref={box}
+      aria-label={w.leadThread}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region must be reachable by keyboard
+      tabIndex={0}
+      className="mt-2 grid max-h-96 gap-2 overflow-auto"
+    >
+      {threadOf(text).map((e, i) => {
+        const line = e.title || plainLine(e.body, 200) || e.body;
+        return (
+          <li
+            // biome-ignore lint/suspicious/noArrayIndexKey: entries have no ids; the file only grows at its end
+            key={i}
+            className={cn("min-w-0 p-3 text-sm leading-relaxed", e.who === "you" ? "ml-8 bg-primary/10" : "mr-8 bg-muted/50")}
+          >
+            <p className="text-xs text-muted-foreground">{[who[e.who], kind[e.kind], e.at ? ago(e.at) : ""].filter(Boolean).join(" · ")}</p>
+            <p className="mt-1 break-words">{line}</p>
+            {e.body && e.body !== line ? (
+              <details className="mt-1">
+                <summary className="cursor-pointer text-xs text-muted-foreground select-none hover:text-foreground">{w.decDetails}</summary>
+                <p className="mt-1 break-words whitespace-pre-wrap">{e.body}</p>
+              </details>
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** One lead: its state, the conversation with it, a box to answer or message it, live output, start and stop. */
 export function LeadDrawer({ m, leadKey }: { m: Model; leadKey: string }) {
   const w = useWords();
   const { leadAnswer, leadStart, leadStop } = useActions();
@@ -85,41 +139,51 @@ export function LeadDrawer({ m, leadKey }: { m: Model; leadKey: string }) {
   const [elsewhere, setElsewhere] = useState(false);
   const g = m.s.godmode.find((x) => x.key === leadKey);
   if (!g) return <DrawerHead kicker={<Term k="lead" />} title={leadKey} />;
+  const name = leadName(g, m.s.names);
+  // with a question open the box answers it; otherwise what you send is a message, said when it reads it
+  const hears = !g.open && g.hears && (g.supervised || g.running) ? w[HEARS[g.hears]] : "";
   return (
     <>
-      <DrawerHead kicker={<Term k="lead" />} title={leadName(g, m.s.names)} />
+      <DrawerHead kicker={<Term k="lead" />} title={name} />
       <p className="mt-1 text-sm text-muted-foreground">{leadState(g, w, Date.now())}</p>
       {g.open && g.inbox ? <DecisionCard m={m} item={`lead:${g.key}`} here={`lead:${g.key}`} fallback={<LeadText g={g} />} /> : null}
-      {g.inbox ? (
-        <section className="mt-4">
-          {/* an open question's full text is under its card's Details; an answered one's, under its own */}
-          {g.open ? null : <LeadText g={g} />}
-          {g.ask
-            ? askNotes(g.ask, w, Date.now()).map((n) => (
-                <p key={n} className="mt-1.5 text-xs text-muted-foreground">
-                  {n}
-                </p>
-              ))
-            : null}
-          {elsewhere ? (
-            <div className="mt-3">
-              <AnsweredElsewhere leadKey={g.key} onDone={() => setElsewhere(false)} />
-            </div>
-          ) : null}
-          <div className="mt-3 grid gap-1.5">
-            <Label htmlFor="lead-answer">{w.yourAnswer}</Label>
-            <Textarea
-              id="lead-answer"
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder={w.answerPlaceholder}
-              className="min-h-24"
-            />
+      <section className="mt-4">
+        {g.inbox ? (
+          <>
+            <h3 className="font-display text-xs tracking-widest text-primary uppercase">
+              {w.leadThread} · {ago(g.inbox.at)}
+            </h3>
+            <Thread text={g.inbox.text} lead={name} />
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">{w.leadNoQuestions}</p>
+        )}
+        {g.ask
+          ? askNotes(g.ask, w, Date.now()).map((n) => (
+              <p key={n} className="mt-1.5 text-xs text-muted-foreground">
+                {n}
+              </p>
+            ))
+          : null}
+        {elsewhere ? (
+          <div className="mt-3">
+            <AnsweredElsewhere leadKey={g.key} onDone={() => setElsewhere(false)} />
           </div>
-        </section>
-      ) : (
-        <p className="mt-4 text-sm text-muted-foreground">{w.leadNoQuestions}</p>
-      )}
+        ) : null}
+        <div className="mt-3 grid gap-1.5">
+          <Label htmlFor="lead-answer">{g.open ? w.yourAnswer : fmt(w.messageLead, { lead: name })}</Label>
+          <Textarea
+            id="lead-answer"
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder={g.open ? w.answerPlaceholder : w.messagePlaceholder}
+            className="min-h-24"
+          />
+          {hears ? <p className="text-xs text-muted-foreground">{hears}</p> : null}
+          {g.open ? null : <p className="text-xs text-muted-foreground">{w.messageLimits}</p>}
+          <FeatureTip at="lead-message" />
+        </div>
+      </section>
       {/* the outcome (its state, its question) leads; its live output is the steps, folded under Focus */}
       {g.supervised ? (
         <Steps className="mt-5">
@@ -129,17 +193,15 @@ export function LeadDrawer({ m, leadKey }: { m: Model; leadKey: string }) {
         <p className="mt-4 text-sm text-muted-foreground">{w.leadOffHint}</p>
       )}
       <div className="mt-4 flex flex-wrap gap-2">
-        {g.inbox ? (
-          <Button
-            disabled={!answer.trim()}
-            onClick={() => {
-              void leadAnswer(g.key, answer);
-              setAnswer("");
-            }}
-          >
-            {w.sendAnswer}
-          </Button>
-        ) : null}
+        <Button
+          disabled={!answer.trim()}
+          onClick={() => {
+            void leadAnswer(g.key, answer, "answer", !g.open);
+            setAnswer("");
+          }}
+        >
+          {g.open ? w.sendAnswer : w.sendMessage}
+        </Button>
         {g.inbox && onWatch(m.s, g.project) ? (
           <AssignButton
             offer={{ project: g.project, title: `${leadName(g, m.s.names)}: ${reportTitle(g.inbox.text)}`, brief: g.inbox.text }}

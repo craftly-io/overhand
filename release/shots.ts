@@ -4,7 +4,7 @@
  * (index.html) and every finding (report.json). Hard failures (the page scrolls sideways, controls overlap) exit 1, so
  * the release preflight blocks on them; soft findings are listed.
  *
- * Usage: bun run shots [--out dir] [--viewports 390x844,1440x900] [--themes observatory,koi] [--screens now,work]
+ * Usage: bun run shots [--out dir] [--viewports 390x844,1440x900] [--themes observatory-dark,koi-light] [--screens now,work]
  *                      [--data demo,stress] [--workers 4] [--no-build]
  *
  * The dashboard is swept twice: on the sample night (`?demo`) in every look, and on the stress night (`?demo=stress`,
@@ -53,9 +53,12 @@ export const VIEWPORTS: [number, number][] = [
 export const THEMES = [
   { id: "overhand-dark", theme: "overhand", appearance: "dark" },
   { id: "overhand-light", theme: "overhand", appearance: "light" },
-  { id: "observatory", theme: "observatory", appearance: "dark" },
-  { id: "transit", theme: "transit", appearance: "light" },
-  { id: "koi", theme: "koi", appearance: "dark" },
+  { id: "observatory-dark", theme: "observatory", appearance: "dark" },
+  { id: "observatory-light", theme: "observatory", appearance: "light" },
+  { id: "transit-light", theme: "transit", appearance: "light" },
+  { id: "transit-dark", theme: "transit", appearance: "dark" },
+  { id: "koi-dark", theme: "koi", appearance: "dark" },
+  { id: "koi-light", theme: "koi", appearance: "light" },
   { id: "catnap-light", theme: "catnap", appearance: "light" },
   { id: "catnap-dark", theme: "catnap", appearance: "dark" },
 ] as const;

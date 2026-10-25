@@ -36,6 +36,8 @@ curl -fsSL https://get.overhand.dev | sh
 
 - A lead's open question shows in the dashboard under Needs you. With the person's answer, run
   `overhand answer <lead> "<answer>"`, or `overhand answer <lead> --default` to accept the default the question gave.
+- With no question open, `overhand answer <lead> "<text>"` sends the lead a message from the person instead; its reply
+  shows in the lead's conversation in the dashboard. Send one only when the person asked you to.
 - A request handed to your session: `overhand ack <id> done`, or `overhand ack <id> refuse "<why>"`.
 - Over MCP instead: `overhand mcp` is a stdio MCP server with the same answers and requests as tools, plus `status`
   (what's running and what needs you). Add it with `claude mcp add overhand -- overhand mcp` or your agent's own way.

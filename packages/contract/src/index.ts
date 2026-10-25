@@ -9,7 +9,7 @@ import { CardButtonSchema, PlanPointsSchema } from "./decide";
 import { GuideSchema } from "./guide";
 import { HostedResultSchema } from "./hosted";
 import { ProjectInstructionsSchema } from "./instructions";
-import { LEAD_WORK } from "./leads";
+import { LEAD_HEARS, LEAD_WORK } from "./leads";
 import { LeakSchema } from "./outward";
 import { ProgressionSchema } from "./progression";
 import { ProofSchema } from "./proof";
@@ -374,6 +374,8 @@ export const LeadSchema = z.object({
   account: z.string(),
   inbox: LeadInboxSchema.nullable(),
   open: z.boolean(),
+  /** When a message you send it now reaches it (LEAD_HEARS). Absent from older daemons. */
+  hears: z.enum(LEAD_HEARS).optional(),
   /**
    * The open question: its stated default ("If there's no answer: …", "" when none), when Overhand goes with it (0 = it
    * waits for you), and why it may be out of date (issues/PRs it names that closed since; its age in hours past a day).
@@ -697,6 +699,8 @@ export const DashboardStateSchema = z.object({
     .object({ billing: z.string(), stopped: z.array(HostedResultSchema) })
     .nullable()
     .default(null),
+  /** The look last picked on this computer (`look`), which the menu bar item draws in. Optional for older daemons. */
+  look: z.string().default("overhand"),
   /** No agent has run on an earlier day: a fresh install's first day. Optional for older daemons. */
   dayOne: z.boolean().default(false),
   sessions: z.array(SessionSchema),
@@ -1020,12 +1024,14 @@ export const CleanupSwitchesSchema = z.object({
 
 /**
  * `POST /api/settings/quick`: one day-to-day switch from Quick settings, saved into the config without opening the
- * whole Settings form: the daily budget (0 = off), weekly pacing, the menu bar item, one project's autonomy, or whether it runs hosted while the computer is off.
+ * whole Settings form: the daily budget (0 = off), weekly pacing, the menu bar item, the look (from Settings → Look &
+ * sound, so the menu bar item draws in it too), one project's autonomy, or whether it runs hosted while the computer is off.
  */
 export const QuickSettingSchema = z.union([
   z.object({ budgetUsd: z.number().min(0).max(100_000) }),
   z.object({ paceWeekly: z.boolean() }),
   z.object({ menubar: z.boolean() }),
+  z.object({ look: z.string().regex(/^[a-z]{1,40}$/) }),
   z.object({ project: z.string().min(1), autonomy: AutonomySchema }),
   z.object({ project: z.string().min(1), hosted: z.boolean() }),
 ]);

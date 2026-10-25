@@ -118,6 +118,21 @@ test("the demo carries out answers, quiet mode and autonomy, and refuses the res
   expect(demoState().governor.quietUntil).toBeGreaterThan(Date.now());
 });
 
+test("what a visitor sends a lead joins its conversation as the daemon writes it: an answer, or a message", () => {
+  const lead = (key: string) => demoState().godmode.find((g) => g.key === key);
+  expect(lead("mobile")?.open).toBe(true);
+  expect(demoPost("/api/lead/answer", { key: "mobile", text: "Push only" })).toEqual({});
+  expect(lead("mobile")?.open).toBe(false);
+  expect(lead("mobile")?.inbox?.text).toContain("## Reminders");
+  expect(lead("mobile")?.inbox?.text).toMatch(/## Answer from Sam \(\d{4}-\d\d-\d\d \d\d:\d\d\)\n\nPush only$/);
+  // nothing open now: the next one is a message, after the shop lead's own conversation
+  expect(demoPost("/api/lead/answer", { key: "shop", text: "Thanks" })).toEqual({});
+  expect(lead("shop")?.inbox?.text).toContain("## Reply (");
+  expect(lead("shop")?.inbox?.text).toMatch(/## Answer from Sam \(message, \d{4}-\d\d-\d\d \d\d:\d\d\)\n\nThanks$/);
+  resetDemo();
+  expect(lead("mobile")?.open).toBe(true);
+});
+
 /** Each piece's moment, as the state shows it: what a visitor sees change when the piece plays. */
 const BOOK_88 = samplePr("example/booking", 77);
 const MOMENT: Record<string, (s: DashboardState) => boolean> = {

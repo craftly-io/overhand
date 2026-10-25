@@ -351,6 +351,17 @@ export const FEATURES: readonly Feature[] = [
     docs: "docs/agents.html#billing",
   },
   {
+    id: "looks",
+    name: "Looks",
+    line: "Five looks for the app, each in light and dark: new art, colour and motion, the same words and controls.",
+    area: "overhand",
+    since: "2026-10-25",
+    source: "packages/themes/src/index.ts",
+    place: "none",
+    docs: "docs/everyday.html#looks",
+    tip: { text: "New: pick a look for the app. Every word and control stays put.", where: "settings-look" },
+  },
+  {
     id: "mcp-server",
     name: "Overhand over MCP",
     line: "Your agents ask what's running and what needs you, answer leads and hand on requests; a run does only what its key allows.",
@@ -359,6 +370,17 @@ export const FEATURES: readonly Feature[] = [
     source: "packages/core/src/mcp-server.ts",
     place: "none",
     docs: "docs/runs.html#mcp",
+  },
+  {
+    id: "talk-to-leads",
+    name: "Message a lead",
+    line: "Ask a lead anything or tell it what to do, any time, from the app or your phone; its reply comes back in the same conversation.",
+    area: "agents",
+    since: "2026-10-25",
+    source: "apps/web/src/components/drawers/LeadDrawer.tsx",
+    place: "none",
+    docs: "docs/leads.html#talk",
+    tip: { text: "New: message a lead any time, not only when it asks.", where: "lead-message" },
   },
 ];
 

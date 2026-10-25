@@ -9,7 +9,9 @@ import {
   DashboardStateSchema,
   type Lead,
   type LeadWorkKind,
+  MESSAGE_NOTE,
   type Session,
+  sectionHeading,
   type Ticket,
   type Worktrees,
 } from "@overhand/contract";
@@ -116,11 +118,16 @@ interface Character {
   subagents: [string, string, string, string][];
   /** When it asks you something, and the question. */
   question?: [string, string];
+  /** Its conversation with Sam: when, a message from Sam or the lead's reply (its run's final message), and the words. */
+  chat?: [string, "message" | "reply", string][];
   /** The default its question states ("If there's no answer: …"); Overhand goes with it four hours after it asked. */
   default?: string;
   /** From when its question may be out of date, and the issues and PRs it names that closed since. */
   closed?: [string, string[]];
 }
+
+/** Who runs Overhand on the sample night: the one answering and messaging the leads. */
+export const OWNER = "Sam";
 
 /** Sam's daily cap on billed money (pay per use and cloud): only the clinic's Bedrock counts toward it. */
 const BUDGET_USD = 25;
@@ -136,11 +143,21 @@ const LEADS: Character[] = [
     spans: [["23:58", "02:52"]],
     says: [
       ["23:58", "→ Read: notes.md"],
+      ["00:05", "→ Read: questions.md"],
       ["00:20", "Two of the shop's PRs need rebasing after yesterday's merge."],
       ["01:15", "→ Bash: gh pr checks 305"],
       ["02:00", "Rebased both PRs; CI is green on main again."],
     ],
     subagents: [["00:30", "02:10", "rebase-helper", "Rebases stale branches"]],
+    // Sam's message before bed: the lead wasn't running, so Overhand started it to read it; its run's last words are the reply
+    chat: [
+      ["23:58", "message", "Leave the payments module alone this week: I'm moving it to the new card service myself (SHOP-151)."],
+      [
+        "02:52",
+        "reply",
+        "Understood: I won't touch the payments module this week.\n\nTonight: two PRs fell behind after yesterday's merge. I rebased both, and CI is green on main again.",
+      ],
+    ],
   },
   {
     key: "booking",
@@ -479,6 +496,14 @@ export function nightAt(minutes: number): DashboardState {
     const live = g.spans.find(([a, b]) => between(now, a, b));
     const last = [...g.spans].reverse().find(([, b]) => at(b) <= now);
     const asked = g.question !== undefined && at(g.question[0]) <= now;
+    // its questions file so far, written as Overhand writes it: Sam's messages and its replies, then its question
+    const said = (g.chat ?? [])
+      .filter(([t]) => at(t) <= now)
+      .map(([t, kind, text]): [number, string] => [
+        at(t),
+        `${sectionHeading(kind === "message" ? `Answer from ${OWNER}` : "Reply", kind === "message" ? MESSAGE_NOTE : "", new Date(at(t)))}\n\n${text}`,
+      ]);
+    const file: [number, string][] = [...said, ...(asked && g.question ? [[at(g.question[0]), g.question[1]] as [number, string]] : [])];
     return {
       key: g.key,
       label: g.label,
@@ -499,8 +524,10 @@ export function nightAt(minutes: number): DashboardState {
         : { waitingLimit: false }),
       nextAt: last ? at(last[1]) + 40 * 60_000 : 0,
       account: g.account ?? "Sam",
-      inbox: asked && g.question ? { text: g.question[1], at: at(g.question[0]), open: true } : null,
+      inbox: file.length ? { text: file.map(([, t]) => t).join("\n\n"), at: file.at(-1)?.[0] ?? 0, open: asked } : null,
       open: asked,
+      // a run in Claude Code reads a message at its next step (its hook hands it over); any other CLI when its run ends
+      hears: live ? (ACCOUNTS[g.account ?? OWNER]?.runtime === "claude-code" ? "now" : "after-run") : "starts",
       ask:
         asked && g.question
           ? {
@@ -778,7 +805,7 @@ export function nightAt(minutes: number): DashboardState {
     labels: { queue: "agent", working: "agent-working", review: "agent-review", blocked: "needs-owner", fromSlack: "from-slack" },
     opsBehind: 0,
     taskTimeoutMin: 75,
-    owner: "Sam",
+    owner: OWNER,
     runs,
     week: {
       opened: 12 + finished.length,

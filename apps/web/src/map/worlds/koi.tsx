@@ -25,9 +25,10 @@ export const koi: World = {
   atlas: (c) => (
     <>
       <radialGradient id={`${c.id}water`} cx="0.5" cy="0.45" r="0.6">
-        <stop offset="0" stopColor="#1e4a4c" />
-        <stop offset="0.6" stopColor="#0f2e31" />
-        <stop offset="1" stopColor="#071a1c" />
+        {/* by day clear green water, its edge the page's paper */}
+        <stop offset="0" stopColor={c.light ? "#7fb2aa" : "#1e4a4c"} />
+        <stop offset="0.6" stopColor={c.light ? "#a9cfc7" : "#0f2e31"} />
+        <stop offset={c.light ? 0.8 : 1} stopColor={c.light ? "#f1f6f4" : "#071a1c"} />
       </radialGradient>
       <radialGradient id={`${c.id}stone`} cx="0.4" cy="0.35" r="0.8">
         <stop offset="0" stopColor="#9aa29e" />
@@ -56,7 +57,7 @@ export const koi: World = {
                 rx={30 + hash(i + 9) * 60}
                 ry={8 + hash(i + 3) * 14}
                 transform={`rotate(${(hash(i + 7) * 180).toFixed(0)} ${x.toFixed(0)} ${y.toFixed(0)})`}
-                fill="#bfe3d9"
+                fill={c.light ? "#ffffff" : "#bfe3d9"}
               />
             );
           })}

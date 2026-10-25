@@ -28,9 +28,10 @@ export const observatory: World = {
   atlas: (c) => (
     <>
       <radialGradient id={`${c.id}sky`} cx="0.5" cy="0.45" r="0.7">
-        <stop offset="0" stopColor="#0b1830" />
-        <stop offset="0.78" stopColor="#04070d" />
-        <stop offset="1" stopColor="#04070d" stopOpacity="0" />
+        {/* by day a star chart on paper: the same sky, inked pale */}
+        <stop offset="0" stopColor={c.light ? "#dbe3ef" : "#0b1830"} />
+        <stop offset="0.78" stopColor={c.light ? "#eef1f6" : "#04070d"} />
+        <stop offset="1" stopColor={c.light ? "#eef1f6" : "#04070d"} stopOpacity="0" />
       </radialGradient>
       <radialGradient id={`${c.id}dome`} cx="0.35" cy="0.25" r="0.85">
         <stop offset="0" stopColor="#9c9c9a" />
@@ -49,7 +50,7 @@ export const observatory: World = {
         <circle r={560} fill={`url(#${c.id}sky)`} />
         <ellipse rx={900} ry={150} transform="rotate(-32)" fill="#9fb8da" opacity={0.07} filter={`url(#${c.id}blur40)`} />
         {STARS.map((s) => (
-          <path key={s.o} d={s.d} fill="#e6eef8" opacity={s.o} />
+          <path key={s.o} d={s.d} fill={c.light ? "#313d56" : "#e6eef8"} opacity={s.o} />
         ))}
       </g>
       {/* each project is a constellation in its sector, picked and turned by its name */}
