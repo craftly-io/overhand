@@ -61,7 +61,9 @@ let localOrder: AccountOrder | null = null;
 
 /**
  * The accounts a run may use, in order: one account (the preferred one, else the first), so a run waits for its own
- * account instead of moving work onto another subscription. Local code may supply another order.
+ * account instead of moving work onto another subscription. Local code may supply another order, but never two accounts
+ * of one pool (`poolOf`: CLI and backend, one person's subscriptions), the rule `routeOrder` keeps too: a provider's
+ * limits are per person, and getting round them with a second account of the same kind is against every provider's terms.
  */
 export function accountsFor(
   all: string[],
@@ -69,10 +71,20 @@ export function accountsFor(
   fallbackToAll: boolean,
   start: number,
   order: AccountOrder | null = localOrder,
+  poolOf: (account: string) => string = (a) => comboOfAccount(a).pool,
 ): string[] {
-  if (order) return order(all, preferred, fallbackToAll, start);
-  const one = preferred[0] ?? all[0];
-  return one ? [one] : [];
+  if (!order) {
+    const one = preferred[0] ?? all[0];
+    return one ? [one] : [];
+  }
+  const pools = new Set<string>();
+  const out: string[] = [];
+  for (const a of order(all, preferred, fallbackToAll, start)) {
+    if (pools.has(poolOf(a))) continue;
+    pools.add(poolOf(a));
+    out.push(a);
+  }
+  return out;
 }
 
 /**

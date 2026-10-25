@@ -51,6 +51,11 @@ test("settings the schema doesn't know are named, nested ones by their path; mov
   expect(ignoredKeys(good, parseConfig(good))).toEqual([]);
 });
 
+test("plan accounts are paced through their week by default, and a config that turned pacing off keeps it off", () => {
+  expect(parseConfig(good).limits.paceWeekly).toBe(true);
+  expect(parseConfig({ ...good, limits: { paceWeekly: false } }).limits.paceWeekly).toBe(false);
+});
+
 test("a flat cleanup config keeps its disk floor and schedule when it moves into categories", () => {
   const c = parseConfig({ ...good, cleanup: { minFreeGb: 20, auto: { schedule: "daily" }, staleWorktreeDays: 9 } });
   expect(c.cleanup.minFreeGb).toBe(20);

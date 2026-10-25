@@ -101,6 +101,9 @@ work-reports.json
 slots/
 # a lead's git and gh stand-ins (broker.ts SHIMS), written at each lead start
 shims/
+# state a checkout keeps in itself: pull requests already told about (#89), setup finished (#88)
+.prs-seen.json
+.setup-done
 diagnostics/
 /proof/
 

@@ -57,3 +57,7 @@ export const APP_ORIGINS = [APP, "https://staging-app.overhand.dev", "http://loc
  * Empty until the owner runs `bun relay/keygen.ts` and pastes the public half here; OVERHAND_RELAY_KEY overrides it.
  */
 export const RELAY_PUBLIC_KEY = "OEG2yv-TcaXgNllkRQ3CbSladhA5mBdaFifhcbNjsZE";
+/** Anthropic's terms for Claude Code: a plan's limits assume ordinary, individual use, and sign-in is Anthropic's own flow. */
+export const ANTHROPIC_TERMS = "https://code.claude.com/docs/en/legal-and-compliance";
+/** Google's Gemini API terms: what the free tier does with what you send it. */
+export const GEMINI_TERMS = "https://ai.google.dev/gemini-api/terms";

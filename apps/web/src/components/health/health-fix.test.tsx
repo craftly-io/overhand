@@ -51,7 +51,7 @@ async function signInWith(answer: Response): Promise<HTMLElement> {
 
 // no terminal: the page shows GitHub's one-time code, and the one button opens GitHub's page for it
 test("GitHub's sign-in shows its one-time code and an Open GitHub button", async () => {
-  const started = { ok: true, id: "s1", url: "https://github.com/login/device", code: "6445-CEDD", asks: false };
+  const started = { ok: true, id: "s1", url: "https://github.com/login/device", code: "6445-CEDD" };
   const el = await signInWith(Response.json(started));
   expect(el.querySelector("code")?.textContent).toBe("6445-CEDD");
   const open = [...el.querySelectorAll("a")].find((a) => a.textContent === w.signInOpenTool.replace("{tool}", "GitHub"));

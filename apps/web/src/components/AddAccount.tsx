@@ -1,4 +1,4 @@
-import { OPENCODE_ACCOUNTS, OPENCODE_KEYS, type OpencodeKey } from "@overhand/contract";
+import { ANTHROPIC_TERMS, OPENCODE_ACCOUNTS, OPENCODE_KEYS, type OpencodeKey } from "@overhand/contract";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
@@ -42,6 +42,19 @@ const Added = z.object({ ok: z.boolean(), label: z.string() });
 const keyProvider = (v: string): OpencodeKey => (Object.keys(OPENCODE_KEYS) as OpencodeKey[]).find((k) => k === v) ?? "anthropic";
 
 const reusable = (a: Agent): boolean => a.installed && a.signedIn && a.login && !a.shared;
+
+/** Anthropic's own words on what a Claude plan's limits are for, and its terms: wherever a Claude plan is picked. */
+export function PlanUse() {
+  const w = useWords();
+  return (
+    <p className="text-sm text-muted-foreground">
+      {w.planUseNote}{" "}
+      <a className="text-primary underline" href={ANTHROPIC_TERMS} target="_blank" rel="noopener noreferrer">
+        {w.planUseTerms}
+      </a>
+    </p>
+  );
+}
 
 /**
  * Add an agent account, one step at a time: pick the agent, sign in in your browser through its own login (in a folder
@@ -149,7 +162,9 @@ export function AddAccount({ onAdded }: { onAdded?: () => void }) {
       <h3 id="add-account" className="font-display text-base tracking-wide">
         {w.addAccountTitle}
       </h3>
-      <p className="text-sm text-muted-foreground">{w.addAccountHint}</p>
+      <p className="text-sm text-muted-foreground">
+        {w.addAccountHint} {w.addAccountYours}
+      </p>
       <FeatureTip at="add-account" />
       {agents.some(reusable) && !added ? (
         // a quiet way round the steps: the sign-in already on this computer
@@ -199,6 +214,7 @@ export function AddAccount({ onAdded }: { onAdded?: () => void }) {
       {agent && !added ? (
         <div className="grid gap-2">
           {how ? <p className="text-sm text-muted-foreground">{how}</p> : null}
+          {agent.id === "claude-code" ? <PlanUse /> : null}
           {keyStep ? (
             <form
               className="flex flex-wrap items-center gap-2"
@@ -273,7 +289,7 @@ export function AddAccount({ onAdded }: { onAdded?: () => void }) {
               </div>
             )
           ) : canLogin ? (
-            <Button type="button" className="w-fit" disabled={busy} onClick={() => void add(agent, "login", label, openTab())}>
+            <Button type="button" className="w-fit" disabled={busy} onClick={() => void add(agent, "login", label, openTab(agent.label))}>
               {w.signInBrowser}
             </Button>
           ) : null}

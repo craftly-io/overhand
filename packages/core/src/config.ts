@@ -427,9 +427,11 @@ const ConfigSchema = z.object({
       dailyBudgetUsd: z.number().min(0).default(0),
       /**
        * Pace each Claude account's weekly window: no new work on an account that has used more of its week than has
-       * passed, until the week catches up, so it isn't spent by Wednesday. Off = run until the window is full.
+       * passed, until the week catches up, so it isn't spent by Wednesday. Off = run until the window is full. On by
+       * default: a plan's limits assume one person's ordinary use (Anthropic's terms); a config that sets it keeps its choice.
+       * Only plan accounts have a weekly window, so an API key is never paced.
        */
-      paceWeekly: z.boolean().default(false),
+      paceWeekly: z.boolean().default(true),
     })
     .prefault({}),
   /** The menu bar item on a Mac (menubar.ts): what needs you, what's running, quiet mode, one click from anywhere. */
