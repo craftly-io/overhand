@@ -110,8 +110,9 @@ function Bridge({ m }: { m: Model }) {
       />
     </section>
   );
-  // on a phone, a first win under way leads Now, above the story and the window: it's what a newcomer is waiting for
-  const winFirst = phone && ["looking", "queued", "running"].includes(m.s.firstWin?.state ?? "");
+  // on a phone, the first win leads Now, above the story and the window, from the search to its pull request (or why it
+  // stopped): it's what a newcomer is waiting for, and the card goes on its own once it's days old (firstwin.ts SHOW_MS)
+  const winFirst = phone && (m.s.firstWin?.state ?? "none") !== "none";
   const slot: Record<Exclude<BridgeSlot, "window">, ReactNode> = {
     needs: (
       <Slot key="needs" i={1} id="jump-needs" className="grid scroll-mt-20 gap-(--space-gap)">
