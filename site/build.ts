@@ -16,7 +16,7 @@
  *                 question waits on its project's owner before it goes to the backup too (packages/contract/src/team.ts), or
  *                 the docs' pieces: {{docsList}} / {{docsNav}} (DOCS, site/site.ts), and on a docs page {{docTitle}} /
  *                 {{docLine}}; {{cli}}: the CLI's own help; {{guardTable}}: the guard's coverage; {{leadTemplates}}: the
- *                 ready-made leads; {{also}}: the home page's features (packages/contract/src/features.ts); {{wayOfWorking}}: how every lead works (WAY_OF_WORKING); {{firstDayCap}}, {{shipPerDay}}, {{shipProtect}}, {{localUrl}}, {{freshMin}}: the defaults they name;
+ *                 ready-made leads; {{also}}: the home page's few features and {{everything}}: all of them by area (packages/contract/src/features.ts); {{wayOfWorking}}: how every lead works (WAY_OF_WORKING); {{firstDayCap}}, {{shipPerDay}}, {{shipProtect}}, {{localUrl}}, {{freshMin}}: the defaults they name;
  *                 {{image}} / {{serverFiles}}: the Docker image and where release/server is served; {{port}}: the local port;
  *                 {{w.key}}: a control's or message's name from the app's words; {{cfg.a.b}}: a config default (config.ts)
  * The header link to the page itself (on a docs page, Docs) gets aria-current. /llms.txt lists the docs (`llmsTxt`). Markdown in site/pages (setup.md, for agents) is filled the
@@ -29,10 +29,11 @@
 import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import {
+  AREAS,
   FEATURES,
+  type Feature,
   FRESH_MIN,
   GUARD_COVERAGE,
-  HOME_GROUPS,
   LEAD_TEMPLATES,
   LEAD_WORK,
   PLAN_COPY,
@@ -218,16 +219,24 @@ export function guardTableHtml(): string {
   return `<ul class="facts">\n${items.join("\n")}\n</ul>`;
 }
 
-/** The home page's "Also in Overhand": each group's features from the registry, a bold label, the line, then How → its docs. */
+/** One feature as the site lists it: a bold label, its line, then How → its docs (`root`: from the page it's on). */
+const featureItem = (f: Feature, root: string) =>
+  `<li><b>${esc(f.name)}</b> ${esc(f.line)} <a class="how" href="${root}${f.docs}" aria-label="How it works: ${esc(f.name)}">How <span aria-hidden="true">→</span></a></li>`;
+
+/** The home page's "Also in Overhand": the registry's few features marked `home`. */
 export function alsoHtml(root: string): string {
-  const groups = Object.entries(HOME_GROUPS).map(([g, heading]) => {
-    const items = FEATURES.filter((f) => f.place === g).map(
-      (f) =>
-        `<li><b>${esc(f.name)}</b> ${esc(f.line)} <a class="how" href="${root}${f.docs}" aria-label="How it works: ${esc(f.name)}">How <span aria-hidden="true">→</span></a></li>`,
-    );
-    return `<div>\n<h3>${heading}</h3>\n<ul>\n${items.join("\n")}\n</ul>\n</div>`;
-  });
-  return `<div class="groups">\n${groups.join("\n")}\n</div>`;
+  const items = FEATURES.filter((f) => f.home).map((f) => featureItem(f, root));
+  return `<ul class="facts">\n${items.join("\n")}\n</ul>`;
+}
+
+/** The docs' Everything Overhand does: every feature in the registry, by area, each with How → its docs. */
+export function everythingHtml(root: string): string {
+  return Object.entries(AREAS)
+    .map(([area, heading]) => {
+      const items = FEATURES.filter((f) => f.area === area).map((f) => featureItem(f, root));
+      return `<section class="block hood" id="${area}" aria-labelledby="h-${area}">\n<h2 id="h-${area}">${heading}.</h2>\n<ul class="facts">\n${items.join("\n")}\n</ul>\n</section>`;
+    })
+    .join("\n");
 }
 
 /** The ready-made leads: each one's name as the app says it (LEAD_WORDS) and what it's told to work toward (LEAD_TEMPLATES). */
@@ -383,6 +392,7 @@ export function render(src: string, root: string, self: string, prices: PriceTab
     guardTable: guardTableHtml(),
     leadTemplates: leadTemplatesHtml(),
     also: alsoHtml(root),
+    everything: everythingHtml(root),
     wayOfWorking: esc(WAY_OF_WORKING),
     firstDayCap: `$${FIRST_DAY_BUDGET_USD}`,
     shipPerDay: String(SHIP_DEFAULTS.perDay),

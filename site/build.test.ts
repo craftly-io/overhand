@@ -2,10 +2,10 @@ import { afterEach, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 import {
+  AREAS,
   FEATURES,
   FEATURES_FROM,
   GUARD_LIMIT,
-  HOME_GROUPS,
   LEAD_TEMPLATES,
   LEAD_WORK,
   PLAN_COPY,
@@ -156,11 +156,27 @@ test("the daily cap is told as it works: it stops billed accounts only, and plan
   for (const page of [home, hood]) expect(/daily cap pauses agents/i.test(page)).toBe(false);
 });
 
+test("one front door: the hero shows the one command and what happens next, with no time it hasn't measured", () => {
+  const hero = home.slice(home.indexOf('class="wrap hero"'), home.indexOf('id="try"'));
+  expect(hero.split(CMD)).toHaveLength(2);
+  expect(hero).toContain('<button type="button" data-copy="cmd">Copy</button>');
+  expect(hero).toContain("macOS or Linux · free · needs GitHub and an AI plan you already have");
+  // on a phone the main button is the sample
+  expect(hero).toContain('<a class="pill dark sample" href="./demo/?demo">');
+  expect(hero).toContain("What happens next");
+  expect(hero).toContain("No cloud environment to build");
+  expect(/\b\d+\s*(minutes?|min)\b/i.test(hero.replace(/<[^>]+>/g, " ")), "a time on the page waits for issue #112").toBe(false);
+  // the install section at the bottom is the same command, and no second way in
+  const install = home.slice(home.indexOf('id="install"'));
+  expect(install).toContain(CMD);
+  expect(install.includes('data-copy="prompt"')).toBe(false);
+});
+
 test("both ways to install: the command, and a prompt for your agent that points at setup.md", () => {
   expect(home.includes(CMD), CMD).toBe(true);
   const prompt = `Set up Overhand from ${new URL(SITE.url).host}/setup.md. Ask me before each step.`;
   // the prompt reads as one sentence; its setup.md address is a link to the steps it points at
-  const shown = home.match(/<p class="prompt" id="prompt">([\s\S]*?)<\/p>/)?.[1] ?? "";
+  const shown = home.match(/<span class="prompt" id="prompt">([\s\S]*?)<\/span>/)?.[1] ?? "";
   expect(shown.replace(/<[^>]+>/g, "")).toBe(prompt);
   expect(shown).toContain('href="./setup.md"');
 });
@@ -254,19 +270,22 @@ test("each made-for page opens with a live piece, and every page's footer reache
   }
 });
 
-test("the home page adds 'Also in Overhand': the registry's placed features by whose they are, even groups", () => {
+test("the home page adds 'Also in Overhand': about four of the registry's features, and the docs list every one by area", () => {
   const also = home.slice(home.indexOf('id="also"'), home.indexOf('aria-labelledby="safe"'));
-  const groups = also.split("<h3>").slice(1);
-  expect(groups.map((g) => g.slice(0, g.indexOf("</h3>")))).toEqual(Object.values(HOME_GROUPS));
-  // every group the same length, every point a bold label, its line, then How to its docs
-  const sizes = Object.keys(HOME_GROUPS).map((g) => FEATURES.filter((f) => f.place === g).length);
-  expect(new Set(sizes).size).toBe(1);
-  expect(sizes[0]).toBeGreaterThanOrEqual(3);
-  for (const [i, g] of groups.entries()) {
-    const want = FEATURES.filter((f) => f.place === Object.keys(HOME_GROUPS)[i]);
-    expect([...g.matchAll(/<li><b>([^<]+)<\/b> ([^<]+) <a class="how" href="\.\/([^"]+)"/g)].map((m) => [m[1], m[2], m[3]])).toEqual(
-      want.map((f) => [f.name, f.line, f.docs.replace(".html", "")]),
-    );
+  const item = /<li><b>([^<]+)<\/b> ([^<]+) <a class="how" href="(?:\.\.\/|\.\/)([^"]+)"/g;
+  const shown = (f: (typeof FEATURES)[number]) => [f.name, f.line, f.docs.replace(".html", "")];
+  const placed = FEATURES.filter((f) => f.home);
+  expect(placed.length).toBeGreaterThanOrEqual(3);
+  expect(placed.length).toBeLessThanOrEqual(5);
+  // every point a bold label, its line, then How to its docs
+  expect([...also.matchAll(item)].map((m) => [m[1], m[2], m[3]])).toEqual(placed.map(shown));
+  expect(also).toContain('href="./docs/everything"');
+  const all = built.find(([rel]) => rel === "docs/everything.html")?.[1] ?? "";
+  const sections = all.split('<section class="block hood" id="').slice(1);
+  expect(sections.map((x) => x.slice(0, x.indexOf('"')))).toEqual(Object.keys(AREAS));
+  for (const [i, x] of sections.entries()) {
+    const area = Object.keys(AREAS)[i];
+    expect([...x.matchAll(item)].map((m) => [m[1], m[2], m[3]])).toEqual(FEATURES.filter((f) => f.area === area).map(shown));
   }
 });
 
@@ -277,7 +296,7 @@ test("the feature registry: each entry built, its docs real, its tip beside a co
     expect(f.since, f.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(f.since >= FEATURES_FROM, f.id).toBe(true);
     expect(existsSync(join(here, "..", f.source)), `${f.id}: ${f.source}`).toBe(true);
-    expect(f.place === "none" || f.place in HOME_GROUPS, f.id).toBe(true);
+    expect(f.area in AREAS, f.id).toBe(true);
     const [page = "", anchor = ""] = f.docs.split("#");
     const html = built.find(([rel]) => rel === page)?.[1];
     expect(html, `${f.id}: ${page}`).toBeDefined();
@@ -286,17 +305,20 @@ test("the feature registry: each entry built, its docs real, its tip beside a co
   }
 });
 
-test("a feature's line is on the site once, on the home page where it's placed, and written only in the registry", () => {
+test("a feature's line is on the docs' Everything page, on the home page where it's placed, and written only in the registry", () => {
   const sources = walk(pagesDir).map((f) => read(`pages/${relative(pagesDir, f)}`));
   const claims: string[] = Object.values(CLAIMS);
+  const everything = built.find(([rel]) => rel === "docs/everything.html")?.[1] ?? "";
   for (const f of FEATURES) {
     const count = built.reduce((n, [, html]) => n + html.split(f.line).length - 1, 0);
     const onHome = home.split(f.line).length - 1;
-    // a claim (CLAIMS) is one sentence several pages make through its slot; every other line is only the home page's
-    if (claims.includes(f.line)) expect(onHome, f.id).toBeGreaterThanOrEqual(f.place === "none" ? 0 : 1);
+    const onAll = everything.split(f.line).length - 1;
+    // a claim (CLAIMS) is one sentence several pages make through its slot; every other line is only these two pages'
+    if (claims.includes(f.line)) expect(onHome, f.id).toBeGreaterThanOrEqual(f.home ? 1 : 0);
     else {
-      expect(onHome, f.id).toBe(f.place === "none" ? 0 : 1);
-      expect(count, f.id).toBe(onHome);
+      expect(onHome, f.id).toBe(f.home ? 1 : 0);
+      expect(onAll, f.id).toBe(1);
+      expect(count, f.id).toBe(onHome + onAll);
     }
     for (const src of sources) expect(src.includes(f.line), f.id).toBe(false);
   }

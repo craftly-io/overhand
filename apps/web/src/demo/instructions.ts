@@ -3,7 +3,7 @@
  * CLAUDE.md and AGENTS.md disagree on the package manager; Mobile app runs Codex but only has a CLAUDE.md; Booking app's
  * Copilot file hasn't moved since spring.
  */
-import { type ProjectInstructions, projectInstructions, type RepoInput, type RuleSuggestion, ruleSuggestions } from "@overhand/contract";
+import { type ProjectInstructions, projectInstructions, type RepoInput } from "@overhand/contract";
 import { sampleUrl } from "./links";
 
 const DAY = 864e5;
@@ -168,19 +168,3 @@ export const INSTRUCTIONS: ProjectInstructions[] = [
   ),
   projectInstructions("Mobile app", ["codex"], [repo("sam/mobile-app", [["CLAUDE.md", 21, APP_CLAUDE]])], NOW),
 ];
-
-/**
- * Review remarks from two PRs each: Booking app's ask isn't in its CLAUDE.md yet, so it's offered; Online shop's is already
- * there (never log card data), so it isn't. Found by the same clustering and coverage check as the daemon's.
- */
-export const RULES: RuleSuggestion[] = ruleSuggestions(
-  [
-    { project: "Booking app", repo: "booking", key: "BOOK-81", rule: "Log the request id with every handler error", at: NOW - 9 * DAY },
-    { project: "Booking app", repo: "booking", key: "BOOK-88", rule: "Log the request ID with handler errors", at: NOW - DAY },
-    { project: "Online shop", repo: "shop", key: "SHOP-139", rule: "Don't log card data", at: NOW - 4 * DAY },
-    { project: "Online shop", repo: "shop", key: "SHOP-142", rule: "Never log card data", at: NOW - DAY },
-  ],
-  INSTRUCTIONS,
-  [],
-  NOW,
-);

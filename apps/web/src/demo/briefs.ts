@@ -52,12 +52,12 @@ const PHRASED: Record<string, Phrased> = {
     choices: ["Push only for now", "Email only"],
   },
   "pr:WEB-31": {
-    what: "WEB-31's draft PR adds the bookings spreadsheet download; every check passes.",
-    why: "Company website runs on propose: the PR stays a draft until you mark it ready.",
+    what: "WEB-31's draft pull request adds the bookings spreadsheet download; every check passes.",
+    why: "Company website runs on propose: the pull request stays a draft until you mark it ready.",
     recommend: { option: "review", reason: "A 3-file change with tests: a quick read, then Ready for review.", confidence: "high" },
   },
   [`review:${samplePr("example/booking-desk", 214)}`]: {
-    what: "A teammate's PR makes the front-desk calendar remember its last view.",
+    what: "A teammate's pull request makes the front-desk calendar remember its last view.",
     why: "It's been waiting on your review since 22:15; it can't merge without one.",
     recommend: { option: "open-pr", reason: "Small UI change, checks green: a five-minute review unblocks it.", confidence: "medium" },
   },

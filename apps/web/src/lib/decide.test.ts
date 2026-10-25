@@ -168,7 +168,7 @@ test("the demo's Needs you items each have a brief whose recommendation is one o
   const min = 510;
   const s = nightAt(min);
   const items = computeAlerts(s, parsePlan(s.plan), plainWords, clockAt(min)).flatMap((a) => (a.item ? [a.item] : []));
-  expect(items.length).toBeGreaterThan(4);
+  expect(items.length).toBeGreaterThanOrEqual(3);
   const realNow = Date.now;
   Date.now = () => clockAt(min);
   try {

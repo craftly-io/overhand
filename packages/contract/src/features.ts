@@ -1,6 +1,7 @@
 /**
  * The feature registry: every built feature worth telling people about, written once. The home page's "Also in
- * Overhand" (site/build.ts `{{also}}`), the app's What's new and its tips about new features all read this list, so a
+ * Overhand" (site/build.ts `{{also}}`), the docs' Everything Overhand does (`{{everything}}`), the app's What's new and
+ * its tips about new features all read this list, so a
  * feature is announced in the same words everywhere, and only once it's built. What isn't built has one place: the docs'
  * What's next page (site/pages/docs/next.html), never here.
  */
@@ -9,14 +10,15 @@ import { GUARD_BLOCKS_CLAIM, QUIET_CLAIM } from "./guard";
 /** Which part of the product a feature belongs to, for listing features by area. */
 export type FeatureArea = "agents" | "machine" | "team" | "reports" | "safety" | "overhand";
 
-/** The home page's "Also in Overhand" groups, in the order they show, with their headings. */
-export const HOME_GROUPS = {
-  team: "Your team",
-  machine: "Your machine",
+/** The areas, in the order the docs' Everything Overhand does lists them, with their headings. */
+export const AREAS: Record<FeatureArea, string> = {
   agents: "Your agents",
+  safety: "Safety",
+  machine: "Your machine",
   reports: "Your reports",
-} as const;
-export type HomeGroup = keyof typeof HOME_GROUPS;
+  team: "Your team",
+  overhand: "Overhand itself",
+};
 
 /** One built feature. */
 export interface Feature {
@@ -30,8 +32,8 @@ export interface Feature {
   since: string;
   /** The file that implements it, so each entry can be checked against the code. */
   source: string;
-  /** The home page group it's a point in, or "none". */
-  place: HomeGroup | "none";
+  /** One of the few the home page's "Also in Overhand" names; every feature is on the docs' Everything Overhand does. */
+  home?: true;
   /** Where the site explains it: a page under site/pages and an anchor on it ("docs/cleanup.html#quiet"). */
   docs: `${string}.html#${string}`;
   /** A quiet line in the app, beside the control `where` names (a FeatureTip's `at`), while the feature is new. */
@@ -50,7 +52,6 @@ export const FEATURES: readonly Feature[] = [
     area: "team",
     since: "2026-10-22",
     source: "apps/web/src/components/team/TeamView.tsx",
-    place: "team",
     docs: "docs/teams.html#together",
   },
   {
@@ -60,7 +61,6 @@ export const FEATURES: readonly Feature[] = [
     area: "team",
     since: "2026-10-22",
     source: "packages/contract/src/team.ts",
-    place: "team",
     docs: "docs/teams.html#questions",
   },
   {
@@ -70,7 +70,6 @@ export const FEATURES: readonly Feature[] = [
     area: "team",
     since: "2026-10-22",
     source: "packages/contract/src/team.ts",
-    place: "team",
     docs: "under-the-hood.html#relay",
   },
   {
@@ -80,7 +79,6 @@ export const FEATURES: readonly Feature[] = [
     area: "team",
     since: "2026-10-22",
     source: "apps/web/src/components/drawers/SettingsUpdates.tsx",
-    place: "team",
     docs: "docs/everyday.html#updates",
   },
   {
@@ -90,7 +88,7 @@ export const FEATURES: readonly Feature[] = [
     area: "machine",
     since: "2026-10-22",
     source: "packages/core/src/governor.ts",
-    place: "machine",
+    home: true,
     docs: "docs/cleanup.html#quiet",
   },
   {
@@ -100,7 +98,6 @@ export const FEATURES: readonly Feature[] = [
     area: "machine",
     since: "2026-10-22",
     source: "packages/core/src/cleanup.ts",
-    place: "machine",
     docs: "docs/cleanup.html#cleanup",
   },
   {
@@ -110,7 +107,7 @@ export const FEATURES: readonly Feature[] = [
     area: "machine",
     since: "2026-10-22",
     source: "apps/web/src/components/Phone.tsx",
-    place: "machine",
+    home: true,
     docs: "docs/anywhere.html#tailscale",
   },
   {
@@ -120,7 +117,6 @@ export const FEATURES: readonly Feature[] = [
     area: "machine",
     since: "2026-10-23",
     source: "Dockerfile",
-    place: "machine",
     docs: "docs/server.html#linux",
   },
   {
@@ -130,7 +126,6 @@ export const FEATURES: readonly Feature[] = [
     area: "machine",
     since: "2026-10-23",
     source: "packages/core/src/cleanup-sources.ts",
-    place: "none",
     docs: "docs/cleanup.html#cleanup",
     tip: { text: "Now also finds old local models, agent history and forgotten worktrees.", where: "menu-sweep" },
   },
@@ -141,7 +136,7 @@ export const FEATURES: readonly Feature[] = [
     area: "agents",
     since: "2026-10-22",
     source: "apps/web/src/components/Palette.tsx",
-    place: "agents",
+    home: true,
     docs: "for/makers.html#hook",
   },
   {
@@ -151,7 +146,6 @@ export const FEATURES: readonly Feature[] = [
     area: "agents",
     since: "2026-10-22",
     source: "apps/web/src/components/Checkup.tsx",
-    place: "agents",
     docs: "for/makers.html#p2",
   },
   {
@@ -161,7 +155,7 @@ export const FEATURES: readonly Feature[] = [
     area: "agents",
     since: "2026-10-22",
     source: "apps/web/src/components/drawers/PreviewReview.tsx",
-    place: "agents",
+    home: true,
     docs: "for/makers.html#p1",
   },
   {
@@ -171,7 +165,6 @@ export const FEATURES: readonly Feature[] = [
     area: "agents",
     since: "2026-10-23",
     source: "packages/contract/src/leads.ts",
-    place: "agents",
     docs: "docs/leads.html#ready",
     tip: { text: "New ready-made leads: dependencies, untested code and TODOs.", where: "lead-suggested" },
   },
@@ -182,7 +175,6 @@ export const FEATURES: readonly Feature[] = [
     area: "agents",
     since: "2026-10-22",
     source: "apps/web/src/components/now/FirstWin.tsx",
-    place: "none",
     docs: "docs/first-project.html#win",
   },
   {
@@ -192,7 +184,6 @@ export const FEATURES: readonly Feature[] = [
     area: "agents",
     since: "2026-10-22",
     source: "packages/core/src/daemon.ts",
-    place: "none",
     docs: "docs/cli.html#commands",
   },
   {
@@ -202,7 +193,6 @@ export const FEATURES: readonly Feature[] = [
     area: "reports",
     since: "2026-10-22",
     source: "packages/core/src/brief.ts",
-    place: "reports",
     docs: "docs/everyday.html#night-report",
   },
   {
@@ -212,7 +202,6 @@ export const FEATURES: readonly Feature[] = [
     area: "reports",
     since: "2026-10-22",
     source: "apps/web/src/components/health/Reports.tsx",
-    place: "reports",
     docs: "for/studios.html#p3",
   },
   {
@@ -222,7 +211,6 @@ export const FEATURES: readonly Feature[] = [
     area: "reports",
     since: "2026-10-22",
     source: "apps/web/src/components/share/ShareDrawer.tsx",
-    place: "reports",
     docs: "docs/everyday.html#share",
   },
   {
@@ -232,7 +220,6 @@ export const FEATURES: readonly Feature[] = [
     area: "reports",
     since: "2026-10-23",
     source: "apps/web/src/app/focus.ts",
-    place: "reports",
     docs: "docs/everyday.html#focus",
     tip: { text: "New: Focus keeps outcomes only. Press F any time.", where: "quick-focus" },
   },
@@ -243,7 +230,6 @@ export const FEATURES: readonly Feature[] = [
     area: "reports",
     since: "2026-10-23",
     source: "apps/web/src/lib/voice.ts",
-    place: "none",
     docs: "docs/everyday.html#night-report",
     tip: { text: "New: Stop or Esc ends the night report mid-sentence.", where: "menu-brief" },
   },
@@ -254,7 +240,6 @@ export const FEATURES: readonly Feature[] = [
     area: "safety",
     since: "2026-10-22",
     source: "packages/contract/src/autonomy.ts",
-    place: "none",
     docs: "docs/modes.html#levels",
   },
   {
@@ -264,7 +249,6 @@ export const FEATURES: readonly Feature[] = [
     area: "safety",
     since: "2026-10-22",
     source: "packages/core/src/guard.ts",
-    place: "none",
     docs: "docs/guard.html#what",
   },
   {
@@ -274,7 +258,6 @@ export const FEATURES: readonly Feature[] = [
     area: "safety",
     since: "2026-10-23",
     source: "packages/core/src/ship.ts",
-    place: "none",
     docs: "docs/modes.html#ship",
   },
   {
@@ -284,7 +267,6 @@ export const FEATURES: readonly Feature[] = [
     area: "safety",
     since: "2026-10-23",
     source: "packages/core/src/ship.ts",
-    place: "none",
     docs: "docs/modes.html#ship",
   },
   {
@@ -294,7 +276,6 @@ export const FEATURES: readonly Feature[] = [
     area: "overhand",
     since: "2026-10-23",
     source: "apps/web/src/components/drawers/FeedbackDrawer.tsx",
-    place: "none",
     docs: "docs/everyday.html#feedback",
     tip: { text: "New: tell us an idea or a bug, previewed before it goes.", where: "menu-feedback" },
   },
@@ -305,7 +286,6 @@ export const FEATURES: readonly Feature[] = [
     area: "overhand",
     since: "2026-10-23",
     source: "apps/web/src/app/tips.ts",
-    place: "none",
     docs: "docs/everyday.html#new",
   },
   {
@@ -315,7 +295,6 @@ export const FEATURES: readonly Feature[] = [
     area: "safety",
     since: "2026-10-25",
     source: "packages/core/src/sandbox.ts",
-    place: "none",
     docs: "docs/guard.html#limit",
     tip: { text: "New: an OS sandbox around each agent run, on wherever this computer can run it.", where: "settings-sandbox" },
   },
@@ -326,7 +305,6 @@ export const FEATURES: readonly Feature[] = [
     area: "safety",
     since: "2026-10-25",
     source: "packages/contract/src/sandbox.ts",
-    place: "none",
     docs: "docs/guard.html#limit",
   },
   {
@@ -336,7 +314,6 @@ export const FEATURES: readonly Feature[] = [
     area: "agents",
     since: "2026-10-24",
     source: "packages/core/src/signin.ts",
-    place: "none",
     docs: "docs/agents.html#signin",
     tip: { text: "New: add an account and sign in right here, no terminal.", where: "add-account" },
   },
@@ -347,7 +324,6 @@ export const FEATURES: readonly Feature[] = [
     area: "agents",
     since: "2026-10-24",
     source: "packages/core/src/limits.ts",
-    place: "none",
     docs: "docs/agents.html#billing",
   },
   {
@@ -357,7 +333,6 @@ export const FEATURES: readonly Feature[] = [
     area: "overhand",
     since: "2026-10-25",
     source: "packages/themes/src/index.ts",
-    place: "none",
     docs: "docs/everyday.html#looks",
     tip: { text: "New: pick a look for the app. Every word and control stays put.", where: "settings-look" },
   },
@@ -368,7 +343,6 @@ export const FEATURES: readonly Feature[] = [
     area: "agents",
     since: "2026-10-25",
     source: "packages/core/src/mcp-server.ts",
-    place: "none",
     docs: "docs/runs.html#mcp",
   },
   {
@@ -378,7 +352,6 @@ export const FEATURES: readonly Feature[] = [
     area: "agents",
     since: "2026-10-25",
     source: "apps/web/src/components/drawers/LeadDrawer.tsx",
-    place: "none",
     docs: "docs/leads.html#talk",
     tip: { text: "New: message a lead any time, not only when it asks.", where: "lead-message" },
   },
@@ -389,7 +362,6 @@ export const FEATURES: readonly Feature[] = [
     area: "safety",
     since: "2026-10-25",
     source: "packages/core/src/plugins.ts",
-    place: "none",
     docs: "docs/plugins.html#plugins",
   },
 ];

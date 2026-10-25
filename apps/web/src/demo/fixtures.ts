@@ -88,7 +88,7 @@ const SAMPLE_CONFIG = {
       label: "Online shop lead",
       dir: "shop",
       project: "Online shop",
-      goal: "Keep the shop working and the PR queue moving",
+      goal: "Keep the shop working and the pull requests moving",
       supervised: true,
     },
     {
@@ -129,16 +129,16 @@ const SAMPLE_CONFIG = {
 
 const LOGS: Record<string, string> = {
   shop: [
-    "Read notes.md: two PRs waiting on rebases after yesterday's merge.",
+    "Read notes.md: two pull requests waiting on rebases after yesterday's merge.",
     "Spawned rebase-helper for shop#305 and shop#307.",
-    "Both rebased cleanly; CI green on main.",
+    "Both rebased cleanly; the checks pass on main.",
     "Nothing else needs me. Sleeping until the next sweep.",
   ].join("\n"),
   booking: [
     "Woken by a new production error: TimeoutError: slot lookup exceeded 5s (140 events, 37 patients).",
     "Reproduced with yesterday's 9am rush: bookings take 2.4s, all in getSlots.",
     "BOOK-88 already covers the fix; asked the ticket agent to prioritise it.",
-    "Fix merged to the PR branch, regression test added, checks green.",
+    "Fix merged to the pull request's branch, regression test added, checks green.",
   ].join("\n"),
   website: ["Read notes.md.", "Exited: nothing to do. (Ops restarted me three times, then rested me for 40 minutes.)"].join("\n"),
   mobile: ["Read questions.md.", "Reminders: email or push. Asked Sam; if there's no answer, I send both."].join("\n"),

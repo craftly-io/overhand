@@ -18,7 +18,6 @@ const feature = (id: string, since: string, where: string): Feature => ({
   area: "overhand",
   since,
   source: "x.ts",
-  place: "none",
   docs: "docs/everyday.html#new",
   tip: { text: `New: ${id}.`, where },
 });

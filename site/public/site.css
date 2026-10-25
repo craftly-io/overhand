@@ -139,7 +139,7 @@ section[id], article[id] { scroll-margin-top: 92px; }
 .facts { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 clamp(24px, 4vw, 64px); margin-top: 28px; }
 .facts li { padding: 18px 0; border-top: 1px solid var(--hair); font-size: clamp(17px, 1.4vw, 20px); color: var(--ink-12); }
 /* a point: a short bold label on its own line, then one plain line (and where to read more); the label carries the ink */
-.facts li > b:first-child, .also li > b:first-child { display: block; margin-bottom: 4px; font-weight: 600; color: var(--ink-12); }
+.facts li > b:first-child { display: block; margin-bottom: 4px; font-weight: 600; color: var(--ink-12); }
 .facts li:has(> b:first-child) { color: var(--ink-11); }
 /* "How →": a quiet way to the detail, a full-size target without moving the line */
 .how { display: inline-block; padding: 12px 6px; margin: -12px -6px -12px -4px; color: var(--ink-10); font-size: var(--t-small-size); white-space: nowrap; text-decoration: none; }
@@ -150,13 +150,6 @@ section[id], article[id] { scroll-margin-top: 92px; }
 .others a { display: inline-flex; align-items: center; min-height: 44px; font: var(--t-h3-weight) var(--t-h3-size)/1.1 var(--font-body); letter-spacing: var(--t-h3-track); text-decoration: none; color: var(--ink-10); }
 .others a:hover { color: var(--ink-12); text-decoration: underline; }
 .others a[aria-current="page"] { color: var(--ink-12); }
-/* the home page's "Also in Overhand": four lists of three points, by whose they are */
-.also .groups { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px clamp(24px, 3vw, 48px); margin-top: 28px; }
-.also h3 { padding-bottom: 12px; border-bottom: 1px solid var(--hair); }
-.also ul { list-style: none; padding: 0; display: grid; gap: 18px; margin-top: 16px; }
-.also li { font-size: 15px; color: var(--ink-11); }
-@media (max-width: 1060px) { .also .groups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .also .groups { grid-template-columns: minmax(0, 1fr); } }
 /* section text enters once (home.js); without the script, or under reduced motion, it's simply there */
 .js .enter { opacity: 0; transform: translateY(var(--m-rise)); transition: opacity var(--m-base) var(--m-arrive), transform var(--m-base) var(--m-arrive); }
 .js .enter.in { opacity: 1; transform: none; }

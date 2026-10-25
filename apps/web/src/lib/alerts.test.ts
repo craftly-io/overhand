@@ -326,11 +326,6 @@ test("a rule learned from review is one calm item that says how often you asked 
   expect(standing.find((a) => a.target.kind === "rule")?.title).toBe("From your answer: Log the request id");
 });
 
-test("the demo offers Booking app's repeated ask and not Online shop's, which its CLAUDE.md already says", async () => {
-  const { RULES } = await import("@/demo/instructions");
-  expect(RULES.map((r) => [r.project, r.rule, r.file])).toEqual([["Booking app", "Log the request ID with handler errors", "CLAUDE.md"]]);
-});
-
 test("on watch, what's held for you is in Needs you with Assign an agent; an act project builds on its own and offers none", () => {
   const watch = [{ name: "Online shop", prefix: "SHOP", host: "github", autonomy: "watch" as const, assignedAutonomy: "act" as const }];
   const finding = {
@@ -520,8 +515,16 @@ test("alerts: a hosted run with no minutes offers buying them; one that stopped 
 });
 
 test("each plugin alert comes with its fix: review it, open the page its finding names, or run it again", () => {
-  const [on, waiting] = demoPlugins(NOW);
-  if (!on || !waiting) throw new Error("the demo has two plugins");
+  const [calm, tracker] = demoPlugins(NOW);
+  if (!calm || !tracker) throw new Error("the demo has two plugins");
+  const slow = {
+    title: "shop.example.com/checkout is slow",
+    line: "It answered 200 in 4.2 s, over the 2 s it usually takes.",
+    severity: "warn" as const,
+    fix: { kind: "link" as const, url: "https://shop.example.com/checkout" },
+  };
+  const on = { ...calm, findings: [slow, ...calm.findings] };
+  const waiting = { ...tracker, state: "waiting" as const, granted: [], last: null };
   const failed = { ...on, name: "failed", last: { at: NOW, ok: false, why: "it ran past its 20 s limit" } };
   const a = pluginAlerts([on, waiting, { ...on, name: "changed", state: "changed" }, failed], plainWords);
   expect(a.map((x) => [x.title, x.target.kind])).toEqual([
