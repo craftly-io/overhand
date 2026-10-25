@@ -7,7 +7,7 @@ import { readJson, writeJsonAtomic } from "../state";
 import { calendarToday } from "./calendar";
 import { ciHealth } from "./ci";
 import { dependabotAlerts } from "./dependabot";
-import { githubPrs } from "./github";
+import { githubPrs, projectScope } from "./github";
 import { sentryIssues } from "./sentry";
 import { status, type UiPr } from "./types";
 import { upkeep } from "./upkeep";
@@ -79,9 +79,11 @@ export async function refreshStatus(): Promise<void> {
       return fallback;
     }
   };
+  // only your projects' PRs: gh searches your whole account
+  const inProjects = projectScope();
   const [myPrs, reviews, ci, deploys, sentry, advisories, calendar] = await Promise.all([
-    safe("GitHub PRs", () => githubPrs("is:pr is:open author:@me"), status.myPrs),
-    safe("GitHub reviews", () => githubPrs("is:pr is:open review-requested:@me"), status.reviews),
+    safe("GitHub PRs", () => githubPrs("is:pr is:open author:@me", inProjects), status.myPrs),
+    safe("GitHub reviews", () => githubPrs("is:pr is:open review-requested:@me", inProjects), status.reviews),
     safe("CI", ciHealth, status.ci),
     safe("Vercel", vercelDeploys, status.deploys),
     safe("Sentry", sentryIssues, status.sentry),

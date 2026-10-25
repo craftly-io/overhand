@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { state } from "@overhand/contract/fixtures/state";
-import { pipeline, yours } from "./pipeline";
+import { pipeline, resumesAt, yours } from "./pipeline";
 import { parsePlan } from "./plan";
 
 const plan = parsePlan([
@@ -51,4 +51,21 @@ test("a PR being fixed stays in Running", () => {
   const s = state({ running: [{ name: "HONEY-1 fix round", account: "work", cwd: "/x", startedAt: 0, pid: 1 }], prs: [pr("HONEY-1")] });
   const p = pipeline(s, plan);
   expect(p.running.map((c) => [c.id, Boolean(c.pr)])).toEqual([["HONEY-1", true]]);
+});
+
+test("a task whose attempts are used up leaves Queued (it waits in Needs you); work resumes when the first account is back", () => {
+  const at = { project: "Honeycrust", title: "t", by: "dashboard" as const, local: true, at: 0 };
+  const s = state({
+    assigned: [
+      { key: "HONEY-20", ...at },
+      { key: "HONEY-21", ...at, stopped: true },
+    ],
+  });
+  expect(pipeline(s, parsePlan([])).queued.map((c) => c.id)).toEqual(["HONEY-20"]);
+  const acc = s.accounts[0];
+  if (!acc) throw new Error("the fixture has an account");
+  const cool = (...until: number[]) => ({ ...s, accounts: until.map((coolUntil, i) => ({ ...acc, name: `a${i}`, coolUntil })) });
+  expect(resumesAt(cool(s.now + 5000, s.now + 2000))).toBe(s.now + 2000);
+  expect(resumesAt(cool(s.now + 5000, 0))).toBe(0); // one account can still run
+  expect(resumesAt(cool())).toBe(0);
 });

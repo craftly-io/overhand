@@ -64,8 +64,9 @@ export function prefixFor(name: string, taken: ReadonlySet<string>): string {
 }
 
 /**
- * One project per GitHub owner: named after the owner, living in the folder most of its repos sit under (a repo's
- * parent folder, or the repo itself when it sits right in the code root), tracked with the Issues of its first repo.
+ * One project per GitHub owner: named after the owner (after the repo when it has just one), living in the folder most
+ * of its repos sit under (a repo's parent folder, or the repo itself when it sits right in the code root), tracked with
+ * the Issues of its first repo.
  * Owners on other hosts are left out; the wizard lists them. Prefixes in `taken` (projects you already have) aren't reused.
  */
 export function proposeProjects(repos: readonly FoundRepo[], taken = new Set<string>()): ProposedProject[] {
@@ -86,7 +87,8 @@ export function proposeProjects(repos: readonly FoundRepo[], taken = new Set<str
         tops.set(top, (tops.get(top) ?? 0) + 1);
       }
       const dir = [...tops].sort((a, b) => b[1] - a[1])[0]?.[0] ?? first.path;
-      const name = first.owner.charAt(0).toUpperCase() + first.owner.slice(1);
+      // one repo: the project is that repo ("Hello-World", not its owner "Octocat"); several: their owner
+      const name = rs.length === 1 ? first.name : first.owner.charAt(0).toUpperCase() + first.owner.slice(1);
       const prefix = prefixFor(name, taken);
       taken.add(prefix);
       return [

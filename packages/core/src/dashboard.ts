@@ -43,7 +43,7 @@ import {
   restartDelayMin,
 } from "./leads";
 import { ruleOffers } from "./learn";
-import { benchedUntil } from "./limits";
+import { benchedUntil, signedOutAccounts } from "./limits";
 import { menubarHelper } from "./menubar";
 import { diskFree, report } from "./notify";
 import { reviewRound } from "./onpreview";
@@ -297,6 +297,7 @@ export async function dashboardState(): Promise<DashboardState> {
   const sessions = sessionsNow;
   const spend = spendOnDay();
   const budgeted = budgetSpend();
+  const signedOut = signedOutAccounts();
   return {
     now: Date.now(),
     today: today(),
@@ -324,7 +325,8 @@ export async function dashboardState(): Promise<DashboardState> {
         runtime,
         billing: b.billing,
         billingSure: b.sure,
-        waitsSignIn: waitsForSignIn(name, ""),
+        waitsSignIn: waitsForSignIn(name, "") || name in signedOut,
+        signedOut: name in signedOut,
       };
     }),
     prs: Object.entries(state.prs).map(([key, p]) => ({
@@ -443,7 +445,16 @@ export async function dashboardState(): Promise<DashboardState> {
     selfCheck: lastSelfCheck(),
     snoozed: snoozedItems(),
     calls: callCounts(),
-    assigned: Object.values(loadAssignments()).map(({ key, project, title, by, local, at }) => ({ key, project, title, by, local, at })),
+    // one assigned again (queued) starts afresh on the next pass, so only an untouched one with no attempts left is stopped
+    assigned: Object.values(loadAssignments()).map(({ key, project, title, by, local, at, queued }) => ({
+      key,
+      project,
+      title,
+      by,
+      local,
+      at,
+      stopped: !queued && (state.attempts[key] ?? 0) >= CFG.limits.maxAttempts,
+    })),
     team: teamState(),
     names: loadNames(),
     plugins: pluginStates(CFG),

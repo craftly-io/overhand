@@ -110,6 +110,7 @@ import {
   superviseLeads,
 } from "./leads";
 import { addRule, dismissRule, learnFromAnswer } from "./learn";
+import { markSignedOut } from "./limits";
 import { CALLBACK, disconnect, finishConnect, isMcpService, SERVICES, startConnect } from "./mcp";
 import { diskFree, notify, push, report } from "./notify";
 import {
@@ -1283,6 +1284,8 @@ async function route(req: Request): Promise<Response> {
       if (!verify) {
         const command = accountLoginCommand(account);
         if (!openTerminal(command)) return json({ error: NO_TERMINAL, command: withoutBrowser(command) }, 500);
+        // no check tells when a sign-in in a terminal is done: its next run tries, and marks it again if it still isn't
+        markSignedOut(account, false);
         return json({ ok: true, command });
       }
       // from another device (a phone, over the relay) Codex's local-port sign-in can't call back: its device code can
@@ -1302,6 +1305,7 @@ async function route(req: Request): Promise<Response> {
           const ok = await verify(login.home);
           forgetLogins();
           forgetBilling();
+          if (ok) markSignedOut(account, false); // signed in again: its runs go on
           return ok;
         },
       });
@@ -1346,6 +1350,7 @@ async function route(req: Request): Promise<Response> {
       const home = signInHome(account);
       writeAgentHome(home, undefined, false);
       if (!openTerminal(claudeLoginCommand(home))) return json({ error: NO_TERMINAL, command: claudeLoginCommand(home) }, 500);
+      markSignedOut(account, false); // as a terminal sign-in above: its next run tries
       return json({ ok: true, command: claudeLoginCommand(home) });
     }
     case "/api/slack-login": {

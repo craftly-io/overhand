@@ -10,13 +10,26 @@ import { readJson, writeJsonAtomic } from "./state";
 import { type AccountUsage, exhaustedUntil } from "./usage";
 
 /**
- * What an agent CLI says when its account is out of capacity: Claude Code ("You've hit your session limit · resets 3am",
- * "weekly limit", "Claude AI usage limit reached|<epoch>"), Cursor ("ActionRequiredError: You've hit your usage limit"),
- * Codex ("You've hit your usage limit … try again at …", "Rate limit reached"), Gemini ("Quota exceeded",
- * "RESOURCE_EXHAUSTED"), OpenCode and Aider (the provider's 429, "rate limit", "insufficient_quota"), any API's overload.
+ * What an agent CLI itself says when its account is out of capacity, read only from its own result or error (never the
+ * transcript, where a project's own tests can print "429" or "rate limit"): Claude Code ("You've hit your session limit ·
+ * resets 3am", "weekly limit", "Claude AI usage limit reached|<epoch>"), Cursor ("ActionRequiredError: You've hit your
+ * usage limit"), Codex ("You've hit your usage limit … try again at …", "last status: 429 Too Many Requests"), Gemini
+ * ("Quota exceeded", "RESOURCE_EXHAUSTED"), OpenCode and Aider (the provider's "Rate limit exceeded", "RateLimitError",
+ * "insufficient_quota"), Anthropic's overload. A bare "rate limit" or "429" is not one.
  */
 const LIMIT_RE =
-  /hit your [\w ]{0,24}limit|usage limit|session limit|weekly limit|rate.?limit|limit (?:reached|exceeded)|quota|resource.?exhausted|overloaded|too many requests|\b429\b/i;
+  /hit your [\w ]{0,24}limit|usage limit|session limit|weekly limit|rate.?limit (?:reached|exceeded)|ratelimiterror|rate_limit_error|insufficient_quota|quota exceeded|resource.?exhausted|overloaded_error|status:? 429\b/i;
+
+/**
+ * What an agent CLI says when its sign-in has expired or was revoked: Claude Code ("Failed to authenticate. API Error:
+ * 401 … authentication_error … Please run /login", "OAuth token has expired"), Codex ("Please log in again", "sign in
+ * again"), Cursor ("Please run 'cursor-agent login'"), Gemini ("API key not valid"), any provider's "invalid x-api-key".
+ */
+const AUTH_RE =
+  /please run \/login|authentication_error|failed to authenticate|oauth token (?:has )?expired|(?:log|sign) ?in again|run [`'"]?[\w-]+ login\b|not (?:logged|signed) in|api key not valid|invalid (?:x-)?api[ _-]key/i;
+
+/** Whether a failed run's own result or error says its account is signed out, from the same text `outOfUsage` reads. */
+export const signedOut = (output: string): boolean => AUTH_RE.test(output);
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 // "resets 3am (Europe/Helsinki)", "resets Oct 27 at 4am", "try again at 3:45 PM", "try again at Oct 27th, 2026 4:00 AM"
@@ -76,8 +89,8 @@ export function resetAt(text: string, now = Date.now()): number {
 }
 
 /**
- * Until when a failed run's account is out of usage, from its output (stdout and stderr, as its log has them) and the
- * usage it reported: the reset the message gives, else the full window's reset, else the configured cooldown. 0 when the
+ * Until when a failed run's account is out of usage, from the CLI's own result or error and stderr (never the transcript)
+ * and the usage it reported (Claude Code's rate_limit_event): the reset the message gives, else the full window's reset, else the configured cooldown. 0 when the
  * run didn't hit a limit.
  */
 export function outOfUsage(output: string, usage: AccountUsage | null = null, now = Date.now()): number {
@@ -99,6 +112,21 @@ export const benchedUntil = (account: string, ops = OPS): number => benched(ops)
 export function bench(account: string, until: number, ops = OPS): void {
   mkdirSync(controlDir(ops), { recursive: true });
   writeJsonAtomic(benchFile(ops), { ...benched(ops), [account]: until });
+}
+
+const signedOutFile = (ops: string): string => join(controlDir(ops), "signed-out.json");
+
+/** Accounts whose sign-in expired, and since when: passed over by every run until they sign in again. */
+export const signedOutAccounts = (ops = OPS): Record<string, number> => readJson<Record<string, number>>(signedOutFile(ops), {});
+
+/** Marks `account` signed out (`out`), or signed in again: kept in a file, so a restart keeps it, as the bench is. */
+export function markSignedOut(account: string, out: boolean, ops = OPS): void {
+  const all = signedOutAccounts(ops);
+  if (!out && !(account in all)) return;
+  if (out) all[account] = Date.now();
+  else delete all[account];
+  mkdirSync(controlDir(ops), { recursive: true });
+  writeJsonAtomic(signedOutFile(ops), all);
 }
 
 /** "03:00" for a time within a day, else "Oct 27 04:00": when a benched account is back, in log lines. */

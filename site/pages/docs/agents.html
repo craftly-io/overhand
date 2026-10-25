@@ -40,7 +40,8 @@
         <li><b>Pay-per-use</b> Charged per token: an API key, or a paid gateway.</li>
         <li><b>Cloud</b> Charged to your own cloud bill, as with Bedrock or Vertex AI.</li>
         <li><b>Local</b> A model on your own computer: no charge.</li>
-        <li><b>Out of usage</b> When an account's agent says it has hit a usage limit, tickets, leads and tests all skip that account until the reset the message names, and Settings says so on the account.</li>
+        <li><b>Out of usage</b> When an account's agent says it has hit a usage limit, tickets, leads and tests all skip that account until the reset the message names, and Settings says so on the account. Only the agent's own result and its limit events count: a project's test that prints "429" or "rate limit" is an ordinary failure. A task that waits uses no attempt, but each second time in a row its own run stops at the limit counts as one, so it can't rerun forever. While every account waits, the dashboard says when work resumes.</li>
+        <li><b>Signed out</b> When an account's agent says its sign-in has expired, the task waits instead of failing, the account is passed over, and Needs you shows the same Sign in card. Once it's signed in again, or its Test answers, its runs go on.</li>
         <li><b>How it knows</b> From the way the account signs in: <code>claude auth status</code> names a Claude subscription. When it can't tell, Needs you asks, and Settings lets you change it.</li>
       </ul>
     </section>
