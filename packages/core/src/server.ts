@@ -71,9 +71,11 @@ import {
   CFG,
   CLIENTS,
   CODE,
+  cli,
   clientOf,
   LABEL,
   MIN,
+  markSetupDone,
   needsSetup,
   OPS,
   OWNER,
@@ -139,7 +141,7 @@ import { organiseBrief, organiseGet, organisePost } from "./organise-api";
 import { releaseLeak } from "./outward-release";
 import { serveOnTailnet, tailscale } from "./phone";
 import { armAll, editPlan, planFile, upsertPlanItem } from "./plan";
-import { openCommand, openTerminal, readSecret, SECRET_STORE, writeSecret } from "./platform";
+import { openTerminal, readSecret, SECRET_STORE, writeSecret } from "./platform";
 import { pluginAction } from "./plugins";
 import { additions, addRepos, copyRoots, destOf, listGithubRepos, parseRepoInput, tilde } from "./projects";
 import {
@@ -690,7 +692,7 @@ export async function handle(req: Request): Promise<Response> {
     });
   }
   // the pair screen, before any sign-in, on this computer only: the command that signs this browser in
-  if (here && req.method === "GET" && url.pathname === "/api/open-command") return json({ command: openCommand(SRC) });
+  if (here && req.method === "GET" && url.pathname === "/api/open-command") return json({ command: cli("open") });
   const local = here && hasLocalKey(req);
   // a run's own key (control.ts runKey) reaches only the routes a run calls, as that run (runRoute)
   const asRun =
@@ -926,16 +928,16 @@ export async function handle(req: Request): Promise<Response> {
   }
   switch (url.pathname) {
     case "/api/pair": {
-      // a phone trades the code the Mac showed for its own session; the token is new, never one the browser offered
-      if (local) return json({ error: "This browser is on the Mac itself; it needs no pairing." }, 400);
+      // a phone trades the code the computer showed for its own session; the token is new, never one the browser offered
+      if (local) return json({ error: plainWords.pairNotNeeded }, 400);
       const r = redeem(String(body.code ?? ""), req.headers.get("user-agent") ?? "");
       if ("error" in r) return json({ error: r.error }, 400);
       report(`📱 ${r.device.name} paired`);
       return Response.json({ ok: true }, { headers: { "set-cookie": sessionCookie(r.token, origin.startsWith("https:")) } });
     }
     case "/api/devices/pair": {
-      // only from the Mac: a paired phone can't mint more devices
-      if (!local) return json({ error: "Add a device from the Mac itself." }, 403);
+      // only from the computer itself: a paired phone can't mint more devices
+      if (!local) return json({ error: plainWords.pairFromComputer }, 403);
       const p = newPairing();
       const base = CFG.dashboardOrigins.find((o) => o.startsWith("https:")) ?? CFG.dashboardOrigins[0] ?? "";
       // over the relay when it's on: the hosted page, which also pins this daemon's key from the link
@@ -946,7 +948,7 @@ export async function handle(req: Request): Promise<Response> {
     case "/api/relay/unlink":
     case "/api/relay/refresh": {
       // Access from anywhere is set up from the computer itself, never from a paired or hosted device
-      if (!local) return json({ error: "Set this up from the computer itself." }, 403);
+      if (!local) return json({ error: plainWords.setUpFromComputer }, 403);
       const action = url.pathname.split("/").pop();
       if (action === "link") return json({ url: await linkUrl(UI_PORT) });
       if (action === "enable") setEnabled(body.on === true);
@@ -972,8 +974,8 @@ export async function handle(req: Request): Promise<Response> {
       return json({ ok: true });
     }
     case "/api/phone/serve": {
-      // runs `tailscale serve` on a free port (never Funnel) and lets its address in; only from the Mac
-      if (!local) return json({ error: "Set this up from the Mac itself." }, 403);
+      // runs `tailscale serve` on a free port (never Funnel) and lets its address in; only from the computer itself
+      if (!local) return json({ error: plainWords.setUpFromComputer }, 403);
       const r = await serveOnTailnet(UI_PORT);
       if (!r.ok) return json({ error: r.error }, 409);
       try {
@@ -1166,6 +1168,7 @@ export async function handle(req: Request): Promise<Response> {
       try {
         const setup = { ...s, credential: { kind: ready.auth || "login", value: "" } };
         applyConfig(saveConfig(OPS, configFromSetup(setup, CFG, "existing" in ready ? ready.existing : undefined)));
+        markSetupDone();
       } catch (e) {
         return json({ error: e instanceof Error ? e.message : String(e) }, 400);
       }

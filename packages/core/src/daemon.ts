@@ -21,6 +21,7 @@ import {
   CFG,
   CLIENTS,
   CODE,
+  cli,
   DASHBOARD,
   HOME,
   INSTALL,
@@ -58,7 +59,7 @@ import { syncMenubar } from "./menubar";
 import { diskFree, notify, problems, report, stampConsole } from "./notify";
 import { refreshSuggestions } from "./organise";
 import { plan } from "./plan";
-import { daemonLog, installService, isLoginService, openBrowser, readSecret, SERVICE, uninstallService } from "./platform";
+import { daemonLog, hasDisplay, installService, isLoginService, openBrowser, readSecret, SERVICE, uninstallService } from "./platform";
 import { tickPlugins } from "./plugins";
 import { claudeSignedIn } from "./runtimes/claude-code";
 import { codexSignedIn } from "./runtimes/codex";
@@ -349,16 +350,16 @@ async function start(): Promise<void> {
     // the binary runs itself, by the path that follows its updates (Homebrew's opt link, the launcher's npm/current); a
     // checkout runs run.ts with the bun that runs this
     const cmd = BUNDLED ? [SELF_EXEC, "daemon"] : [process.execPath, join(SRC, "run.ts"), "daemon"];
-    const r = installService(cmd, HOME, join(OPS, "logs"));
+    const r = installService(cmd, HOME, join(OPS, "logs"), cli("start"));
     if (!r.ok) {
-      console.error(`Couldn't start the ${SERVICE} service: ${r.err}\nRun it in the foreground instead: overhand daemon`);
+      console.error(`Couldn't start the ${SERVICE} service: ${r.err}\nRun it in the foreground instead: ${cli("daemon")}`);
       process.exit(1);
     }
     if (r.note) console.log(`Note: ${r.note}`); // the installer shows Note: lines
     // a first start (fresh build, many projects to scan) can take well over 10s; give up only after a minute
     for (let i = 0; i < 240 && !(await running()); i++) await Bun.sleep(250);
     if (!(await running())) {
-      console.error(`Overhand didn't come up on port ${UI_PORT}. Its log says why: ${LOG}  (overhand logs)`);
+      console.error(`Overhand didn't come up on port ${UI_PORT}. Its log says why: ${LOG}  (${cli("logs")})`);
       process.exit(1);
     }
   }
@@ -388,6 +389,19 @@ function openDashboard(): void {
   console.log(
     `Overhand is running. ${opened ? `Opened ${DASHBOARD}` : `Open this link within two minutes: ${link}`}${needsSetup() ? " to set it up." : "."}`,
   );
+  const tunnel = opened ? "" : tunnelHint();
+  if (tunnel) console.log(tunnel);
+}
+
+/**
+ * On a machine with no display (a server over SSH, a container), the one SSH tunnel that makes the printed link open
+ * in your own computer's browser, as /docs/server gives it: this server's address when SSH says it. "" with a display.
+ */
+export function tunnelHint(env: Record<string, string | undefined> = process.env, port = UI_PORT): string {
+  if (hasDisplay(env) && !env.SSH_CONNECTION) return "";
+  const host = env.SSH_CONNECTION?.split(" ")[2];
+  const at = host ? `${env.USER || "you"}@${host}` : "you@your-server";
+  return `No browser here: on your own computer, run ssh -N -L ${port}:127.0.0.1:${port} ${at} first, then open the link there.`;
 }
 
 /**
@@ -404,7 +418,7 @@ export async function openCli(args: readonly string[], env: Record<string, strin
     console.log("Made a new local key: every browser on this computer is signed out, and open links given out stop working.");
   }
   if (!(await running())) {
-    console.error(`Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: overhand start`);
+    console.error(`Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: ${cli("start")}`);
     return 1;
   }
   openDashboard();
@@ -425,7 +439,7 @@ async function showStatus(): Promise<void> {
   const runs = currentRuns();
   console.log(
     [
-      up ? `Overhand is running on ${DASHBOARD}` : `Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: overhand start`,
+      up ? `Overhand is running on ${DASHBOARD}` : `Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: ${cli("start")}`,
       `  version         ${VERSION}${BUNDLED && isNewerVersion(latestRelease(), VERSION) ? ` (${latestRelease()} is out: ${updateRoute(INSTALL).say})` : ""}`,
       `  last heartbeat  ${beat ? ago(beat) : "never"}`,
       `  agents running  ${runs.length}${runs.length ? ` (${runs.map((r) => r.name).join(", ")})` : ""}`,
@@ -457,7 +471,7 @@ export async function answerFromTerminal(args: string[], base = DASHBOARD): Prom
     body: JSON.stringify({ key: lead, text, kind: byDefault ? "default" : "answer" }),
     signal: AbortSignal.timeout(10_000),
   }).catch(() => null);
-  if (!res) return { ok: false, message: `Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: overhand start` };
+  if (!res) return { ok: false, message: `Overhand isn't running (nothing answers on port ${UI_PORT}). Start it: ${cli("start")}` };
   const body = (await res.json().catch(() => ({}))) as { error?: unknown };
   if (!res.ok) return { ok: false, message: `Not answered: ${String(body.error ?? res.status)}` };
   return { ok: true, message: `Answered ${lead}${byDefault ? " with its default" : ""}; it picks up from here.` };
@@ -466,7 +480,7 @@ export async function answerFromTerminal(args: string[], base = DASHBOARD): Prom
 /** `overhand logs [-f]`: the daemon log's tail, or follows it. */
 function logs(follow: boolean): void {
   if (!existsSync(LOG)) {
-    console.error(`No daemon log yet at ${LOG}. The login service writes it (overhand start); overhand daemon prints to the terminal.`);
+    console.error(`No daemon log yet at ${LOG}. The login service writes it (${cli("start")}); ${cli("daemon")} prints to the terminal.`);
     process.exit(1);
   }
   const r = Bun.spawnSync(["tail", "-n", "200", ...(follow ? ["-f"] : []), LOG], { stdout: "inherit", stderr: "inherit" });
@@ -486,7 +500,11 @@ async function update(): Promise<void> {
   const { run, say } = updateRoute(INSTALL);
   let code: number | null = 1;
   try {
-    code = Bun.spawnSync(run, { env: { ...process.env, OVERHAND_NO_START: "1" }, stdout: "inherit", stderr: "inherit" }).exitCode;
+    code = Bun.spawnSync(run, {
+      env: { ...process.env, OVERHAND_NO_START: "1", OVERHAND_QUIET: "1" },
+      stdout: "inherit",
+      stderr: "inherit",
+    }).exitCode;
   } catch {} // brew or npx isn't on PATH
   if (code !== 0) {
     console.error(`The update didn't install; Overhand is unchanged. To update by hand: ${say}`);
@@ -505,7 +523,7 @@ async function update(): Promise<void> {
   console.log(
     res?.ok
       ? "Overhand restarts on the new version as soon as no agent is running."
-      : "Restart Overhand to use the new version: overhand stop && overhand start",
+      : `Restart Overhand to use the new version: ${cli("stop")} && ${cli("start")}`,
   );
 }
 
@@ -517,8 +535,9 @@ async function doctor(): Promise<void> {
   for (const x of list)
     console.log(`${x.ok ? "✓" : x.optional ? "–" : "✗"} ${x.what}${x.ok ? "" : x.optional ? " (optional)" : `\n    ${x.fix}`}`);
   const missing = list.filter((x) => !x.ok && !x.optional).length;
-  if (needsSetup()) console.log(`\nNot set up yet: run overhand start and finish the setup in the browser (${DASHBOARD}).`);
-  if (missing) console.log(`\n${missing} thing(s) to fix.`);
+  if (needsSetup())
+    console.log(`\nNot set up yet: run ${cli((await running()) ? "open" : "start")} and finish the setup in the browser (${DASHBOARD}).`);
+  if (missing) console.log(`\n${missing} ${missing === 1 ? "thing" : "things"} to fix.`);
   else if (!needsSetup()) console.log("\nAll set.");
   process.exitCode = missing ? 1 : 0;
 }
@@ -577,7 +596,7 @@ export async function main(mode: string | undefined): Promise<void> {
   else if (mode === "open") process.exitCode = await openCli(process.argv.slice(3));
   else if (mode === "stop") {
     const r = uninstallService(HOME, join(OPS, "logs"));
-    console.log(r.ok ? "Overhand stopped; it won't start at login. Start it again with: overhand start" : `Couldn't stop it: ${r.err}`);
+    console.log(r.ok ? `Overhand stopped; it won't start at login. Start it again with: ${cli("start")}` : `Couldn't stop it: ${r.err}`);
     if (!r.ok) process.exitCode = 1;
   } else if (mode === "status") await showStatus();
   else if (mode === "answer") {

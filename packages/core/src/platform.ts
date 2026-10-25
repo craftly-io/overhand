@@ -8,6 +8,7 @@ import { dlopen, FFIType, type Pointer, ptr } from "bun:ffi";
 import { chmodSync, existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
 import { dirname, join } from "node:path";
+import { SITE } from "@overhand/contract";
 
 const MAC = process.platform === "darwin";
 
@@ -154,7 +155,7 @@ export const PLATFORM_TOOLS: { bin: string; fix: string }[] =
     : [
         {
           bin: "secret-tool",
-          fix: "sudo apt install libsecret-tools (or your distro's libsecret package); on a server without a desktop, set OVERHAND_SECRETS_FILE instead (see the README)",
+          fix: `sudo apt install libsecret-tools (or your distro's libsecret package); on a server without a desktop, set OVERHAND_SECRETS_FILE instead (see ${SITE}/docs/install#linux)`,
         },
       ];
 
@@ -259,17 +260,14 @@ const UID = process.getuid?.() ?? 501;
 /** Whether this process is Overhand's own login service (launchd or systemd), not a copy started by hand, a test or a script. */
 export const isLoginService = (launchd = LAUNCHD, unit = UNIT): boolean => launchd === SERVICE || unit === SERVICE;
 
-/** The command that starts ops again after a shutdown. */
-export function startAgainCommand(src: string, bundled = import.meta.dir.startsWith("/$bunfs"), launchd = LAUNCHD, unit = UNIT): string {
+/**
+ * The command that starts ops again after a shutdown: the service manager's, else `own`, how this copy starts by hand
+ * (the installed binary's start, as it was installed, or a checkout's daemon from source).
+ */
+export function startAgainCommand(own: string, launchd = LAUNCHD, unit = UNIT): string {
   if (launchd) return `launchctl bootstrap gui/${UID} ~/Library/LaunchAgents/${launchd}.plist`;
   if (unit) return `systemctl --user start ${unit}`;
-  // the installed binary without a service manager (the background loop on Linux): its own start; a checkout runs from source
-  return bundled ? "overhand start" : `cd ${src} && bun run.ts daemon`;
-}
-
-/** The command that opens the dashboard signed in on this computer: the installed binary's, or a checkout's from source. */
-export function openCommand(src: string, bundled = import.meta.dir.startsWith("/$bunfs")): string {
-  return bundled ? "overhand open" : `cd ${src} && bun run.ts open`;
+  return own;
 }
 
 /** Stops the service so it isn't restarted; without one a plain exit is enough. */
@@ -363,7 +361,12 @@ const loopPidFile = (logDir: string): string => join(logDir, "daemon.pid");
  * logging to the same file. It leads its own process group, so stopping it stops the daemon, but not the leads it started
  * detached. OVERHAND_LOOP tells the daemon a dashboard shutdown must stop the loop too.
  */
-function startLoop(cmd: readonly string[], env: Record<string, string>, logDir: string): { ok: boolean; err: string; note: string } {
+function startLoop(
+  cmd: readonly string[],
+  env: Record<string, string>,
+  logDir: string,
+  again: string,
+): { ok: boolean; err: string; note: string } {
   stopLoop(logDir); // an older one, if one runs
   const loop = 'while :; do "$@" >>"$OVERHAND_LOG" 2>&1; sleep 5; done';
   try {
@@ -378,8 +381,7 @@ function startLoop(cmd: readonly string[], env: Record<string, string>, logDir: 
     return { ok: false, err: e instanceof Error ? e.message : String(e), note: "" };
   }
   // ponytail: nothing brings the loop back after a reboot; a systemd user session (or `loginctl enable-linger`) does
-  const note =
-    "No systemd user session here, so Overhand runs in the background until this machine restarts; run overhand start after a reboot.";
+  const note = `No systemd user session here, so Overhand runs in the background until this machine restarts; run ${again} after a reboot.`;
   return { ok: true, err: "", note };
 }
 
@@ -399,9 +401,14 @@ function stopLoop(logDir: string): void {
 /**
  * Installs and starts the login service running `cmd` (replacing an older one), so Overhand survives logouts and restarts.
  * On Linux without a systemd user session it starts a background loop instead, and `note` says what that means; with
- * one, `note` gives the linger command when the service would stop at logout.
+ * one, `note` gives the linger command when the service would stop at logout. `again` is how you start it again by hand.
  */
-export function installService(cmd: readonly string[], home: string, logDir: string): { ok: boolean; err: string; note: string } {
+export function installService(
+  cmd: readonly string[],
+  home: string,
+  logDir: string,
+  again = "overhand start",
+): { ok: boolean; err: string; note: string } {
   const env = serviceEnv();
   mkdirSync(logDir, { recursive: true });
   if (MAC) {
@@ -412,7 +419,7 @@ export function installService(cmd: readonly string[], home: string, logDir: str
     run(["launchctl", "bootout", `gui/${UID}/${SERVICE}`]); // an older version, if one runs
     return { ...run(["launchctl", "bootstrap", `gui/${UID}`, file]), note: "" };
   }
-  if (!systemdUser()) return startLoop(cmd, env, logDir);
+  if (!systemdUser()) return startLoop(cmd, env, logDir, again);
   const dir = join(home, ".config", "systemd", "user");
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, SERVICE), systemdUnitFile(dirname(cmd[0] ?? ""), cmd, env, daemonLog(logDir)));

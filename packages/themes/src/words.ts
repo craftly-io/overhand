@@ -1476,13 +1476,19 @@ export const plainWords = {
   save: "Save",
   discard: "Discard changes",
 
-  // pairing: another device opening the dashboard (a browser on the Mac itself never pairs)
+  // pairing: another device opening the dashboard (a browser on the computer itself never pairs)
   pairTitle: "Pair this device",
   pairBody: "Overhand runs on your computer. Pair this device once with the code the computer shows under Settings → Phone → Add a device.",
   pairHere: "On the computer itself? Run {command} in a terminal: it opens this page signed in.",
   pairCode: "Pairing code",
   pairButton: "Pair",
   pairWorking: "Pairing…",
+  // the daemon's refusals, read on the device being paired (the computer may be a Mac, a Linux server or a container)
+  pairExpired: "That code has expired. Make a new one on the computer: Settings, Phone, Add a device.",
+  pairMismatch: "That code doesn't match. Check it on the computer and try again.",
+  pairNotNeeded: "This browser is on the computer itself; it needs no pairing.",
+  pairFromComputer: "Add a device from the computer itself.",
+  setUpFromComputer: "Set this up from the computer itself.",
 
   // Settings → Phone: Tailscale, paired devices, notifications
   phoneTitle: "Phone",
