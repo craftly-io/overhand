@@ -135,6 +135,12 @@ const gitAt = (cmd: string[]): number => {
 /** The command runs git (directly, or after `env NAME=value …`). */
 export const isGit = (cmd: string[]): boolean => gitAt(cmd) >= 0;
 
+/**
+ * The command runs git, or gh, which starts git itself in the folder it's run in (finding the remote, `pr create`'s
+ * status): both get gitEnv and the gitRefused check, so gh's own git is as safe as the daemon's.
+ */
+export const runsGit = (cmd: string[]): boolean => isGit(cmd) || cmd[0] === "gh";
+
 /** `cmd` as the daemon runs it: a git command with SAFE_GIT. */
 export function safeCmd(cmd: string[]): string[] {
   const i = gitAt(cmd);
@@ -150,9 +156,22 @@ export function ownGitConfig(home = homedir(), env: Record<string, string | unde
   return [join(home, ".gitconfig"), xdg].find((p) => existsSync(p)) ?? "/dev/null";
 }
 
-/** The environment the daemon's git runs with (ownGitConfig). */
+/** SAFE_GIT as git's GIT_CONFIG_COUNT variables, which every git started under them honours (gh's own, too). */
+const SAFE_GIT_ENV = Object.fromEntries([
+  ["GIT_CONFIG_COUNT", String(SAFE_GIT.length / 2)],
+  ...SAFE_GIT.filter((_, i) => i % 2).flatMap((pair, i) => {
+    const [key = "", value = ""] = pair.split(/=(.*)/);
+    return [
+      [`GIT_CONFIG_KEY_${i}`, key],
+      [`GIT_CONFIG_VALUE_${i}`, value],
+    ];
+  }),
+]);
+
+/** The environment the daemon's git (and gh) runs with: ownGitConfig, and SAFE_GIT for any git started under it. */
 export const gitEnv = (env: Record<string, string | undefined> = process.env): Record<string, string | undefined> => ({
   ...env,
+  ...SAFE_GIT_ENV,
   GIT_CONFIG_NOSYSTEM: "1",
   GIT_CONFIG_GLOBAL: ownGitConfig(homedir(), env),
   GIT_TERMINAL_PROMPT: "0", // nobody is there to type a password: fail instead of waiting

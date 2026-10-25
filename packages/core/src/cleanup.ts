@@ -34,7 +34,7 @@ import { type Config, loadConfig } from "./config";
 import { writeAtomic } from "./control";
 import { gitRefused, OPS, SRC } from "./env";
 import { cwdOf } from "./platform";
-import { gitEnv, isGit, safeCmd } from "./runtimes/runtime";
+import { gitEnv, runsGit, safeCmd } from "./runtimes/runtime";
 
 /** Where cleanup looks, and what it must leave alone. Tests pass scratch folders and a `which` that finds nothing. */
 export interface Scope {
@@ -68,7 +68,7 @@ const DAY = 86_400_000;
 // every git command here goes the daemon's one safe way (runtimes/runtime.ts safeCmd and gitEnv, env.ts gitRefused):
 // cleanup runs in agents' worktrees, whose git a run may have tried to redirect
 const run = (cmd: string[], cwd?: string, timeout = 120_000, env?: Record<string, string>) => {
-  const git = isGit(cmd);
+  const git = runsGit(cmd);
   // git told its repository outright (GIT_DIR, a scratch one of cleanup's own) never follows the folder's .git
   if (git && !env?.GIT_DIR && gitRefused(cwd ?? process.cwd())) return { ok: false, out: "" };
   try {
@@ -87,7 +87,7 @@ const run = (cmd: string[], cwd?: string, timeout = 120_000, env?: Record<string
 };
 /** Like run, but async, so independent fetches and `du`s overlap; killed after `timeout`, so a stuck one can't hang the scan. */
 export const runAsync = async (cmd: string[], cwd?: string, timeout = 10 * 60_000) => {
-  const git = isGit(cmd);
+  const git = runsGit(cmd);
   if (git && gitRefused(cwd ?? process.cwd())) return { ok: false, out: "" };
   try {
     const p = Bun.spawn(safeCmd(cmd), {

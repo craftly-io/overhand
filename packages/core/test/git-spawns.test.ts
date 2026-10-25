@@ -4,9 +4,12 @@
  * scan: a new raw git spawn anywhere in the code fails here.
  */
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Glob } from "bun";
+import { sh, shAsync } from "../src/env";
+import { gitEnv, runsGit, safeCmd } from "../src/runtimes/runtime";
 
 const ROOT = join(import.meta.dir, "..", "..", "..");
 const SOURCES = ["*.ts", "packages/*/src/**/*.ts", "release/*.ts", "relay/src/**/*.ts"];
@@ -41,4 +44,22 @@ test("the check catches a raw git spawn", () => {
   expect(RAW.test('Bun.spawnSync(["git", "status"], { cwd })')).toBe(true);
   expect(RAW.test('spawn("git", ["status"])')).toBe(true);
   expect(RAW.test('Bun.spawnSync(safeCmd(["git", "status"]), { cwd })')).toBe(false);
+});
+
+test("gh's own git runs the safe way too: a repo's hooksPath and fsmonitor are overridden for it", async () => {
+  const repo = mkdtempSync(join(tmpdir(), "overhand-gh-git-"));
+  Bun.spawnSync(safeCmd(["git", "init", "-q", repo]), { env: gitEnv() });
+  writeFileSync(join(repo, ".git", "config"), "[core]\n\thooksPath = /tmp/evil\n\tfsmonitor = /tmp/evil-monitor\n", { flag: "a" });
+  // a stand-in gh that, like the real one, starts git in the folder it's run in
+  const bin = mkdtempSync(join(tmpdir(), "overhand-gh-bin-"));
+  writeFileSync(join(bin, "gh"), "#!/bin/sh\ngit config core.hooksPath; git config core.fsmonitor; echo end\n", { mode: 0o755 });
+  const path = process.env.PATH;
+  process.env.PATH = `${bin}:${path}`;
+  try {
+    expect(sh(["gh"], repo).out.split("\n")).toEqual(["/dev/null", "", "end"]);
+    expect((await shAsync(["gh"], repo)).out.split("\n")).toEqual(["/dev/null", "", "end"]);
+  } finally {
+    process.env.PATH = path;
+  }
+  expect([runsGit(["gh", "pr", "list"]), runsGit(["git", "status"]), runsGit(["bun", "test"])]).toEqual([true, true, false]);
 });
