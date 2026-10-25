@@ -4,7 +4,7 @@ import type { Model } from "@/app/data";
 import { useWords } from "@/app/theme";
 import { useUi } from "@/app/ui";
 import { Button } from "@/components/ui/button";
-import { proofLine, STEP_WORDS, stepStates, winSpent } from "@/lib/firstwin";
+import { proofLine, STEP_WORDS, stepStates, winDone, winSpent } from "@/lib/firstwin";
 import { fmt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Checkup } from "../Checkup";
@@ -16,9 +16,10 @@ import { Tonight } from "./Tonight";
  * "Your first win": the one small safe task Overhand picked from your repos right after setup, and where it stands.
  * While it runs, a checklist that ticks over as the run reaches each step (read from its own output; what it last did
  * behind Details) and three cards that set up tonight. Done is its own state: in green, with how long it took, what it
- * cost, what changed and the proof in a sentence, and Review. Gone a few days after it ends.
+ * cost, what changed and the proof in a sentence, and Review. Gone a few days after it ends. `fold` (a phone, where it
+ * leads Now): once done, only its title, what it took and cost, and Review; tonight's cards fold into Needs you.
  */
-export function FirstWin({ m }: { m: Model }) {
+export function FirstWin({ m, fold = false }: { m: Model; fold?: boolean }) {
   const w = useWords();
   const ui = useUi();
   const { run } = useActions();
@@ -28,7 +29,7 @@ export function FirstWin({ m }: { m: Model }) {
   const minutes = live ? Math.max(1, Math.round((m.s.now - live.startedAt) / 60_000)) : 0;
   const tracked = m.s.prs.find((p) => p.key === win.key);
   const said = live ? m.s.sessions.find((x) => x.pid === live.pid && live.pid)?.lastAction : "";
-  const done = win.state === "pr" || win.state === "report";
+  const done = winDone(win);
   const line = {
     looking: w.winLooking,
     queued: m.s.paused ? w.winWaiting : w.winQueued,
@@ -40,6 +41,33 @@ export function FirstWin({ m }: { m: Model }) {
   }[win.state];
   const spent = done ? winSpent(win, w) : "";
   const proof = tracked?.proof;
+  const review =
+    win.state !== "pr" ? null : tracked ? (
+      <Button size="sm" onClick={() => ui.openDrawer({ kind: "review", key: win.key })}>
+        {w.review}
+      </Button>
+    ) : (
+      <Button size="sm" asChild>
+        <a href={win.url} target="_blank" rel="noopener noreferrer">
+          {w.openPr}
+        </a>
+      </Button>
+    );
+  if (fold && done)
+    return (
+      <Pane title="paneFirstWin" dataId="first-win">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-l-2 border-ok pl-3">
+          <div className="grid min-w-0 gap-0.5">
+            <p className="flex items-baseline gap-1.5 text-sm font-medium text-foreground [overflow-wrap:anywhere]">
+              <CheckIcon aria-hidden="true" className="size-4 shrink-0 self-center text-ok" />
+              {win.title || w.winPr}
+            </p>
+            {spent ? <p className="text-xs text-muted-foreground tabular-nums">{spent}</p> : null}
+          </div>
+          {review}
+        </div>
+      </Pane>
+    );
   return (
     <Pane title="paneFirstWin" dataId="first-win">
       {/* the pane's body is one block: the win (marked green once done), then tonight or the rest of the check-up */}
@@ -105,20 +133,8 @@ export function FirstWin({ m }: { m: Model }) {
           {win.message && (done || win.state === "failed") ? (
             <p className="line-clamp-4 text-sm text-muted-foreground [overflow-wrap:anywhere]">{win.message}</p>
           ) : null}
-          {win.state === "pr" ? (
-            <div className="flex justify-end">
-              {tracked ? (
-                <Button size="sm" onClick={() => ui.openDrawer({ kind: "review", key: win.key })}>
-                  {w.review}
-                </Button>
-              ) : (
-                <Button size="sm" asChild>
-                  <a href={win.url} target="_blank" rel="noopener noreferrer">
-                    {w.openPr}
-                  </a>
-                </Button>
-              )}
-            </div>
+          {review ? (
+            <div className="flex justify-end">{review}</div>
           ) : win.state === "none" ? (
             <div className="flex justify-end">
               <Button variant="outline" size="sm" onClick={() => void run({ name: "plan" })}>

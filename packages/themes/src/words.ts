@@ -253,6 +253,8 @@ export const plainWords = {
   winCostLocal: "free: it ran on this computer",
   // while it runs: three one-click cards that set up tonight
   tonightTitle: "Set up tonight",
+  // once the first win is done on a phone, the cards fold into one in Needs you; {n} is how many are left
+  tonightFolded: "Set up tonight ({n})",
   tonightIntro: "Three things for tonight, one click each. Change them any time in Settings.",
   tonightReport: "Your night report arrives at {time}, {where}.",
   tonightWhereHere: "as a notification on this computer",

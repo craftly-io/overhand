@@ -1,6 +1,6 @@
 import type { ActionCard } from "@overhand/contract";
 import { ChevronRight } from "lucide-react";
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useActions } from "@/app/actions";
@@ -531,11 +531,14 @@ export function NeedsYou({
   m,
   slice = (l) => l.slice(0, 6),
   home = false,
+  tonight = null,
 }: {
   m: Model;
   slice?: (list: Need[]) => Need[];
   /** On Now: what's broken leads the list, and what matters today and the project agents worth starting follow it. */
   home?: boolean;
+  /** One more card under the list: "Set up tonight (N)" once a phone's first win is done (Tonight.tsx `folded`). */
+  tonight?: ReactNode;
 }) {
   const w = useWords();
   const ui = useUi();
@@ -598,6 +601,7 @@ export function NeedsYou({
           <InsightLine m={m} surface="now" className="pt-0" />
         </>
       )}
+      {tonight}
       {home ? (
         <>
           <Today m={m} />

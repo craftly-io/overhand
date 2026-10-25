@@ -1,5 +1,6 @@
 import { type FirstWin, isBilled, SettingsSchema } from "@overhand/contract";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronRight } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useActions } from "@/app/actions";
 import type { Model } from "@/app/data";
@@ -52,8 +53,10 @@ function TonightCard({ children, accept, change }: { children: ReactNode; accept
  * one click to accept and editable in Settings. When the night report arrives and where (`schedule.briefAtHour`,
  * ntfy), what agents take tonight (the check-up's other findings and tickets assigned to you, within the daily
  * budget), and how far agents go in the project (its autonomy). Nothing new is configured: each shows what's set.
+ * `folded`: one closed card in Needs you, "Set up tonight (2)", that opens on the same cards (a done first win on a
+ * phone, so Needs you stays on the first screen).
  */
-export function Tonight({ m, win }: { m: Model; win: FirstWin }) {
+export function Tonight({ m, win, folded = false }: { m: Model; win: FirstWin; folded?: boolean }) {
   const w = useWords();
   const ui = useUi();
   const { run } = useActions();
@@ -101,9 +104,8 @@ export function Tonight({ m, win }: { m: Model; win: FirstWin }) {
     }
   };
 
-  return (
-    <section className="grid gap-2" aria-label={w.tonightTitle}>
-      <h3 className="font-display text-xs tracking-widest text-primary uppercase">{w.tonightTitle}</h3>
+  const cards = (
+    <>
       <p className="text-xs text-muted-foreground">{w.tonightIntro}</p>
       <ul className="grid gap-2">
         {done.includes("report") ? null : (
@@ -175,6 +177,24 @@ export function Tonight({ m, win }: { m: Model; win: FirstWin }) {
           </TonightCard>
         )}
       </ul>
+    </>
+  );
+  if (folded) {
+    const left = CARDS.filter((c) => !done.includes(c) && (c !== "howFar" || client)).length;
+    return (
+      <details className="group rounded-lg border border-border bg-background/40 px-3 py-1" aria-label={w.tonightTitle}>
+        <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1 text-sm font-medium">
+          <ChevronRight aria-hidden="true" className="size-4 shrink-0 transition-transform group-open:rotate-90" />
+          {fmt(w.tonightFolded, { n: left })}
+        </summary>
+        <div className="grid gap-2 pt-1 pb-2">{cards}</div>
+      </details>
+    );
+  }
+  return (
+    <section className="grid gap-2" aria-label={w.tonightTitle}>
+      <h3 className="font-display text-xs tracking-widest text-primary uppercase">{w.tonightTitle}</h3>
+      {cards}
     </section>
   );
 }

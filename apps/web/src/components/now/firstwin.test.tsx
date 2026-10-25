@@ -2,8 +2,10 @@ import { beforeEach, expect, test } from "bun:test";
 import type { FirstWin as Win } from "@overhand/contract";
 import { plainWords as w } from "@overhand/themes";
 import type { Model } from "@/app/data";
+import { fmt } from "@/lib/format";
 import { render, withDom } from "../render.test-util";
 import { FirstWin } from "./FirstWin";
+import { Tonight } from "./Tonight";
 
 /** The first win's card: steps ticking over while it runs, tonight's cards beside them, and a done state of its own. */
 withDom();
@@ -46,4 +48,28 @@ test("a card accepted once is gone, in this browser", async () => {
   localStorage.setItem("overhand-tonight", JSON.stringify(["report", "queue", "howFar"]));
   const body = await render((m) => <FirstWin m={at(m, { state: "running", step: "read" })} />);
   expect(body.textContent).not.toContain(w.tonightTitle);
+});
+
+test("folded once done (a phone): the title, time and cost, and Review; tonight waits in Needs you", async () => {
+  const body = await render((m) => <FirstWin m={m} fold />);
+  const text = body.textContent ?? "";
+  expect(text).toContain("4 min · about $0.30 of your plan");
+  expect([...body.querySelectorAll("button")].map((b) => b.textContent)).toEqual([w.review]);
+  expect(text).not.toContain(w.tonightTitle);
+  expect(text).not.toContain("1 file, +38 −0");
+});
+
+test("folded while it runs: the card stays whole, tonight's cards and all", async () => {
+  const body = await render((m) => <FirstWin m={at(m, { state: "running", step: "read" })} fold />);
+  expect(body.querySelector("ol")).not.toBeNull();
+  expect(body.textContent).toContain(w.tonightTitle);
+});
+
+test("tonight folded is one closed card that counts what's left and opens on the same cards", async () => {
+  localStorage.setItem("overhand-tonight", JSON.stringify(["report"]));
+  const body = await render((m) => (m.s.firstWin ? <Tonight m={m} win={m.s.firstWin} folded /> : null));
+  const card = body.querySelector("details");
+  expect(card?.open).toBe(false);
+  expect(card?.querySelector("summary")?.textContent).toBe(fmt(w.tonightFolded, { n: 2 }));
+  expect(card?.textContent).toContain(w.tonightKeep);
 });

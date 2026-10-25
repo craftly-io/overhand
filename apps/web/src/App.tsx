@@ -18,12 +18,14 @@ import { FirstRun } from "./components/now/FirstRun";
 import { FirstWin } from "./components/now/FirstWin";
 import { InProgress } from "./components/now/InProgress";
 import { Prologue } from "./components/now/Story";
+import { Tonight } from "./components/now/Tonight";
 import { MapWindow } from "./components/now/Window";
 import { Pair } from "./components/Pair";
 import { Palette } from "./components/Palette";
 import { Setup, SetupOrganise } from "./components/Setup";
 import { MeTeam } from "./components/team/MeTeam";
 import { ContractError, Unpaired } from "./lib/api";
+import { winDone } from "./lib/firstwin";
 import { fmt } from "./lib/format";
 
 /** Says plainly when the daemon is unreachable or sends data the contract rejects, naming the field. */
@@ -70,17 +72,20 @@ function StateBanner() {
  * cost; each number opens what it counts) with the Night report beside it on a phone, where the header has no room for
  * it; then Needs you and In progress, side by side from 1024. The first win leads Now on a phone while it's under way
  * (firstwin.ts SHOW_MS takes it away once it's days old), else it follows Needs you, which stays in view above the
- * fold. The map shows above the two lists
+ * fold. Once that phone's win is done it folds to its title and Review, and its tonight cards fold into one card in
+ * Needs you, so both fit the first screen. The map shows above the two lists
  * only when it's switched on (Settings › You); with a team, Me / Team swaps the lists for the Team view.
  */
 function Home({ m }: { m: Model }) {
   const phone = usePhone();
   const { theme } = useTheme();
   if (!m.s.clients.length) return <FirstRun m={m} />;
-  const winFirst = phone && (m.s.firstWin?.state ?? "none") !== "none";
+  const win = m.s.firstWin;
+  const winFirst = phone && (win?.state ?? "none") !== "none";
+  const folded = winFirst && win && winDone(win) ? win : null;
   return (
     <div className="mx-auto grid w-full max-w-[100rem] gap-(--space-gap)">
-      {winFirst ? <FirstWin m={m} /> : null}
+      {winFirst ? <FirstWin m={m} fold /> : null}
       <section id="jump-now" className="flex scroll-mt-20 flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <Prologue m={m} />
         <NightReport className="lg:hidden" />
@@ -92,7 +97,7 @@ function Home({ m }: { m: Model }) {
             <MapWindow m={m} world={theme.world} />
             <div className="grid items-start gap-(--space-gap) lg:grid-cols-2">
               <div id="jump-needs" className="grid scroll-mt-20 gap-(--space-gap)">
-                <NeedsYou m={m} home />
+                <NeedsYou m={m} home tonight={folded ? <Tonight m={m} win={folded} folded /> : null} />
                 {m.s.firstWin && !winFirst ? <FirstWin m={m} /> : null}
               </div>
               <div id="jump-progress" className="scroll-mt-20">
