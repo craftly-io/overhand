@@ -3,6 +3,8 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeF
 import { basename, dirname, join } from "node:path";
 import {
   buildsItself,
+  FAILURE_WORDS,
+  type FailureReason,
   fromOverhand,
   type Proof,
   planPoints,
@@ -11,6 +13,7 @@ import {
   SplitPartSchema,
   withMark,
 } from "@overhand/contract";
+import { plainWords } from "@overhand/themes";
 import {
   assign,
   editAssignments,
@@ -43,7 +46,7 @@ import { previewOf } from "./preview";
 import { assembleProof } from "./proof";
 import { baseOf, disarmForPush, shipMerged, shipStep, shipSweep } from "./ship";
 import { takeShots } from "./shots";
-import { loadSplits, loadState, type State, saveSplits, saveState, type TrackedPr, takePrReview } from "./state";
+import { loadSplits, loadState, readJson, type State, saveSplits, saveState, type TrackedPr, takePrReview, writeJsonAtomic } from "./state";
 import { bitbucket, bitbucketAuth } from "./trackers/bitbucket";
 import { comment, labelledByOwner, mayPost, setLabels, tickets } from "./trackers/index";
 import type { Ticket } from "./trackers/types";
@@ -102,17 +105,55 @@ export interface PrRequest {
   flags: string[];
 }
 
+/** Why a run's branch wasn't pushed: nothing reached the repository. */
+export class PushError extends Error {}
+
 /**
  * Pushes a run's work with your sign-in, so the run itself needs none (sandbox.ts SIGN_INS): only the branch its worktree
- * was made on, from that worktree, never forced and never a protected branch or the base. Throws with why.
+ * was made on, from that worktree, never forced and never a protected branch or the base. Throws a PushError with why.
  */
 export async function pushBranch(wt: Pick<Worktree, "path" | "branch" | "base">): Promise<void> {
-  if (wt.branch === wt.base || protectedBranch(wt.branch)) throw new Error(`${wt.branch} is a protected branch: Overhand doesn't push it`);
+  if (wt.branch === wt.base || protectedBranch(wt.branch))
+    throw new PushError(`${wt.branch} is a protected branch: Overhand doesn't push it`);
   const head = await shAsync(["git", "symbolic-ref", "--short", "HEAD"], wt.path);
-  if (head.out !== wt.branch) throw new Error(`the run left its worktree on ${head.out || "no branch"}, not ${wt.branch}: nothing pushed`);
+  if (head.out !== wt.branch)
+    throw new PushError(`the run left its worktree on ${head.out || "no branch"}, not ${wt.branch}: nothing pushed`);
   const res = await shAsync(["git", "push", "-u", "origin", `HEAD:refs/heads/${wt.branch}`], wt.path);
-  if (!res.ok) throw new Error(`git push: ${res.err.trim().split("\n").at(-1) ?? ""}`);
+  if (!res.ok) throw new PushError(`git push: ${res.err.trim().split("\n").at(-1) ?? ""}`);
 }
+
+/** Whether a run's worktree has commits its base doesn't: none means the agent changed nothing to open a PR with. */
+export async function hasCommits(wt: Pick<Worktree, "path" | "base">): Promise<boolean> {
+  const n = await shAsync(["git", "rev-list", "--count", `origin/${wt.base}..HEAD`], wt.path);
+  return !n.ok || Number(n.out) > 0; // unreadable: let the push say what's wrong
+}
+
+/** A pushed branch whose PR couldn't be opened: the request to open it again, and the PR to track once it's open. */
+interface Unopened {
+  req: PrRequest;
+  pr: Omit<TrackedPr, "url" | "host" | "repo" | "number">;
+  /** Opened again from its card: the work pass tracks it from here. */
+  opened?: TrackedPr;
+}
+const UNOPENED_FILE = () => join(OPS, ".unopened.json");
+const loadUnopened = (): Record<string, Unopened> => readJson<Record<string, Unopened>>(UNOPENED_FILE(), {});
+const saveUnopened = (all: Record<string, Unopened>): void => writeJsonAtomic(UNOPENED_FILE(), all);
+
+/**
+ * Open the pull request again, from a stopped run's card: only opens the PR its run already pushed (nothing runs again),
+ * and hands it to the next work pass to track like any other. Throws when it can't (GitHub still down, or it's gone).
+ */
+export async function reopenPr(key: string): Promise<TrackedPr> {
+  const u = loadUnopened()[key];
+  if (!u) throw new Error(`${key} has no pushed branch waiting for its pull request.`);
+  const pr: TrackedPr = { ...u.pr, openedAt: Date.now(), ...(await createPr(u.req)) };
+  saveUnopened({ ...loadUnopened(), [key]: { ...u, opened: pr } });
+  report(`✅ ${key} → ${pr.url}${pr.draft ? " (draft)" : ""}: you opened it again`);
+  return pr;
+}
+
+/** One plain sentence for why a run stopped, as the dashboard says it. */
+export const failureLine = (why: FailureReason, branch = ""): string => plainWords[FAILURE_WORDS[why]].replace("{branch}", branch);
 
 /** Opens a pull request (marked as Overhand's) and returns where it is. */
 export async function createPr(p: PrRequest): Promise<{ url: string; host: Client["host"]; repo: string; number: number }> {
@@ -192,8 +233,8 @@ export async function openPr(
     const dest = `${c.name} repository, a pull request from ${wt.branch}`;
     throw new HeldError(holdLeak({ kind: "pr", project: c.name, dest, title: `PR: ${r.pr_title}`, text, payload }, hits));
   }
-  const pr = await createPr({ host: c.host, dir: wt.path, branch: wt.branch, base: wt.base, title: r.pr_title, body, flags });
-  return {
+  const req: PrRequest = { host: c.host, dir: wt.path, branch: wt.branch, base: wt.base, title: r.pr_title, body, flags };
+  const tracked = {
     proof,
     branch: wt.branch,
     mainRepo: wt.mainRepo,
@@ -202,9 +243,19 @@ export async function openPr(
     seen: "",
     fixes: 0,
     draft: flags.includes("--draft"),
-    openedAt: Date.now(),
-    ...pr,
   };
+  const key = tk.key ?? wt.branch;
+  // the branch is pushed: kept, so Open the pull request again needs no new run
+  const pr = await createPr(req).catch((e: unknown) => {
+    saveUnopened({ ...loadUnopened(), [key]: { req, pr: tracked } });
+    throw e;
+  });
+  const left = loadUnopened();
+  if (left[key]) {
+    delete left[key];
+    saveUnopened(left);
+  }
+  return { ...tracked, openedAt: Date.now(), ...pr };
 }
 
 // ---------- repos and worktrees ----------
@@ -508,9 +559,26 @@ export async function handleTicket(state: State, tk: Ticket, told?: (r: AgentRes
     notify(`Report on ${tk.key}`, r.message.slice(0, 120));
     return "ok";
   }
+  // why it stopped, if it does: the CLI's own trouble, the agent saying it's stuck, or what went wrong after it was done
+  let failure: FailureReason = run.failure ?? "stuck";
+  if (r.status === "done" && !(await hasCommits(wt))) {
+    r.status = "failed";
+    failure = "no-changes";
+  }
   if (r.status === "done") {
-    try {
-      const pr = await openPr(tk, wt, r, run.transcript);
+    const pr = await openPr(tk, wt, r, run.transcript).catch((e: unknown) => (e instanceof Error ? e : new Error(String(e))));
+    if (pr instanceof HeldError) {
+      // its title or body would leak: the firewall's card has it (Post anyway opens it), so the agent isn't run again
+      await setLabels(tk, [LABEL.blocked], [LABEL.working]);
+      state.attempts[tk.key] = CFG.limits.maxAttempts;
+      report(`🛡 ${tag}: its PR is held for you`);
+      return "ok";
+    }
+    if (pr instanceof Error) {
+      r.status = "failed";
+      failure = pr instanceof PushError ? "push" : "pr-open";
+      r.message = pr.message;
+    } else {
       state.prs[tk.key] = pr;
       await checkCorners(tk.key, pr);
       // Ship: the proof is in its body now, so auto-merge may go on before its checks finish
@@ -523,9 +591,6 @@ export async function handleTicket(state: State, tk: Ticket, told?: (r: AgentRes
       report(`✅ ${tag} → ${pr.url}${pr.draft ? " (draft)" : ""}`);
       notify(pr.draft ? `Draft to review: ${tk.key}` : `PR ready: ${tk.key}`, tk.title);
       return "ok";
-    } catch (e) {
-      r.status = "failed";
-      r.message = `The work on ${wt.branch} is done, but pushing it or opening its PR failed: ${String(e)}`;
     }
   }
   if (r.status === "question") {
@@ -542,17 +607,32 @@ export async function handleTicket(state: State, tk: Ticket, told?: (r: AgentRes
     notify(`Question on ${tk.key}`, r.message.slice(0, 120));
     return "ok";
   }
+  // running it again changes nothing for an empty PR or a pushed branch whose PR didn't open: those stop at once
   const attempts = (state.attempts[tk.key] ?? 0) + 1;
-  state.attempts[tk.key] = attempts;
-  if (attempts >= CFG.limits.maxAttempts) {
-    await comment(tk, `I couldn't finish this after ${CFG.limits.maxAttempts} attempts:\n\n${r.message}`);
+  const stop = failure === "no-changes" || failure === "pr-open" || attempts >= CFG.limits.maxAttempts;
+  state.attempts[tk.key] = stop ? Math.max(attempts, CFG.limits.maxAttempts) : attempts;
+  const said = failureLine(failure, wt.branch);
+  if (stop) {
+    // where Overhand may post, the ticket says it; elsewhere its card does, with the button that fixes it (decide.ts failedBrief)
+    if (mayPost(tk))
+      await comment(tk, `I couldn't finish this after ${attempts === 1 ? "1 attempt" : `${attempts} attempts`}: ${said}\n\n${r.message}`);
+    else
+      holdFinding({
+        project: tk.client.name,
+        key: tk.local ? "" : tk.key,
+        title: tk.local ? tk.title : `${tk.key}: ${tk.title}`,
+        text: r.message,
+        post: "",
+        from: "agent",
+        failed: { reason: failure, task: tk.key, account: run.account, branch: wt.branch },
+      });
     await setLabels(tk, [LABEL.blocked], [LABEL.working]);
-    notify(`Stuck on ${tk.key}`, r.message.slice(0, 120));
+    notify(`Stuck on ${tk.key}`, said);
   } else {
     await setLabels(tk, [], [LABEL.working]);
   }
   recordOutcome(OPS, { key: tk.key, event: "failed" });
-  report(`✗ ${tag} attempt ${attempts}: ${r.message.slice(0, 160)}`);
+  report(`✗ ${tag} attempt ${attempts}: ${said}`);
   return "ok";
 }
 
@@ -596,7 +676,7 @@ async function runFirstWin(state: State): Promise<boolean> {
     }
     if (r.status !== "done") {
       save({ state: "failed", message: r.message });
-      report(`✗ ${tag} first task: ${r.message.slice(0, 160)}`);
+      report(`✗ ${tag} first task: ${failureLine(run.failure ?? "stuck")}`);
       return true;
     }
     const pr = await openPr({ client: c, key: w.key }, wt, r, run.transcript);
@@ -652,7 +732,7 @@ async function runGuides(state: State, budget: number): Promise<number> {
       }
       if (next === "failed") {
         save({ run: "failed", message: r.message });
-        report(`✗ ${tag} onboarding guide: ${r.message.slice(0, 160)}`);
+        report(`✗ ${tag} onboarding guide: ${failureLine(run.failure ?? "stuck")}`);
         continue;
       }
       const pr = await openPr({ client: c, key: g.key }, wt, r, run.transcript);
@@ -772,6 +852,16 @@ export async function work(): Promise<boolean> {
     const pr = state.prs[key];
     if (pr) pr.draft = false;
   }
+  // pull requests you opened again from a stopped run's card: tracked from here like any other
+  const unopened = loadUnopened();
+  const reopened = Object.entries(unopened).filter(([, u]) => u.opened);
+  for (const [key, u] of reopened) {
+    if (!u.opened) continue;
+    state.prs[key] = u.opened;
+    recordOutcome(OPS, { key, event: "pr", url: u.opened.url, ...sizeOf(u.opened) });
+    delete unopened[key];
+  }
+  if (reopened.length) saveUnopened(unopened);
   let budget = CFG.limits.maxTasksPerRun;
   try {
     // A crashed run leaves claude-working behind; only one run exists at a time, so any we find are stale.
@@ -858,6 +948,7 @@ export async function work(): Promise<boolean> {
         await pushBranch({ path: wt, branch: pr.branch, base: pr.base ?? "" }).catch((e: unknown) => {
           run.out.status = "failed";
           run.out.message = `nothing pushed to ${pr.branch}: ${errorText(e)}`;
+          run.failure = "push";
         });
       if (run.out.status === "done" && pr.base) {
         // the proof as of this push; screenshots aren't retaken every round, the last ones stand
@@ -872,7 +963,9 @@ export async function work(): Promise<boolean> {
       }
       pr.seen = (await prStatus(pr).catch(() => s)).fingerprint;
       await checkCorners(key, pr);
-      report(`${run.out.status === "done" ? "🔧" : "✗"} ${key} fix round ${pr.fixes} (${run.account}): ${run.out.message.slice(0, 160)}`);
+      // a round that failed says why in one plain line; the agent's own words are in its run log
+      const said = run.out.status === "done" ? run.out.message.slice(0, 160) : failureLine(run.failure ?? "stuck", pr.branch);
+      report(`${run.out.status === "done" ? "🔧" : "✗"} ${key} fix round ${pr.fixes} (${run.account}): ${said}`);
       saveState(state);
       return true;
     };

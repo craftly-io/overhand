@@ -2,7 +2,7 @@
 import { appendFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Autonomy, RunKind } from "@overhand/contract";
+import type { Autonomy, FailureReason, RunKind } from "@overhand/contract";
 import { z } from "zod";
 import { AGENT_HOME, AGENT_HOMES, guardHooks, INSTRUCTIONS_FILE, inboxHome, runHome, runMcpServers, writeAgentHome } from "./agent-home";
 import { budgetUntil, recordedBilling } from "./billing";
@@ -105,7 +105,7 @@ export async function loadLocalCode(ops = OPS): Promise<string | null> {
 /**
  * Runs one headless session on the first account with capacity (the client's own accounts when it lists any); null when all
  * are cooling down. The account's runtime decides the CLI; one that can't enforce `schema` is asked for JSON in the prompt,
- * validated, and retried once.
+ * validated, and retried once. A run that failed says why in `failure` (its `out.message` keeps the CLI's own words).
  */
 export async function claude<T>(
   state: State,
@@ -114,7 +114,7 @@ export async function claude<T>(
   schema: string,
   logName: string,
   opts: { model?: string; args?: string[]; client?: Client; autonomy?: Autonomy; inbox?: boolean } = {},
-): Promise<{ out: T; account: string; cost: number; transcript: string } | null> {
+): Promise<{ out: T; account: string; cost: number; transcript: string; failure?: FailureReason } | null> {
   const busy = new Set(currentRuns().map((r) => r.account));
   const { kind, key } = nameParts(logName);
   const c = opts.client;
@@ -191,10 +191,24 @@ export async function claude<T>(
         account,
         cost,
         transcript,
+        failure: failureOf(run),
       };
     return { out: answer.value as T, account, cost, transcript };
   }
   return null;
+}
+
+/** What a CLI says when its sign-in has expired or was revoked. */
+const SIGNED_OUT_RE = /authentication_error|OAuth token has expired|Please run \/login|Invalid API key|not logged in/i;
+
+/**
+ * Why a run gave no answer: it ran past its time limit, its account is signed out, its CLI exited with an error
+ * (crashed), or it exited cleanly with output Overhand can't read (the CLI changed how it reports).
+ */
+export function failureOf(run: { out: RunOutput; stdout: string; stderr: string; code: number; timedOut: boolean }): FailureReason {
+  if (run.timedOut) return "timeout";
+  if (SIGNED_OUT_RE.test(runOutput(run))) return "signed-out";
+  return run.code !== 0 ? "crashed" : "unreadable";
 }
 
 /** A finished run's whole output, as its log has it: its answer, stdout's tail (where a CLI's last error lands) and stderr. */
@@ -262,7 +276,7 @@ async function runOnce(
   cwd: string,
   logName: string,
   meta: { kind: RunKind; key: string; project: string },
-): Promise<{ out: RunOutput; stderr: string; stdout: string }> {
+): Promise<{ out: RunOutput; stderr: string; stdout: string; code: number; timedOut: boolean }> {
   readyHome(rt.id, input.configDir);
   // the OS sandbox (sandbox.ts): one sandbox, ours, so the CLI's own is off under it
   const sb = projectSandbox(meta.project);
@@ -308,7 +322,7 @@ async function runOnce(
     join(OPS, "runs", `${today()}.jsonl`),
     `${JSON.stringify({ name: logName, account, start: startedAt, end: Date.now(), cost: out.cost, ok: out.ok, ...meta, ...identityOf(account), billing: recordedBilling(account), ...(timedOut ? { timedOut } : {}), ...(boxed.guardOnly ? { guardOnly: true } : {}) })}\n`,
   );
-  return { out, stderr, stdout };
+  return { out, stderr, stdout, code, timedOut };
 }
 
 /**

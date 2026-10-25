@@ -59,7 +59,7 @@ const opt = <T extends z.ZodRawShape>(shape: T) => z.object({ id: z.string(), ..
  * agent's draft PR ready; `link` opens it outside (`what` says where); `drawer` opens it here; `card` presses an action
  * card's button; `quiet` turns quiet mode on; `post` sends a held comment; `dismiss` drops it; `snooze` hides it from
  * Needs you for `hours`; `organise` acts on an organising suggestion; `replan` drops a plan and puts its request back
- * in the command bar to say it differently.
+ * in the command bar to say it differently; `reopen` opens a stopped run's pull request from its pushed branch.
  */
 export const BriefOptionSchema = z.discriminatedUnion("do", [
   opt({ do: z.literal("answer"), lead: z.string(), text: z.string() }),
@@ -86,10 +86,44 @@ export const BriefOptionSchema = z.discriminatedUnion("do", [
   opt({ do: z.literal("dismiss"), what: z.enum(["held", "lead"]), target: z.string() }),
   opt({ do: z.literal("snooze"), hours: z.number() }),
   opt({ do: z.literal("replan"), finding: z.string(), project: z.string(), text: z.string() }),
+  // a run whose branch is pushed but whose pull request couldn't be opened: open it now, nothing run again
+  opt({ do: z.literal("reopen"), finding: z.string() }),
   // an organising suggestion (organise.ts): apply it, show its dry run, or leave it; `label` says what applying does
   opt({ do: z.literal("organise"), suggestion: z.string(), action: z.enum(["apply", "dismiss", "preview"]), label: z.string() }),
 ]);
 export type BriefOption = z.infer<typeof BriefOptionSchema>;
+
+/**
+ * Why an agent's run on a task stopped for good, each with its own sentence (`FAILURE_WORDS`) and fix: the agent changed
+ * nothing, its CLI crashed, ran past the time limit, was signed out, or answered in a shape Overhand can't read; the
+ * branch couldn't be pushed, or was pushed and the pull request couldn't be opened; or the agent itself said it was stuck.
+ */
+export const FAILURE_REASONS = ["no-changes", "crashed", "timeout", "signed-out", "unreadable", "push", "pr-open", "stuck"] as const;
+export type FailureReason = (typeof FAILURE_REASONS)[number];
+
+/** Each failure reason's one plain sentence, by its key in the dashboard's words. */
+export const FAILURE_WORDS = {
+  "no-changes": "failedNoChanges",
+  crashed: "failedCrashed",
+  timeout: "failedTimeout",
+  "signed-out": "failedSignedOut",
+  unreadable: "failedUnreadable",
+  push: "failedPush",
+  "pr-open": "failedPrOpen",
+  stuck: "failedStuck",
+} as const satisfies Record<FailureReason, string>;
+
+/**
+ * A run that stopped for good, on a held finding: why, the task (its assignment or ticket key) that Try again queues once
+ * more with its own brief and branch, the account it ran on (Sign in) and its branch (Open the pull request again).
+ */
+export const FailureSchema = z.object({
+  reason: z.enum(FAILURE_REASONS),
+  task: z.string(),
+  account: z.string().default(""),
+  branch: z.string().default(""),
+});
+export type Failure = z.infer<typeof FailureSchema>;
 
 /** A plan an agent wrote for a request you started: what it would change and what you'll see, in plain words. */
 export const PlanPointsSchema = z.object({ changes: z.array(z.string()), see: z.array(z.string()) });
@@ -535,10 +569,42 @@ function planBrief(s: DashboardState, f: DashboardState["findings"][number], tas
   };
 }
 
-function heldBrief(s: DashboardState, id: string): Body | null {
+/**
+ * A run that stopped for good: its one plain sentence and the button that fixes it. Try again queues the same task with
+ * its own brief and branch; an empty pull request gets Try again with more detail instead (said in the command bar), a
+ * pushed branch whose pull request couldn't be opened gets Open the pull request again, and a signed-out account its
+ * Sign in. The agent's own words wait under Details; Close drops it.
+ */
+function failedBrief(f: DashboardState["findings"][number], failed: Failure, w: Words): Body {
+  const retry: BriefOption = { id: "retry", do: "assign", project: f.project, key: "", finding: f.id, title: "", brief: "" };
+  const fix: Record<FailureReason, [BriefOption, string]> = {
+    "no-changes": [{ id: "detail", do: "replan", finding: f.id, project: f.project, text: f.title }, "failedDetailWhy"],
+    "pr-open": [{ id: "reopen", do: "reopen", finding: f.id }, "failedReopenWhy"],
+    "signed-out": [{ id: "signin", do: "drawer", drawer: "settings", key: "", tab: "accounts" }, "failedSignInWhy"],
+    crashed: [retry, "failedRetryWhy"],
+    timeout: [retry, "failedRetryWhy"],
+    unreadable: [retry, "failedRetryWhy"],
+    push: [retry, "failedRetryWhy"],
+    stuck: [retry, "failedRetryWhy"],
+  };
+  const [first, reason] = fix[failed.reason];
+  return {
+    project: f.project,
+    what: plainLine(f.title) || f.title,
+    why: fill(w[FAILURE_WORDS[failed.reason]] ?? "", { branch: failed.branch }),
+    recommend: { option: first.id, reason: w[reason] ?? "", confidence: "medium" },
+    evidence: [],
+    detail: f.text || undefined,
+    options: [first, ...(failed.reason === "signed-out" ? [retry] : []), { id: "close", do: "dismiss", what: "held", target: f.id }],
+    ifNothing: { text: w.failedIfNothing ?? "", at: 0 },
+  };
+}
+
+function heldBrief(s: DashboardState, id: string, w: Words): Body | null {
   const f = s.findings.find((x) => x.id === id);
   if (!f) return null;
   if (f.task) return planBrief(s, f, f.task);
+  if (f.failed) return failedBrief(f, f.failed, w);
   const options: BriefOption[] = [];
   if (f.key && f.post) options.push({ id: "post", do: "post", finding: f.id, key: f.key });
   if (assignable(s, f.project, f.key))
@@ -554,7 +620,11 @@ function heldBrief(s: DashboardState, id: string): Body | null {
   return {
     project: f.project,
     what: plainLine(f.title) || f.title,
-    why: `${f.project} is on Plan and warn only: Overhand holds what it would post, so you decide what goes out.`,
+    // held on watch, or for a task with no ticket to post on, on any level
+    why:
+      autonomyOf(s, f.project) === "watch"
+        ? `${f.project} is on Plan and warn only: Overhand holds what it would post, so you decide what goes out.`
+        : (w.heldNoTicket ?? ""),
     recommend: rec,
     evidence: [{ text: `From the ${f.from}${f.key ? ` on ${f.key}` : ""}`, url: "" }],
     detail: f.text || undefined,
@@ -697,7 +767,7 @@ export function factsBrief(s: DashboardState, id: string, more: MoreFacts = {}, 
     changes: () => groupBrief(s, rest, true),
     ci: () => ciBrief(s, rest),
     errors: () => errorsBrief(s, rest),
-    held: () => heldBrief(s, rest),
+    held: () => heldBrief(s, rest, w),
     card: () => cardBrief(s, rest, w),
     disk: () => diskBrief(s),
     account: () => accountBrief(s, rest, now),

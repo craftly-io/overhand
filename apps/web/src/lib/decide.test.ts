@@ -27,6 +27,7 @@ const EVERY: BriefOption[] = [
   { id: "j", do: "snooze", hours: 24 },
   { id: "k", do: "organise", suggestion: "tidy-folders", action: "preview", label: "Show the dry run" },
   { id: "replan", do: "replan", finding: "f2", project: "Mobile app", text: "make the invite friendlier" },
+  { id: "reopen", do: "reopen", finding: "f3" },
 ];
 
 function recorder() {
@@ -48,6 +49,7 @@ function recorder() {
     snooze: rec("snooze"),
     organise: rec("organise"),
     replan: rec("replan"),
+    reopenPr: rec("reopenPr"),
     openDrawer: (d) => void calls.push(["openDrawer", d]),
     openLink: (url) => void calls.push(["openLink", url]),
   };
@@ -75,6 +77,7 @@ test("every option runs one of the dashboard's real actions, and merging is neve
     ["snooze", "ticket:WEB-3", 24],
     ["organise", "tidy-folders", "preview"],
     ["replan", "f2", "Mobile app", "make the invite friendlier"],
+    ["reopenPr", "f3"],
   ]);
 });
 

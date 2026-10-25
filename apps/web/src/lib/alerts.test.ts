@@ -360,6 +360,28 @@ test("on watch, what's held for you is in Needs you with Assign an agent; an act
   expect(held({ findings: [finding] })[0]?.assign).toBeUndefined();
 });
 
+test("a stopped run is its own red card: its reason's plain sentence and fix, never the held card or the raw output", () => {
+  const finding = {
+    id: "f9",
+    project: "Honeycrust",
+    key: "",
+    title: "Add a CSV export",
+    text: '{"type":"system","subtype":"init","session_id":"x"}',
+    post: "",
+    from: "agent" as const,
+    at: NOW,
+    failed: { reason: "pr-open" as const, task: "HONEY-900000001", account: "work", branch: "agent/HONEY-900000001" },
+  };
+  const all = computeAlerts(state({ findings: [finding] }), parsePlan([]), plainWords, NOW);
+  expect(all.some((a) => a.target.kind === "held")).toBe(false);
+  const [a] = all.filter((x) => x.target.kind === "failed");
+  expect(a).toMatchObject({ sev: 2, broken: true, title: "Stopped: Add a CSV export", item: "held:f9" });
+  expect(a?.sub).toBe(`Honeycrust · ${plainWords.failedPrOpen.replace("{branch}", "agent/HONEY-900000001")}`);
+  expect(a?.sub).not.toContain("{");
+  // its decision card leads with Open the pull request again
+  expect(factsBrief(state({ findings: [finding] }), "held:f9", {}, NOW, plainWords)?.recommend.option).toBe("reopen");
+});
+
 test("an account the sandbox keeps off your own sign-in gets a Sign in card: amber while others carry its work, red alone", () => {
   const acc = (name: string, waitsSignIn: boolean) => ({
     name,

@@ -2,8 +2,8 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openPr } from "../src/agent";
-import { assign, holdFinding, loadAssignments, loadFindings, runClient, type StoredAssignment } from "../src/assign";
+import { openPr, reopenPr } from "../src/agent";
+import { assign, editAssignments, holdFinding, loadAssignments, loadFindings, runClient, type StoredAssignment } from "../src/assign";
 import { levelFor, policyOf, prCreateFlags, ticketRules } from "../src/autonomy";
 import { type Client, type Config, loadConfig, saveConfig } from "../src/config";
 import { applyConfig, CFG, LABEL, OPS, today, UI_PORT } from "../src/env";
@@ -54,6 +54,7 @@ const ticket = (c: Client, n: number): Ticket => ({
 const bin = mkdtempSync(join(tmpdir(), "overhand-assign-gh-"));
 const calls = join(bin, "calls.jsonl");
 const answer = join(bin, "answer.txt");
+const down = join(bin, "down.txt"); // while it's there, gh can't reach GitHub
 const ghCalls = (): string[][] =>
   existsSync(calls)
     ? readFileSync(calls, "utf8")
@@ -72,6 +73,7 @@ beforeAll(() => {
       "#!/usr/bin/env bun",
       `const fs = require("node:fs");`,
       `fs.appendFileSync(${JSON.stringify(calls)}, JSON.stringify(process.argv.slice(2)) + "\\n");`,
+      `if (fs.existsSync(${JSON.stringify(down)})) { process.stderr.write("error connecting to api.github.com"); process.exit(1); }`,
       `if (fs.existsSync(${JSON.stringify(answer)})) process.stdout.write(fs.readFileSync(${JSON.stringify(answer)}, "utf8"));`,
     ].join("\n"),
   );
@@ -104,6 +106,7 @@ const reset = () => {
   rmSync(answer, { force: true });
   rmSync(join(OPS, "assigned.json"), { force: true });
   rmSync(join(OPS, "findings.json"), { force: true });
+  rmSync(join(OPS, ".unopened.json"), { force: true });
 };
 
 test("an assigned ticket runs at assignedAutonomy: env, prompt rules, PR flags and fix rounds; nothing else on the project moves", () => {
@@ -340,6 +343,65 @@ test("start an agent from a sentence: it plans read-only on any project, Go ahea
   });
   expect((await post("/api/finding/dismiss", { id: plan })).status).toBe(200);
   expect(loadAssignments()[again.key]).toBeUndefined();
+});
+
+test("a stopped run: Try again queues the same task with its own brief, Close drops it, and its card comes back if it stops again", async () => {
+  reset();
+  const task = assign({ project: "Draftco", title: "Add a CSV export", brief: "They want CSV", by: "dashboard" });
+  editAssignments((all) => {
+    const a = all[task.key];
+    if (a) a.queued = false; // a pass ran it, and it stopped
+  });
+  const stopped = { project: "Draftco", key: "", title: task.title, text: '{"type":"system"}', post: "", from: "agent" as const };
+  const id = holdFinding({ ...stopped, failed: { reason: "crashed", task: task.key, account: "work", branch: "" } });
+  const r = await post("/api/assign", { id });
+  expect(await r.json()).toEqual({ ok: true, key: task.key });
+  // the same assignment, queued again: its brief, never the failure's text, and no second task
+  expect(loadAssignments()[task.key]).toMatchObject({ brief: "They want CSV", queued: true, local: true });
+  expect(Object.keys(loadAssignments())).toEqual([task.key]);
+  expect(loadFindings().some((f) => f.id === id)).toBe(false);
+  // two tasks that stop with the same words are two cards
+  const other = holdFinding({ ...stopped, failed: { reason: "crashed", task: "DRA-900000001", account: "work", branch: "" } });
+  expect(other).not.toBe(holdFinding({ ...stopped, failed: { reason: "crashed", task: "DRA-900000002", account: "work", branch: "" } }));
+  // Close drops the card and its task, and isn't remembered: the same stop later shows again
+  const again = holdFinding({ ...stopped, failed: { reason: "crashed", task: task.key, account: "work", branch: "" } });
+  expect((await post("/api/finding/dismiss", { id: again })).status).toBe(200);
+  expect(loadAssignments()[task.key]).toBeUndefined();
+  expect(holdFinding({ ...stopped, failed: { reason: "crashed", task: task.key, account: "work", branch: "" } })).toBe(again);
+  expect(loadFindings().some((f) => f.id === again)).toBe(true);
+});
+
+test("GitHub down when the PR opens: the branch stays pushed, and Open the pull request again only opens it", async () => {
+  reset();
+  const wt = scratchWorktree("DRA-7");
+  const c = runClient(client("Draftco", "DRA", "propose", { assignedAutonomy: "propose" }), "DRA-7", {
+    "DRA-7": { key: "DRA-7" } as StoredAssignment,
+  });
+  const result = { status: "done" as const, pr_title: "feat: csv (DRA-7)", pr_body: "b", message: "m" };
+  writeFileSync(down, "");
+  await expect(openPr({ client: c, key: "DRA-7" }, wt, result)).rejects.toThrow("error connecting");
+  const id = holdFinding({
+    project: "Draftco",
+    key: "",
+    title: "Add a CSV export",
+    text: "gh pr create: error connecting",
+    post: "",
+    from: "agent",
+    failed: { reason: "pr-open", task: "DRA-7", account: "work", branch: "DRA-7" },
+  });
+  // still down: it says so, and the card stays
+  expect((await post("/api/failed/reopen", { id })).status).toBe(502);
+  expect(loadFindings().some((f) => f.id === id)).toBe(true);
+  rmSync(down);
+  writeFileSync(answer, "https://github.com/o/draftco/pull/4\n");
+  rmSync(calls, { force: true });
+  const r = await post("/api/failed/reopen", { id });
+  expect(await r.json()).toEqual({ ok: true, url: "https://github.com/o/draftco/pull/4" });
+  // only gh pr create ran: nothing pushed again, no agent
+  expect(ghCalls().map((x) => x.slice(0, 2))).toEqual([["pr", "create"]]);
+  expect(loadFindings().some((f) => f.id === id)).toBe(false);
+  await expect(reopenPr("DRA-7")).resolves.toMatchObject({ number: 4, draft: true, branch: "DRA-7" });
+  await expect(reopenPr("DRA-404")).rejects.toThrow("no pushed branch");
 });
 
 test("settings keep assignedAutonomy and the owner's GitHub login; an older config gets the defaults", () => {

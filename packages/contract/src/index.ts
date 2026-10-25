@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { AutonomySchema } from "./autonomy";
 import { BillingSchema } from "./billing";
-import { CardButtonSchema, PlanPointsSchema } from "./decide";
+import { CardButtonSchema, FailureSchema, PlanPointsSchema } from "./decide";
 import { GuideSchema } from "./guide";
 import { HostedResultSchema } from "./hosted";
 import { ProjectInstructionsSchema } from "./instructions";
@@ -624,6 +624,8 @@ export const FindingSchema = z.object({
   task: z.string().optional(),
   /** That plan, read into what changes and what you'll see (older plans have only `text`). */
   plan: PlanPointsSchema.optional(),
+  /** A run on `failed.task` that stopped for good: its card says why, with the fix; `text` is the agent's own words. */
+  failed: FailureSchema.optional(),
 });
 export type Finding = z.infer<typeof FindingSchema>;
 

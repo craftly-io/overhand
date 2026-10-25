@@ -52,6 +52,16 @@
       </ul>
     </section>
 
+    <section class="block hood" id="stopped" aria-labelledby="h-stopped">
+      <h2 id="h-stopped">A run that stopped.</h2>
+      <ul class="facts">
+        <li><b>Its card says why</b> A task whose run stopped shows in Needs you, marked stopped, with one sentence for the reason and the button that fixes it. What the agent printed waits under Details.</li>
+        <li><b><em>{{w.signInRetry}}</em></b> Runs the same task again, with its brief and its branch: nothing done so far is lost.</li>
+        <li><b><em>{{w.failedMoreDetail}}</em></b> When the agent changed nothing, it isn't run again on its own. Say more about what you want and it starts again from that.</li>
+        <li><b><em>{{w.failedReopen}}</em></b> The branch was pushed, but GitHub didn't answer when its pull request was opened. This only opens the pull request; nothing runs again.</li>
+      </ul>
+    </section>
+
     <section class="block hood" id="update" aria-labelledby="h-update">
       <h2 id="h-update">Updating.</h2>
       <ul class="facts">
