@@ -27,6 +27,7 @@ import { RUN_CACHES, runCacheKey } from "./cleanup-sources";
 import type { RuntimeId } from "./config";
 import { controlDir, outboxDir, RUN_KEY_ENV, runKey, writeAtomic } from "./control";
 import { CFG, CODE, OPS, safeCmd, shAsync } from "./env";
+import { RUN_TMP } from "./governor";
 import { BROWSERS, projectAt, selfPaths } from "./guard";
 import { report } from "./notify";
 import { gitCommonDir, gitEnv, gitPointersOk } from "./runtimes/runtime";
@@ -665,7 +666,7 @@ export function sandboxSpawn(
     if (gitPointers(s.cwd, gitDir) !== before) flagRepo(s.cwd, s.run, ops);
   };
   if (st.effective === "off") return { argv: s.argv, env, sandboxed: false, guardOnly: st.guardOnly === true, done: after };
-  const runTmp = real(mkdtempSync(join(tmpdir(), "overhand-run-")));
+  const runTmp = real(mkdtempSync(join(tmpdir(), RUN_TMP)));
   const cache = projectCache(s.env.OVERHAND_PROJECT || s.run, ops);
   mkdirSync(cache, { recursive: true });
   const policy = sandboxPolicy({ ...s, gitCommon: common, gitDir, runTmp, cache }, homedir(), ops);
