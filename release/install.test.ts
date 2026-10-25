@@ -151,8 +151,10 @@ test("downloads are HTTPS only: a plain-http mirror that isn't this machine fail
 test("with cosign installed, SHA256SUMS must carry the release workflow's signature; without it, the checksum alone", async () => {
   const release = fakeRelease();
   writeFileSync(join(release, "SHA256SUMS.sigstore.json"), "{}");
-  // a stand-in cosign that logs what it was asked and answers `verdict`
-  const cosign = (verdict: number) => ({ cosign: `echo "$*" >>"$HOME/cosign.log"; exit ${verdict}` });
+  // a stand-in cosign that says its version, logs what it was asked and answers `verdict`
+  const cosign = (verdict: number, version = "v2.5.3") => ({
+    cosign: `[ "$1" = version ] && { echo "GitVersion:    ${version}"; exit 0; }; echo "$*" >>"$HOME/cosign.log"; exit ${verdict}`,
+  });
   const ok = await install(release, "Linux", "x86_64", { fakes: cosign(0) });
   expect(ok.code, ok.out).toBe(0);
   expect(ok.out).toContain("Signature verified (Sigstore)");
@@ -169,6 +171,13 @@ test("with cosign installed, SHA256SUMS must carry the release workflow's signat
   const unsigned = await install(fakeRelease(), "Linux", "x86_64", { fakes: cosign(0) });
   expect(unsigned.code).toBe(1);
   expect(unsigned.out).toContain("Couldn't fetch the release's signature (SHA256SUMS.sigstore.json); not installing.");
+
+  // a cosign older than 2.5 can't read the signature's format: skipped and said, the checksum still checked
+  const old = await install(release, "Linux", "x86_64", { fakes: cosign(1, "v2.4.1") });
+  expect(old.code, old.out).toBe(0);
+  expect(old.out).toContain("older than 2.5");
+  expect(existsSync(join(old.home, "cosign.log"))).toBe(false);
+  expect((await install(release, "Linux", "x86_64", { fakes: cosign(0, "v3.1.4") })).out).toContain("Signature verified (Sigstore)");
 
   // no cosign: no signature is asked for
   const plain = await install(fakeRelease(), "Linux", "x86_64", { bare: true });

@@ -114,9 +114,18 @@ fi
 step "Downloaded ${pkg}"
 
 get -fsSL "${url}/SHA256SUMS" -o "${tmp}/SHA256SUMS" || fail "Couldn't fetch SHA256SUMS. The installed Overhand is unchanged."
-# with cosign installed, SHA256SUMS must carry the release workflow's signature (SIGNER), or nothing installs; without
-# it, only the checksum below is checked
-if command -v cosign >/dev/null 2>&1; then
+# with cosign 2.5 or newer installed, SHA256SUMS must carry the release workflow's signature (SIGNER), or nothing
+# installs; an older cosign can't read the signature's format (it fails on every release), so it's skipped, said, and
+# only the checksum below is checked, as without cosign
+cosign_ok() {
+  v="$(cosign version 2>/dev/null | sed -n 's/^GitVersion:[^0-9]*\([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p' | head -n 1)"
+  [ -n "$v" ] || return 1
+  set -- $v
+  [ "$1" -gt 2 ] || { [ "$1" -eq 2 ] && [ "$2" -ge 5 ]; }
+}
+if command -v cosign >/dev/null 2>&1 && ! cosign_ok; then
+  step "cosign here is older than 2.5 and can't read the release's signature; checking the checksum only (update cosign to check it)"
+elif command -v cosign >/dev/null 2>&1; then
   get -fsSL "${url}/SHA256SUMS.sigstore.json" -o "${tmp}/SHA256SUMS.sigstore.json" \
     || fail "Couldn't fetch the release's signature (SHA256SUMS.sigstore.json); not installing. The installed Overhand is unchanged."
   cosign verify-blob --bundle "${tmp}/SHA256SUMS.sigstore.json" --certificate-identity-regexp "$SIGNER" \
