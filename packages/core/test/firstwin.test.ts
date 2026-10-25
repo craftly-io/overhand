@@ -14,6 +14,7 @@ import {
   readmeGap,
   saveWin,
   untestedPure,
+  winToRun,
 } from "../src/firstwin";
 
 const README =
@@ -154,4 +155,13 @@ test("the dashboard sees the first win without its local path or brief", () => {
   expect(JSON.stringify(shown)).not.toContain("/Users/");
   expect(firstWinState(Date.now() + 4 * 864e5)).toMatchObject({ state: "queued" }); // under way: always shown
   rmSync(join(OPS, "first-win.json"));
+});
+
+test("a first win left running by an Overhand that restarted runs again; one running now, or finished, doesn't", () => {
+  const started = 1_000;
+  expect(winToRun({ state: "queued", at: 2_000 }, started)).toBe(true);
+  expect(winToRun({ state: "running", at: 500 }, started)).toBe(true);
+  expect(winToRun({ state: "running", at: 2_000 }, started)).toBe(false);
+  expect(winToRun({ state: "pr", at: 500 }, started)).toBe(false);
+  expect(winToRun(null, started)).toBe(false);
 });

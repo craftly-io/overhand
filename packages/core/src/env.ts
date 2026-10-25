@@ -188,6 +188,34 @@ export function sh(cmd: string[], cwd = SRC, timeoutMs = 10 * 60_000): { ok: boo
   return { ok: r.exitCode === 0 && !r.exitedDueToTimeout, out: r.stdout.toString().trim(), err };
 }
 
+/**
+ * What a process printed on each of `streams`, and its exit code: read until it exits, then for `graceMs` more. A
+ * process it started and left running (a dev server, an MCP server's helper) keeps the pipes open, and reading to
+ * their end then never finished: a first win's agent was done in 36 s and its pull request never opened.
+ */
+export async function untilExit(
+  exited: Promise<number>,
+  streams: ReadableStream<Uint8Array>[],
+  graceMs = 2000,
+): Promise<{ texts: string[]; code: number }> {
+  const readers = streams.map((s) => s.getReader());
+  const texts = readers.map(async (r) => {
+    const dec = new TextDecoder();
+    let text = "";
+    try {
+      for (let c = await r.read(); !c.done; c = await r.read()) text += dec.decode(c.value, { stream: true });
+    } catch {} // cancelled after the grace: what came before stays
+    return text + dec.decode();
+  });
+  const code = await exited;
+  const grace = setTimeout(() => {
+    for (const r of readers) void r.cancel().catch(() => {});
+  }, graceMs);
+  const done = await Promise.all(texts);
+  clearTimeout(grace);
+  return { texts: done, code };
+}
+
 /** `sh` without blocking the daemon while the command runs: for work on a timer, where a sync `gh` or `git` call froze every request. */
 export async function shAsync(cmd: string[], cwd = SRC, timeoutMs = 10 * 60_000): Promise<{ ok: boolean; out: string; err: string }> {
   if (isGit(cmd) && gitRefused(cwd)) return { ok: false, out: "", err: REFUSED };
@@ -197,7 +225,10 @@ export async function shAsync(cmd: string[], cwd = SRC, timeoutMs = 10 * 60_000)
   } catch (e) {
     return { ok: false, out: "", err: e instanceof Error ? e.message : String(e) }; // not installed
   }
-  const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
+  const {
+    texts: [out = "", err = ""],
+    code,
+  } = await untilExit(p.exited, [p.stdout, p.stderr]);
   const timedOut = p.signalCode !== null && code !== 0;
   return {
     ok: code === 0,

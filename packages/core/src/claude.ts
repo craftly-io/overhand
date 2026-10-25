@@ -8,7 +8,7 @@ import { AGENT_HOME, AGENT_HOMES, guardHooks, INSTRUCTIONS_FILE, inboxHome, runH
 import { budgetUntil, recordedBilling } from "./billing";
 import type { Client } from "./config";
 import { ingestOutboxes, recordSpawn } from "./control";
-import { ACCOUNTS, CFG, claudeEnv, MIN, OPS, providerOf, runtimeOf, today } from "./env";
+import { ACCOUNTS, CFG, claudeEnv, MIN, OPS, providerOf, runtimeOf, today, untilExit } from "./env";
 import { GUARD_LOG } from "./guard";
 import { comboOfAccount, identityOf, nameParts, projectOf, projectRows } from "./history";
 import { allowSubscriptionTokens } from "./legacy-token";
@@ -287,9 +287,11 @@ async function runOnce(
     },
     (input.tune?.timeoutMin || CFG.limits.taskTimeoutMin) * MIN,
   );
-  const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+  const {
+    texts: [stdout = "", stderr = ""],
+    code,
+  } = await untilExit(proc.exited, [proc.stdout, proc.stderr]);
   clearTimeout(timer);
-  const code = await proc.exited;
   boxed.done(startedAt);
   if (boxed.sandboxed) ingestOutboxes(OPS, GUARD_LOG);
   saveCurrentRuns(currentRuns().filter((r) => r.pid !== proc.pid));
@@ -356,7 +358,7 @@ async function probeUsage(account: string): Promise<AccountUsage | null> {
     stdout: "pipe",
     stderr: "ignore",
   });
-  const { usage } = parseStream(await new Response(proc.stdout).text());
+  const { usage } = parseStream((await untilExit(proc.exited, [proc.stdout])).texts[0] ?? "");
   if (usage) recordUsage(OPS, account, usage);
   return usage;
 }
