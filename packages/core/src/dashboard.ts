@@ -49,7 +49,7 @@ import { diskFree, report } from "./notify";
 import { reviewRound } from "./onpreview";
 import { pluginStates } from "./plugins";
 import { loadActions, room, toCard, toSession } from "./room";
-import { gitFlagged, projectSandbox, waitsForSignIn } from "./sandbox";
+import { gitFlagged, projectSandbox, sandboxAuto, waitsForSignIn } from "./sandbox";
 import { lastSelfCheck } from "./selfcheck";
 import { latestRelease, opsBehind, updateRoute, VERSION } from "./selfupdate";
 import { type LiveSession, liveSessions } from "./sessions";
@@ -355,6 +355,7 @@ export async function dashboardState(): Promise<DashboardState> {
     gitBlocked: gitFlagged(),
     slackSignIn: state.slackSignIn ?? null,
     sandboxRefuse: projectSandbox("").refuse ? projectSandbox("").why || "the OS sandbox can't run here" : "",
+    sandboxAuto: sandboxAuto(),
     menubar: menubarHelper() ? CFG.menubar : null,
     hosted: hostedState(),
     look: CFG.look,

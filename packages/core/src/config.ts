@@ -281,10 +281,12 @@ const ClientSchema = z.object({
    */
   preview: z.object({ command: z.string().default(""), url: z.string().default("") }).optional(),
   /**
-   * "off": with `sandbox.mode` on, this project's runs and checks start without the OS sandbox, on the guard only (Xcode,
-   * Swift packages and firebase-tools can't run inside it). `sandbox.required` still holds it. Left out: "inherit".
+   * "off": with `sandbox.mode` on, this project's runs and checks start without the OS sandbox, on the guard only.
+   * Left out or "inherit": the machine's, except that on enforce a project holding Xcode, a Swift package or
+   * firebase-tools (which can't run inside it) runs on the guard only, set by Overhand (sandbox.ts hostTool); "keep"
+   * holds such a project inside it. `sandbox.required` still holds every project.
    */
-  sandbox: z.enum(["inherit", "off"]).optional(),
+  sandbox: z.enum(["inherit", "off", "keep"]).optional(),
   /**
    * "Run here when my computer is off" (hosted.ts): while this computer is away, its queued tickets run on Overhand's
    * machines, on an API key of yours, from your run minutes. Off when left out; GitHub projects only.
@@ -533,10 +535,12 @@ const ConfigSchema = z.object({
    * before and records what it would deny (macOS); "enforce" lets a run write only its own folder, caches and its CLI's
    * state. A change applies to runs started after it. `required`: where the sandbox can't run (Linux without user
    * namespaces, most Docker setups), refuse to start runs instead of running them on the guard alone.
+   * A new install gets "enforce", which on a machine that can't run it means the guard only (sandboxState); a config
+   * saved before keeps the mode it wrote, since every saved config writes it.
    */
   sandbox: z
     .object({
-      mode: z.enum(["off", "log", "enforce"]).default("off"),
+      mode: z.enum(["off", "log", "enforce"]).default("enforce"),
       required: z.boolean().default(false),
     })
     .prefault({}),
@@ -935,7 +939,7 @@ export function withQuick(c: Config, q: QuickSetting): Config {
   if ("menubar" in q) return { ...c, menubar: q.menubar };
   if ("look" in q) return { ...c, look: q.look };
   if (!c.clients.some((x) => x.name === q.project)) throw new Error(`no project ${q.project}`);
-  const set = "hosted" in q ? { hosted: q.hosted } : { autonomy: q.autonomy };
+  const set = "hosted" in q ? { hosted: q.hosted } : "sandbox" in q ? { sandbox: q.sandbox } : { autonomy: q.autonomy };
   return { ...c, clients: c.clients.map((x) => (x.name === q.project ? { ...x, ...set } : x)) };
 }
 

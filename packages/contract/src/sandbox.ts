@@ -1,7 +1,8 @@
 /**
  * What the OS sandbox around Overhand's agent runs (core/src/sandbox.ts) does and can't stop: one source for Settings,
- * the README, SECURITY and the site (a test holds them to it). Claims say "when it's on": it ships off by default and
- * turns on per machine (Settings, `sandbox.mode`), so nothing here says every run is sandboxed.
+ * the README, SECURITY and the site (a test holds them to it). Claims say "when it's on": it's on by default only where
+ * the machine can run it, turns off per machine (Settings, `sandbox.mode`) and per project, so nothing here says every
+ * run is sandboxed.
  */
 import { z } from "zod";
 
@@ -14,31 +15,33 @@ export const SandboxStatusSchema = z.object({
   refuse: z.boolean(),
   /** process.platform of the daemon's machine. */
   platform: z.string(),
-  /** Projects, by name, holding a tool that can't run inside the sandbox (core/src/sandbox.ts hostTool), on enforce only. */
-  suggest: z.record(z.string(), z.string()).default({}),
+  /** Projects, by name, holding a tool that can't run inside the sandbox (core/src/sandbox.ts hostTool), with that tool. */
+  tools: z.record(z.string(), z.string()).default({}),
 });
 export type SandboxStatus = z.infer<typeof SandboxStatusSchema>;
 
-/** A project's own sandbox setting (config `clients[].sandbox`); left out, "inherit". */
-export type ProjectSandbox = "inherit" | "off";
+/**
+ * A project's own sandbox setting (config `clients[].sandbox`); left out, "inherit". "keep": inside the sandbox even
+ * with a tool Overhand would otherwise run it without.
+ */
+export type ProjectSandbox = "inherit" | "off" | "keep";
 
 /**
- * Whether a project's runs go without the OS sandbox, on the guard only: the project set to off while the machine's
- * sandbox is on and not required (a project can't leave a required sandbox). One rule for the daemon and Settings.
+ * Whether a project's runs go without the OS sandbox, on the guard only, while the machine's sandbox is on and not
+ * required (a project can't leave a required sandbox): the project set to off, or, on enforce, one left as the
+ * machine's that holds `tool`, a tool that can't run inside it (Overhand sets that itself). One rule for the daemon
+ * and Settings.
  */
-export const guardOnly = (s: { mode: SandboxStatus["mode"]; required: boolean }, project: ProjectSandbox | undefined): boolean =>
-  project === "off" && s.mode !== "off" && !s.required;
+export const guardOnly = (s: { mode: SandboxStatus["mode"]; required: boolean }, project: ProjectSandbox | undefined, tool = ""): boolean =>
+  s.mode !== "off" && !s.required && (project === "off" || (project !== "keep" && s.mode === "enforce" && tool !== ""));
 
 /** The per-project way out, for the docs: said once, here. */
 export const SANDBOX_PROJECT_OFF =
-  "A project that needs Xcode, Swift packages or firebase-tools can run without the OS sandbox: set its sandbox to off (Settings, Projects, or sandbox: off on the project in the config). Its runs, and the checks Overhand runs in its files, then have the guard only, and Settings says so. With Refuse runs without it on, the project stays inside the sandbox. Overhand suggests it when a project has an Xcode project or workspace, a Package.swift or a firebase.json, and never switches it for you.";
+  "A project with an Xcode project or workspace, a Package.swift or a firebase.json runs without the OS sandbox, set by Overhand itself, since those tools can't run inside it: its runs, and the checks Overhand runs in its files, have the guard only, and Needs you says so, with Keep it in the sandbox to put it back (sandbox: keep on the project in the config). Any other project can leave it too: set its sandbox to off (Settings, Projects, or sandbox: off on the project in the config). With Refuse runs without it on (Settings, Advanced), every project stays inside the sandbox.";
 
-/** Each mode's label in Settings. */
-export const SANDBOX_MODE_LABELS: Record<SandboxStatus["mode"], string> = {
-  off: "Off",
-  log: "Log only (macOS): record what it would block",
-  enforce: "On",
-};
+/** The sandbox switch's one sentence in Settings: what it does, said once, here. */
+export const SANDBOX_SWITCH =
+  "Each agent run, and each check Overhand runs in a project's files, writes only its own folder and never your other files, however the command is spelled.";
 
 /** What it stops, when it's on: said once, here. */
 export const SANDBOX_STOPS =
@@ -54,7 +57,7 @@ export function sandboxLine(s: SandboxStatus): string {
   if (!s.ok)
     return s.refuse
       ? `The OS sandbox can't run on this machine (${s.why}), so Overhand starts no agent runs.`
-      : `The OS sandbox can't run on this machine (${s.why}): agent runs have the guard only. Turn on "Refuse runs without it" to stop them instead.`;
+      : `The OS sandbox can't run on this machine (${s.why}): agent runs have the guard only. Turn on "Refuse runs without it" in Advanced to stop them instead.`;
   if (s.effective === "off") return "Log only records on macOS: on this machine agent runs have the guard only.";
   if (s.effective === "log")
     return "Log only: runs go ahead as before, and what the sandbox would block goes to logs/sandbox-would-deny.jsonl.";

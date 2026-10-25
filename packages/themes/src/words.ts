@@ -1030,12 +1030,21 @@ export const plainWords = {
   slackMovedLabel: "Slack is signed in in this account's own folder too (the Slack inbox moves there)",
   movedWaitsSandbox:
     "This account still runs on your own agent config, which the OS sandbox keeps runs out of: its runs wait until you sign it in once in its own folder (Settings, Agent accounts, Sign in).",
-  // a project's own OS sandbox setting (config clients[].sandbox): suggested where a tool can't run inside it, never switched
+  // the machine's OS sandbox switch (config sandbox.mode, on: enforce) and its Advanced setting (sandbox.required)
+  safetyTitle: "Safety",
+  sandboxSwitch: "OS sandbox",
+  sandboxCantStop: "What this can't stop",
+  sandboxRefuseLabel: "Refuse runs without it",
+  // a project's own OS sandbox setting (config clients[].sandbox): guard only, set by Overhand, where a tool can't run inside it
   sandboxProjectLabel: "OS sandbox for this project",
   sandboxProjectInherit: "As set for this machine",
   sandboxProjectOff: "Off: the guard only",
-  sandboxSuggest: "Run this project without the sandbox ({tool} can't run inside it)",
+  sandboxKeep: "Keep it in the sandbox",
+  sandboxAutoLine: "Guard only, set by Overhand: {tool} can't run inside the sandbox",
   sandboxGuardOnly: "Guard only: this project runs without the OS sandbox",
+  /** Overhand runs a project on the guard only since it holds a tool that can't run inside the sandbox (sandbox.ts sandboxAuto). */
+  alSandboxAuto: "{project} runs on the guard only",
+  alSandboxAutoSub: "{tool} can't run inside the OS sandbox, so Overhand runs this project without it.",
   /** An account still on your own agent config, where the OS sandbox keeps runs out of it: one click signs it in. */
   alSignIn: "Sign in {account} once",
   alSignInSub: "Its agents wait for one {tool} sign-in of its own.",

@@ -164,7 +164,7 @@ import { closePr, markReady, readPr } from "./review";
 import { RUNTIMES } from "./runtimes";
 import { claudeSignedIn, existingClaudeSignIn } from "./runtimes/claude-code";
 import { codexSignedIn } from "./runtimes/codex";
-import { allowGit, gitFlagged, hostTool, sandboxState } from "./sandbox";
+import { allowGit, gitFlagged, projectTools, sandboxState } from "./sandbox";
 import { liveDeps, runSelfCheck, writeDiagnostic } from "./selfcheck";
 import { requestStop, restartIfRequested, START_AGAIN, updateOps } from "./selfupdate";
 import { leadLog, liveSessions } from "./sessions";
@@ -854,13 +854,8 @@ async function route(req: Request): Promise<Response> {
       sandbox: {
         ...sandboxState(CFG.sandbox),
         platform: process.platform,
-        // on enforce, the projects holding a tool that can't run inside it: Settings suggests, never switches
-        suggest:
-          CFG.sandbox.mode === "enforce"
-            ? Object.fromEntries(
-                CFG.clients.flatMap((c) => (c.sandbox === "off" ? [] : [[c.name, hostTool(join(CODE, c.dir))]])).filter(([, t]) => t),
-              )
-            : {},
+        // the projects holding a tool that can't run inside it: on enforce, left as the machine's, they have the guard only
+        tools: projectTools(),
       },
     });
   }
