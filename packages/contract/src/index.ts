@@ -925,7 +925,62 @@ export const SettingsSchema = z.object({
   homes: z.record(z.string(), z.string()).default({}),
   /** The OS sandbox on this machine; off from older daemons. */
   sandbox: SandboxStatusSchema.default({ mode: "off", effective: "off", ok: true, why: "", refuse: false, platform: "", suggest: {} }),
+  /** This browser is on the computer itself, so it may change the LOCAL_ONLY fields; older daemons let every caller. */
+  local: z.boolean().default(true),
 });
+
+/**
+ * Config fields only the computer itself changes: what the daemon runs as a command (a project's preview, cleanup's own
+ * commands and the folders it empties), the OS sandbox, and the addresses allowed to call the dashboard. A paired device
+ * or the hosted page sees them read-only, and the daemon refuses a save from one that changes them (localOnlyChange).
+ */
+export const LOCAL_ONLY = [
+  "sandbox",
+  "dashboardOrigins",
+  "clients.*.preview.command",
+  "clients.*.sandbox",
+  "cleanup.categories.caches.commands",
+  "cleanup.categories.caches.paths",
+] as const;
+
+/** Whether the field at dotted `path` (array items by index, as Settings binds them) is a LOCAL_ONLY field or inside one. */
+export function localOnly(path: string): boolean {
+  const parts = path.split(".");
+  return LOCAL_ONLY.some((p) => p.split(".").every((s, i) => s === "*" || s === parts[i]));
+}
+
+/** Each value at `path` in `v`, by a concrete key: a `*` takes every array item, keyed by its `name` when it has one. */
+function valuesAt(v: unknown, path: string[], key = ""): [string, unknown][] {
+  const [head, ...rest] = path;
+  if (head === undefined) return [[key, v]];
+  if (head === "*")
+    return Array.isArray(v)
+      ? v.flatMap((item: unknown, i) => {
+          const name = typeof item === "object" && item !== null && "name" in item && typeof item.name === "string" ? item.name : String(i);
+          return valuesAt(item, rest, `${key}.${name}`);
+        })
+      : [];
+  const next = typeof v === "object" && v !== null && head in v ? (v as Record<string, unknown>)[head] : undefined;
+  return valuesAt(next, rest, `${key}.${head}`);
+}
+
+// left out, empty and "inherit" (a project's sandbox) all mean the default
+const same = (a: unknown, b: unknown) => {
+  const plain = (x: unknown) => (x === undefined || x === null || x === "" || x === "inherit" ? "" : JSON.stringify(x));
+  return plain(a) === plain(b);
+};
+
+/**
+ * The first LOCAL_ONLY field `after` sets differently from `before` (two parsed configs), as its dotted path with
+ * projects by name, or "" when none does. Removing a project changes nothing here: only what `after` holds is compared.
+ */
+export function localOnlyChange(before: unknown, after: unknown): string {
+  for (const p of LOCAL_ONLY) {
+    const old = new Map(valuesAt(before, p.split(".")));
+    for (const [k, v] of valuesAt(after, p.split("."))) if (!same(old.get(k), v)) return k.slice(1);
+  }
+  return "";
+}
 
 /** The services Setup and Settings show as one row each. */
 export const SERVICE_IDS = ["github", "linear", "jira", "slack", "sentry", "vercel"] as const;

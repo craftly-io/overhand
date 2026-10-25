@@ -13,6 +13,7 @@ import type { Client } from "./config";
 import { CFG, OPS, sh } from "./env";
 import { acquire, gate, killTree, quietUntil, readMachine, release } from "./governor";
 import { diskFree } from "./notify";
+import { projectCommand, projectSandbox, type SandboxState, SIGN_IN_ENV } from "./sandbox";
 
 /** Where a PR's screenshots are kept: `<OPS>/proof/<key>/before.png`, `after.png`. */
 export const shotsDir = (key: string): string => join(OPS, "proof", key.replace(/[^A-Za-z0-9-]/g, "_"));
@@ -77,15 +78,33 @@ async function waitUp(url: string, until: number): Promise<boolean> {
   return false;
 }
 
+/**
+ * How a project's preview command starts in `dir`: it runs the project's own files, which a run may have changed, so
+ * under the project's sandbox like Overhand's other checks there (projectCommand), and never with your sign-ins.
+ */
+export function previewCommand(
+  cmd: string,
+  dir: string,
+  project: string,
+  st: SandboxState = projectSandbox(project),
+): { argv: string[]; env: Record<string, string>; done: () => void } {
+  const box = projectCommand(["sh", "-c", cmd], dir, st, project);
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !SIGN_IN_ENV.includes(k)) env[k] = v;
+  return { ...box, env };
+}
+
 /** One shot: start the preview in `dir`, wait for it, screenshot `url`, stop the preview's whole tree. */
 async function shoot(
   page: { goto(u: string): Promise<unknown>; screenshot(o: { path: string }): Promise<unknown> },
-  cmd: string,
-  url: string,
+  preview: { command: string; url: string; project: string },
   dir: string,
   file: string,
 ): Promise<boolean> {
-  const proc = spawn("sh", ["-c", cmd], { cwd: dir, detached: true, stdio: "ignore", env: process.env });
+  const { url } = preview;
+  const box = previewCommand(preview.command, dir, preview.project);
+  const [bin = "false", ...args] = box.argv;
+  const proc = spawn(bin, args, { cwd: dir, detached: true, stdio: "ignore", env: box.env });
   try {
     if (!proc.pid || !(await waitUp(url, Date.now() + READY_MS))) return false;
     await page.goto(url);
@@ -95,6 +114,7 @@ async function shoot(
     return false;
   } finally {
     if (proc.pid) await killTree(proc.pid);
+    box.done();
   }
 }
 
@@ -155,7 +175,7 @@ export async function captureStill(
  * project's preview. Never throws; `note` says why one is missing.
  */
 export async function takeShots(
-  c: Pick<Client, "preview">,
+  c: Pick<Client, "preview" | "name">,
   key: string,
   wt: { mainRepo: string; path: string; base: string },
   now = Date.now(),
@@ -164,6 +184,8 @@ export async function takeShots(
   const preview = c.preview;
   const cannot = cannotShoot(preview);
   if (cannot || !preview) return none(cannot);
+  const box = projectSandbox(c.name);
+  if (box.refuse) return none(`skipped: the OS sandbox can't run here (${box.why})`);
   const g = CFG.governor;
   if (g.enabled) {
     const why = gate(g, readMachine(diskFree()), quietUntil(OPS, now), now);
@@ -189,8 +211,9 @@ export async function takeShots(
       await ctx.addInitScript(SILENT);
       const page = await ctx.newPage();
       const added = sh(["git", "worktree", "add", "--detach", baseDir, `origin/${wt.base}`], wt.mainRepo).ok;
-      const before = added && (await shoot(page, preview.command, preview.url, baseDir, join(dir, "before.png")));
-      const after = await shoot(page, preview.command, preview.url, wt.path, join(dir, "after.png"));
+      const shot = { command: preview.command, url: preview.url, project: c.name };
+      const before = added && (await shoot(page, shot, baseDir, join(dir, "before.png")));
+      const after = await shoot(page, shot, wt.path, join(dir, "after.png"));
       return { before, after, note: after ? "" : "the preview didn't come up" };
     } finally {
       await browser.close();

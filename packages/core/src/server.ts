@@ -20,6 +20,7 @@ import {
   LEAD_TEMPLATES,
   LEAD_WORK,
   localDay,
+  localOnlyChange,
   MESSAGE_NOTE,
   NameSchema,
   OPENCODE_ACCOUNTS,
@@ -675,8 +676,20 @@ function allowOrigin(origin: string): void {
 const autoInbox = askGate();
 const autoUsage = askGate();
 
+/**
+ * On every response: no page may show the dashboard in a frame. Every 127.0.0.1 port is the same site, so the local
+ * cookie would ride into a frame on any local dev server, which could then trick a click (Allow, approve, ship).
+ */
+const NO_FRAMING = { "x-frame-options": "DENY", "content-security-policy": "frame-ancestors 'none'" } as const;
+
 /** One dashboard or API request. Exported so tests can exercise routes without a server. */
 export async function handle(req: Request): Promise<Response> {
+  const res = await route(req);
+  for (const [k, v] of Object.entries(NO_FRAMING)) res.headers.set(k, v);
+  return res;
+}
+
+async function route(req: Request): Promise<Response> {
   const url = new URL(req.url);
   if (!uiHosts().has(req.headers.get("host") ?? url.host)) return json({ error: "forbidden" }, 403);
   // Another device needs a session from pairing; this machine's own callers need the local key (devices.ts localKey):
@@ -824,6 +837,7 @@ export async function handle(req: Request): Promise<Response> {
       secretStore: SECRET_STORE,
       slackMcp: SLACK_MCP,
       homes,
+      local,
       sandbox: {
         ...sandboxState(CFG.sandbox),
         platform: process.platform,
@@ -1010,7 +1024,10 @@ export async function handle(req: Request): Promise<Response> {
       // back one removed since the form was opened
       const config = typeof body.config === "object" && body.config !== null ? { ...body.config, plugins: CFG.plugins } : body.config;
       try {
-        const refused = await refuseShip(parseConfig(config));
+        const next = parseConfig(config);
+        // what the daemon runs, the sandbox and who may call it change on the computer itself, never from a device
+        if (!local && localOnlyChange(CFG, next)) return json({ error: plainWords.changeOnComputer }, 403);
+        const refused = await refuseShip(next);
         if (refused) return json({ error: refused }, 400);
         applyConfig(saveConfig(OPS, config));
         await disarmLeaving();
