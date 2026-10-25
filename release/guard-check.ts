@@ -6,10 +6,12 @@
  * --live also runs each installed CLI headless, built exactly as Overhand runs it (its runtime's argv and environment,
  * the guard configs written into the scratch folder), asked to run one blocked command, and checks the block landed in
  * the guardrail log. It costs one short model call per CLI on whatever the CLI signs in with: an API key in your
- * environment (CURSOR_API_KEY, GEMINI_API_KEY, ...), since a scratch HOME holds no login. It exits 1 on any failure.
+ * environment (CURSOR_API_KEY, GEMINI_API_KEY, ...), since a scratch HOME holds no login. --own-login runs each CLI
+ * with your own HOME instead, so it signs in as you do (its own state folder keeps this one short chat).
+ * --only <cli> checks just that one (cursor, gemini, ...). It exits 1 on any failure.
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 const scratch = mkdtempSync(join(tmpdir(), "overhand-guard-check-"));
@@ -34,12 +36,15 @@ function versionOf(bin: string): string | null {
   return `${r.stdout.toString()}${r.stderr.toString()}`.trim().split("\n")[0] || "unknown version";
 }
 
+const only = process.argv.includes("--only") ? (process.argv[process.argv.indexOf("--only") + 1] ?? "") : "";
+const ownLogin = process.argv.includes("--own-login");
 const installed = HOOKED.flatMap((d) => {
   const rt = RUNTIMES[runtimeOf(d)];
+  if (only && rt?.id !== only) return [];
   const version = rt ? versionOf(rt.bin) : null;
   return rt && version ? [{ d, rt, version }] : [];
 });
-const missing = Object.values(RUNTIMES).filter((rt) => !installed.some((i) => i.rt.id === rt.id));
+const missing = Object.values(RUNTIMES).filter((rt) => !installed.some((i) => i.rt.id === rt.id) && (!only || rt.id === only));
 
 const rows = await conformance(
   home,
@@ -72,8 +77,8 @@ if (process.argv.includes("--live")) {
     const cwd = join(scratch, `${rt.id}-repo`);
     mkdirSync(cwd);
     Bun.spawnSync(safeCmd(["git", "init", "-q", cwd]));
-    const userHome = join(scratch, `${rt.id}-home`);
-    mkdirSync(userHome);
+    const userHome = ownLogin ? homedir() : join(scratch, `${rt.id}-home`);
+    if (!ownLogin) mkdirSync(userHome);
     const run = `GUARD-${rt.id}`;
     let task: { argv: string[]; env: Record<string, string>; files: Record<string, string> };
     try {
@@ -88,7 +93,7 @@ if (process.argv.includes("--live")) {
         model: "",
         attribution: false,
         args: [],
-        configDir: join(userHome, ".claude"),
+        configDir: join(scratch, `${rt.id}-home`, ".claude"),
         instructions: "",
         // a secret store item (`cursor-key-check`) from its API key variable (CURSOR_API_KEY), if you set one
         read: (item) => process.env[`${item.split("-key-")[0]?.toUpperCase()}_API_KEY`] ?? null,
@@ -101,6 +106,8 @@ if (process.argv.includes("--live")) {
       continue;
     }
     for (const [path, text] of Object.entries(task.files)) {
+      // never into your own HOME, even with --own-login
+      if (!path.startsWith(`${scratch}/`)) throw new Error(`${rt.label}'s run would write ${path}, outside the scratch folder`);
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, text);
     }
