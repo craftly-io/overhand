@@ -287,7 +287,7 @@ export function leadPrompt(g: Godmode, brief = ""): string {
     WAY_OF_WORKING,
     "Work on a feature branch named after the ticket or problem, and review your own diff before you open the pull request.",
     "Never push to protected branches, merge, deploy, run destructive migrations, or touch production data or secrets. Those stay with people.",
-    "Your git push, fetch and pull and your gh commands run through Overhand, which holds the sign-in you don't: use them as usual. To check a pull request out, fetch and switch to its branch (gh pr checkout isn't one of them).",
+    "Your git push, fetch and pull and your gh commands run through Overhand, which holds the sign-in you don't. Push the branch you're on (no tags, deletes or other branches); with gh, read anything in this repository and open, edit and comment on its pull requests and issues (gh api reads only). To check a pull request out, fetch and switch to its branch.",
     "",
     `Questions: decide yourself whenever a reasonable engineer could. Ask ${OWNER} only for product decisions, money, legal, access you don't have, or anything irreversible. Append each question under its own "## " heading to ${inboxPathOf(g)}, with your recommendation, and end it with a line "If there's no answer: <what you'll do>", then carry on with other work. ${waitLine(g)} When it's a choice between two, put a line "Options: <first> | <second>" above that one so ${OWNER} can answer from the notification. Overhand shows these to ${OWNER} and as a notification.`,
     `${OWNER}'s answers appear in that file under "## Answer from ${OWNER}". Read them at the start of every run, act on them, and remove questions once handled. Leave the file empty when none are open: any text in it shows as a question.`,

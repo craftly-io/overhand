@@ -5,13 +5,15 @@
 # sees its binary moved and restarts on the new one once no agent is running.
 #   curl -fsSL https://get.overhand.dev | sh
 # OVERHAND_DOWNLOAD points at another copy of the release files (a mirror, a test server);
-# OVERHAND_NO_START=1 installs without starting it (CI, images). NO_COLOR, or output that isn't a terminal, turns colour off.
+# OVERHAND_NO_START=1 installs without starting it (CI, images); OVERHAND_QUIET=1 also stops after the install lines, for
+# `overhand update`, which says what happens next itself. NO_COLOR, or output that isn't a terminal, turns colour off.
 # The whole script is one function called on the last line, so a download cut off part way runs nothing.
 set -eu
 
 main() {
 DOWNLOAD="${OVERHAND_DOWNLOAD:-}"
 NO_START="${OVERHAND_NO_START:-}"
+QUIET="${OVERHAND_QUIET:-}"
 APP="${HOME}/.overhand/app"
 RELEASES="${HOME}/.overhand/releases"
 BIN="${HOME}/.local/bin"
@@ -104,6 +106,7 @@ fi
 ln -sf "${APP}/overhand" "${BIN}/overhand"
 version="$("${APP}/overhand" version 2>/dev/null || true)"
 step "Installed Overhand ${version} at ~/.local/bin/overhand"
+if [ "$QUIET" = "1" ]; then return 0; fi
 
 for tool in git gh; do
   command -v "$tool" >/dev/null 2>&1 || note "${tool} isn't installed yet; the setup page shows how to get it."
@@ -139,6 +142,14 @@ else
   grep '^Note: ' "${tmp}/start.log" | sed 's/^Note: //' | while IFS= read -r line; do note "$line"; done
   head="Overhand is running → ${URL_UI}"
   tail="Open it to finish setting up."
+  # no display (a server over SSH, a container): the address opens only through a tunnel from your own computer
+  if [ -n "${SSH_CONNECTION:-}" ] || { [ "$os" = linux ] && [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; }; then
+    server="$(printf '%s' "${SSH_CONNECTION:-}" | cut -d' ' -f3)"
+    if [ -n "$server" ]; then at="$(id -un)@${server}"; else at="you@your-server"; fi
+    port="${OVERHAND_PORT:-4317}"
+    tunnel="ssh -N -L ${port}:127.0.0.1:${port} ${at}"
+    tail="Finish setting up from your own computer's browser:"
+  fi
 fi
 
 # the final box, sized to its longest line (the arrow is one character, though three bytes; wc -m counts bytes in a
@@ -151,6 +162,13 @@ printf '\n  %s+%s+%s\n' "$d" "$bar" "$r"
 printf '  %s|%s %s%s%s%s %s|%s\n' "$d" "$r" "$b" "$head" "$r" "$(pad "$head" "$w")" "$d" "$r"
 printf '  %s|%s %s%s %s|%s\n' "$d" "$r" "$tail" "$(pad "$tail" "$w")" "$d" "$r"
 printf '  %s+%s+%s\n\n' "$d" "$bar" "$r"
+
+if [ -n "${tunnel:-}" ]; then
+  if [ -n "$path_line" ]; then open_cmd="~/.local/bin/overhand open"; else open_cmd="overhand open"; fi
+  printf '  1. On your own computer, open a tunnel to this one:\n'
+  printf '    %s%s%s\n' "$b" "$tunnel" "$r"
+  printf '  2. Here, run %s%s%s and open the link it prints in that computer'"'"'s browser.\n\n' "$b" "$open_cmd" "$r"
+fi
 
 if [ -n "$path_line" ]; then
   printf '  ~/.local/bin isn'"'"'t on your PATH. Add this line to %s, then open a new terminal:\n' "$rc"

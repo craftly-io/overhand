@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { INSTALLER, REPO } from "@overhand/contract";
 import pkg from "../../../package.json";
-import { BUNDLED, CFG, type InstallKind, OPS, SELF_EXEC, SRC, sh, shAsync } from "./env";
+import { BUNDLED, CFG, cli, type InstallKind, OPS, SELF_EXEC, SRC, sh, shAsync } from "./env";
 import { leadChildren } from "./leads";
 import { report } from "./notify";
 import { startAgainCommand, stopService } from "./platform";
@@ -141,7 +141,7 @@ export function updateOps(dir = SRC): { ok: boolean; message: string } {
 
 /** Exits so launchd or systemd starts the new code; only between work passes, so no agent is cut off. */
 let shutdownWhenIdle = false;
-export const START_AGAIN = startAgainCommand(SRC);
+export const START_AGAIN = startAgainCommand(BUNDLED ? cli("start") : `cd ${SRC} && bun run.ts daemon`);
 
 /** Restarts (the service manager brings it back) or shuts down between work passes, so no agent is cut off. */
 export function restartIfRequested(): void {

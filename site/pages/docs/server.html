@@ -56,12 +56,14 @@ curl -fsSL {{serverFiles}}/user-data.sh | sh</code></pre></li>
       <h2 id="h-reach">Reach it from your laptop or phone.</h2>
       <ul class="facts">
         <li><b>An SSH tunnel</b> From your laptop, then open the link <code>overhand open</code> prints on the server:
-          <pre><code>ssh -N -L 4317:127.0.0.1:4317 you@your-server</code></pre></li>
+          <pre><code>ssh -N -L 4317:127.0.0.1:4317 you@your-server</code></pre>
+          With no display, the installer's last lines and <code>overhand open</code> print this line for you, with the server's address when you're signed in over SSH.</li>
         <li><b>The same port on both ends</b> {{name}} answers only to the address it serves on, so a tunnel from another local port gets refused.</li>
         <li><b>Counts as the server</b> Through the tunnel your browser is the server's own: finish setup and add devices there.</li>
         <li><b>Tailscale for your phone</b> On the server, serve {{name}} on your tailnet, then add that https address in Settings → Extra origins:
           <pre><code>tailscale serve --bg --https=8443 http://127.0.0.1:4317</code></pre>
           A request through it gets nothing until that device is paired: open Settings → Phone through the tunnel and add the device there. See <a href="anywhere.html">Phone and Access from anywhere</a>.</li>
+        <li><b>Settings first, setup still open</b> Saving Extra origins or pairing a phone before setup keeps setup where it was: it's finished only when you press Start on its last step.</li>
         <li><b>Access from anywhere</b> On Pro and Team, set it up once in Settings → Phone through the tunnel; after that {{relayHost}} reaches the server from any device, with no tunnel and no open port. See <a href="anywhere.html#link">How linking works</a>.</li>
         <li><b>Never the open internet</b> Don't publish the port or put it behind a public proxy or Tailscale Funnel. The tunnel or your tailnet is the way in.</li>
       </ul>
@@ -71,7 +73,7 @@ curl -fsSL {{serverFiles}}/user-data.sh | sh</code></pre></li>
       <h2 id="h-signin">Agent sign-ins without a desktop.</h2>
       <ul class="facts">
         <li><b>Agent accounts sign in from the app</b> Settings → Agent accounts runs the agent's own sign-in on the server, and its page opens on your laptop or phone. Nothing to run over SSH. See <a href="agents.html#signin">Sign-ins and API keys</a>.</li>
-        <li><b>Setup shows the command</b> No terminal window can open on a server, so setup shows the exact command to install an agent and sign it in. Run it over SSH; in Docker, inside the container:
+        <li><b>Setup shows the command</b> No terminal window can open on a server, so setup shows the exact command to install an agent and sign it in, and <b>{{w.setupGhSignIn}}</b> shows GitHub's. Run it over SSH; in Docker, inside the container:
           <pre><code>docker exec -it overhand sh -c '&lt;the command setup shows&gt;'</code></pre></li>
         <li><b>Claude Code, by hand</b> <code>claude auth login</code> prints a link. Open it on your laptop, sign in, and paste the code it gives you back into the terminal.</li>
         <li><b>Codex, by hand</b> Plain <code>codex login</code> waits for your browser on the server's own port 1455. Run <code>codex login --device-auth</code> instead, and enter the code it shows on your laptop.</li>

@@ -3,10 +3,11 @@ import * as fs from "node:fs";
 import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { plainWords } from "@overhand/themes";
 import { parseConfig } from "../src/config";
 import { addRequest, forgetRun, insideRun, RUN_KEY_ENV, RUN_KEY_HEADER, recordRun, recordSpawn, runKey, saveBeat } from "../src/control";
 import { heldForOwner } from "../src/control-api";
-import { openCli } from "../src/daemon";
+import { openCli, tunnelHint } from "../src/daemon";
 import {
   hasLocalKey,
   isLocal,
@@ -175,6 +176,14 @@ test("overhand open --reset makes a new key: every browser is signed out and old
   expect((await handle(localRequest(`${LOCAL}/api/state`))).status).toBe(200);
 });
 
+test("overhand open on a server with no display gives the one SSH tunnel the link needs, naming the server when SSH says it", () => {
+  const ssh = { SSH_CONNECTION: "10.0.0.5 50000 203.0.113.7 22", USER: "overhand" };
+  expect(tunnelHint(ssh, 4317)).toContain("ssh -N -L 4317:127.0.0.1:4317 overhand@203.0.113.7 ");
+  expect(tunnelHint({ DISPLAY: ":0" }, 4317)).toBe("");
+  // a container: no display and no SSH session (a Mac always has a display)
+  if (process.platform === "linux") expect(tunnelHint({}, 4317)).toContain("ssh -N -L 4317:127.0.0.1:4317 you@your-server ");
+});
+
 test("overhand open gives nothing inside a run Overhand started: by its record, or a run its environment names", async () => {
   const said = spyOn(console, "error").mockImplementation(() => {});
   const refused = () => said.mock.calls.some(([m]) => String(m).includes("inside an agent's run"));
@@ -305,16 +314,22 @@ test("a pairing code works once, gives a hardened cookie, and the cookie opens t
 
 test("a pairing code expires, and five wrong tries burn it", () => {
   const old = newPairing(Date.now() - PAIR_TTL_MS - 1);
-  expect("error" in redeem(old.code, "")).toBe(true);
+  // the computer may be a Linux server or a container, so the words never say which
+  expect(redeem(old.code, "")).toEqual({ error: plainWords.pairExpired });
   const p = newPairing();
-  for (let i = 0; i < 5; i++) expect("error" in redeem("WRONGWRONG", "")).toBe(true);
+  expect(redeem("WRONGWRONG", "")).toEqual({ error: plainWords.pairMismatch });
+  for (let i = 1; i < 5; i++) expect("error" in redeem("WRONGWRONG", "")).toBe(true);
   expect("error" in redeem(p.code, "")).toBe(true);
 });
 
 test("a paired phone can't mint codes or serve the tailnet, and its POSTs still need the dashboard's Origin", async () => {
   const cookie = await pair();
-  expect((await remote("/api/devices/pair", { body: {}, cookie })).status).toBe(403);
-  expect((await remote("/api/phone/serve", { body: {}, cookie })).status).toBe(403);
+  const mint = await remote("/api/devices/pair", { body: {}, cookie });
+  expect(mint.status).toBe(403);
+  expect(await mint.json()).toEqual({ error: plainWords.pairFromComputer });
+  const serve = await remote("/api/phone/serve", { body: {}, cookie });
+  expect(serve.status).toBe(403);
+  expect(await serve.json()).toEqual({ error: plainWords.setUpFromComputer });
   expect((await remote("/api/devices/revoke", { body: { id: "x" }, cookie, origin: "https://evil.example" })).status).toBe(403);
   expect((await remote("/api/pair", { body: { code: "X" }, origin: "https://evil.example" })).status).toBe(403);
 });

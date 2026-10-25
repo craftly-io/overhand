@@ -35,8 +35,18 @@ export const apiFetch = (url: string, init?: RequestInit): Promise<Response> => 
 /** The daemon's event stream, over the same transport. */
 export const openEvents = (url: string): EventStream => (channel ? channel.events(url) : new EventSource(url));
 
-/** The daemon wants this device paired first: it's another device, not a browser on the Mac. */
+/** The daemon wants this device paired first: it's another device, not a browser on the computer itself. */
 export class Unpaired extends Error {}
+
+/** A POST the daemon refused, with the command to run by hand when it gave one (no terminal window opens on a server). */
+export class Refused extends Error {
+  constructor(
+    message: string,
+    readonly command: string,
+  ) {
+    super(message);
+  }
+}
 
 /** Reads a GET endpoint and validates it against its schema. */
 export async function get<S extends z.ZodType>(url: string, schema: S): Promise<z.infer<S>> {
@@ -74,8 +84,9 @@ export async function post<S extends z.ZodType>(url: string, body: object, schem
   const r = await apiFetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const j: unknown = await r.json().catch(() => ({}));
   if (!r.ok) {
-    const msg = typeof j === "object" && j !== null && "error" in j && typeof j.error === "string" ? j.error : r.statusText;
-    throw new Error(msg);
+    const o = typeof j === "object" && j !== null ? j : {};
+    const msg = "error" in o && typeof o.error === "string" ? o.error : r.statusText;
+    throw new Refused(msg, "command" in o && typeof o.command === "string" ? o.command : "");
   }
   return schema.parse(j);
 }
