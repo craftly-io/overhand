@@ -94,9 +94,18 @@ test("release versions compare by number, with or without the v", () => {
 });
 
 test("the fields only the computer changes: commands the daemon runs, the sandbox, the allowed addresses", () => {
-  for (const p of ["sandbox.mode", "sandbox.required", "dashboardOrigins", "clients.3.preview.command", "clients.0.sandbox"])
+  for (const p of [
+    "sandbox.mode",
+    "sandbox.required",
+    "dashboardOrigins",
+    "clients.3.preview.command",
+    "clients.0.sandbox",
+    "runtimes.main.extraArgs",
+    "runtimes.main.sandbox",
+  ])
     expect(localOnly(p)).toBe(true);
-  for (const p of ["clients.3.preview.url", "clients.0.name", "dashboard", "cleanup.schedule"]) expect(localOnly(p)).toBe(false);
+  for (const p of ["clients.3.preview.url", "clients.0.name", "dashboard", "cleanup.schedule", "runtimes.main.effort"])
+    expect(localOnly(p)).toBe(false);
 });
 
 test("a local-only change is found by project name; removing a project or saving the same again is none", () => {
@@ -120,4 +129,13 @@ test("a local-only change is found by project name; removing a project or saving
   expect(localOnlyChange(before, { ...before, clients: [{ name: "new", ...evil }] })).toBe("clients.new.preview.command");
   const cleanup = { categories: { caches: { commands: ["rm"] } } };
   expect(localOnlyChange(before, { ...before, cleanup })).toBe("cleanup.categories.caches.commands");
+  // an agent's own flags and sandbox switch, by the account's key in the runtimes record
+  const runtimes = { main: { kind: "claude-code", effort: "high" } };
+  expect(localOnlyChange({ ...before, runtimes }, { ...before, runtimes: { main: { ...runtimes.main, effort: "low" } } })).toBe("");
+  expect(localOnlyChange({ ...before, runtimes }, { ...before, runtimes: { main: { ...runtimes.main, extraArgs: ["--x"] } } })).toBe(
+    "runtimes.main.extraArgs",
+  );
+  expect(localOnlyChange({ ...before, runtimes }, { ...before, runtimes: { main: { ...runtimes.main, sandbox: false } } })).toBe(
+    "runtimes.main.sandbox",
+  );
 });
