@@ -310,13 +310,19 @@ test("leadAccount prefers the entry's account, skips limited ones, and is empty 
   bench(first, 0);
 });
 
-test("accountsFor keeps a run on one account; only local code's order changes that", () => {
+test("accountsFor keeps a run on one account; local code's order keeps to one account per agent and backend", () => {
   const all = ["a", "b", "c"];
   expect(accountsFor(all, [], true, 1, null)).toEqual(["a"]);
   expect(accountsFor(all, ["c"], true, 0, null)).toEqual(["c"]);
   expect(accountsFor([], [], true, 0, null)).toEqual([]);
   const reversed = (xs: string[]) => [...xs].reverse();
-  expect(accountsFor(all, [], true, 1, reversed)).toEqual(["c", "b", "a"]);
+  // a and b: two Claude plans of one person; c: Codex on its own plan
+  const pool: Record<string, string> = { a: "claude-code/claude", b: "claude-code/claude", c: "codex/codex" };
+  const poolOf = (x: string) => pool[x] ?? x;
+  expect(accountsFor(all, [], true, 1, reversed, poolOf)).toEqual(["c", "b"]);
+  expect(accountsFor(all, [], true, 1, (xs) => xs, poolOf)).toEqual(["a", "c"]);
+  // every account in its own pool: the order stands
+  expect(accountsFor(all, [], true, 1, reversed, (x) => x)).toEqual(["c", "b", "a"]);
 });
 
 test("loadLocalCode: local code in the config folder supplies the account order; none leaves one account per run", async () => {
@@ -329,7 +335,8 @@ test("loadLocalCode: local code in the config folder supplies the account order;
   expect(accountsFor(["a", "b"], [], true, 0)).toEqual(["a"]);
   writeFileSync(join(dir, "b-order.ts"), "export const accountOrder = (all: string[]) => [...all].reverse();\n");
   expect(await loadLocalCode(ops)).toBe("b-order.ts");
-  expect(accountsFor(["a", "b"], [], true, 0)).toEqual(["b", "a"]);
+  // a and b are both Claude Code on Claude (the default for an account the config doesn't name): one pool, so one account
+  expect(accountsFor(["a", "b"], [], true, 0)).toEqual(["b"]);
   // stored subscription tokens stay off unless local code opts in
   expect(subscriptionTokensAllowed()).toBe(false);
   writeFileSync(join(dir, "c-tokens.ts"), "export const subscriptionTokens = true;\n");

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { brotliDecompressSync } from "node:zlib";
 import { UpdateChannelSchema } from "@overhand/contract";
+import { accountLogin, claudeLoginCommand } from "../src/agent-home";
 import { loadConfig, saveConfig } from "../src/config";
 import { applyConfig, CFG, OPS, SLACK_MCP, UI_PORT } from "../src/env";
 import { handle, markCleanup, stateKey, webResponse, withoutBrowser } from "../src/server";
@@ -137,33 +138,34 @@ test("with no browser here, Codex signs in with its device code; other commands 
   expect(withoutBrowser("gh auth login --web")).toBe("gh auth login --web");
 });
 
-test("Add an agent account signs in without a terminal: the app gets the link, sends the code, sees it signed in", async () => {
-  // a fake `claude` first on PATH: its sign-in prints a link and reads a code, its status says whether that worked
+test("a Claude plan signs in through Anthropic's own flow in your terminal: the app gets the command, and sees it signed in", async () => {
+  // a fake `claude` first on PATH: its status says whether the account's folder is signed in; anything else it's asked
+  // to run (its sign-in) leaves a mark, which Overhand must never do
   const bin = mkdtempSync(join(tmpdir(), "fake-claude-"));
   writeFileSync(
     join(bin, "claude"),
-    [
-      "#!/bin/sh",
-      `if [ "$2" = status ]; then [ -f "$CLAUDE_CONFIG_DIR/ok" ]; exit $?; fi`,
-      "printf 'visit: https://example.test/oauth?x=1\\nPaste code here if prompted > '",
-      "read code",
-      `[ "$code" = abc ] && touch "$CLAUDE_CONFIG_DIR/ok"`,
-    ].join("\n"),
+    ["#!/bin/sh", `if [ "$2" = status ]; then [ -f "$CLAUDE_CONFIG_DIR/ok" ]; exit $?; fi`, `touch "$CLAUDE_CONFIG_DIR/ran"`].join("\n"),
     { mode: 0o755 },
   );
   const path = process.env.PATH;
   process.env.PATH = [bin, path].join(":");
   try {
     const account = CFG.accounts[0] ?? "";
-    const r = (await (await post("/api/accounts/login", { account })).json()) as { id: string; url: string; asks: boolean };
-    expect(r.url).toBe("https://example.test/oauth?x=1");
-    expect(r.asks).toBe(true);
-    expect((await post("/api/accounts/login/code", { id: "someone-else", code: "abc" })).status).toBe(409);
-    expect((await post("/api/accounts/login/code", { id: r.id, code: "abc" })).status).toBe(200);
+    const home = accountLogin(account)?.home ?? "";
+    expect(home).not.toBe("");
+    const r = (await (await post("/api/accounts/login", { account })).json()) as { id: string; command: string; local: boolean };
+    expect(r.command).toBe(claudeLoginCommand(home));
+    expect(r.local).toBe(true);
+    expect("url" in r).toBe(false);
     const state = async () =>
       (await (await handle(localRequest(`${origin}/api/accounts/login?id=${r.id}`))).json()) as { state: string; why: string };
-    for (let i = 0; i < 100 && (await state()).state === "waiting"; i++) await Bun.sleep(50);
+    expect((await state()).state).toBe("waiting");
+    writeFileSync(join(home, "ok"), ""); // you ran the command and signed in
+    for (let i = 0; i < 200 && (await state()).state === "waiting"; i++) await Bun.sleep(50);
     expect(await state()).toEqual({ state: "done", why: "" });
+    expect(existsSync(join(home, "ran"))).toBe(false);
+    // there's no route that takes a sign-in code any more
+    expect((await post("/api/accounts/login/code", { id: r.id, code: "abc" })).status).not.toBe(200);
   } finally {
     process.env.PATH = path;
   }

@@ -55,8 +55,10 @@ Open http://127.0.0.1:4317 (`overhand start` opens it). Overhand looks at this m
 the code is, the projects (one per repo, or one per GitHub owner for several of its repos), the agents installed and
 signed in, and the model. Go through it with the person: they keep at least one project, untick any they don't want and
 press Start Overhand. Every sign-in it asks for is their click.
-More agent accounts are added in Settings → Agent accounts: the agent's own sign-in opens in their browser and, when it
-asks, they paste the code back there. Nothing for you to run, except OpenCode, whose sign-in still opens in a terminal.
+More agent accounts are added in Settings → Agent accounts: the agent's own sign-in opens in their browser. A Claude
+Code account shows a command instead (`CLAUDE_CONFIG_DIR=… claude auth login`): the person runs it in their own terminal
+on this computer, since Anthropic's terms want its sign-in to go through Anthropic's own flow, and the card turns green
+by itself. Don't run it for them. OpenCode's sign-in still opens in a terminal.
 
 ## 5. Safe rules for the first day
 
@@ -70,6 +72,7 @@ Suggest these to the person, and set them only with their yes, in Overhand:
   reaches it, pay-per-use and cloud agents (and any not known yet) wait until tomorrow; accounts known to be on a plan
   carry on, since they aren't charged per run and follow their plan's usage limits. If Overhand asks whether an account
   is billed per use or part of a plan, ask the person; don't answer for them.
+- On a Claude plan: {{w.planUseNote}} Settings keeps a plan account paced through its week.
 - Tell the person how work reaches agents: {{w.workStory}}
 
 ## If something goes wrong

@@ -310,12 +310,12 @@ export const FEATURES: readonly Feature[] = [
   {
     id: "signin-in-app",
     name: "Sign in from the app",
-    line: "Claude Code, Codex and Cursor Agent sign in from Settings, in your browser, with no terminal.",
+    line: "Codex and Cursor Agent sign in from Settings, in your browser; Claude Code gives you its one command for your own terminal, and Settings notices when you're done.",
     area: "agents",
     since: "2026-10-24",
     source: "packages/core/src/signin.ts",
     docs: "docs/agents.html#signin",
-    tip: { text: "New: add an account and sign in right here, no terminal.", where: "add-account" },
+    tip: { text: "New: add an account and sign in from right here.", where: "add-account" },
   },
   {
     id: "usage-bench",
