@@ -99,6 +99,8 @@ work-reports.json
 .pr-review.json
 .quiet
 slots/
+# a lead's git and gh stand-ins (broker.ts SHIMS), written at each lead start
+shims/
 diagnostics/
 /proof/
 
