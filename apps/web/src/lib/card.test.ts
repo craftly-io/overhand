@@ -32,7 +32,7 @@ const PRIVATE_BITS = ["Honeycrust", "Fernway", "HONEY", "FERN", "checkout", "Exp
 
 test("by default the card holds counts only: no project, key, title, repo or money", () => {
   const c = cardContent(night, plainWords, PRIVATE);
-  expect(c.headline).toBe("4 PRs shipped overnight");
+  expect(c.headline).toBe("4 pull requests shipped overnight");
   expect(c.sub).toBe("0 needed me");
   expect(c.stats).toEqual(["1 opened", "1 in review", "1 queued"]);
   expect(c.details).toEqual([]);
@@ -62,7 +62,7 @@ test("each switch lets through only its own thing", () => {
 });
 
 test("the card says the same words in every world", () => {
-  expect(cardContent(night, worldById("catnap").words, PRIVATE).headline).toBe("4 PRs shipped overnight");
+  expect(cardContent(night, worldById("catnap").words, PRIVATE).headline).toBe("4 pull requests shipped overnight");
   expect(cardContent({ ...night, span: "week", shipped: night.shipped.slice(0, 1) }, plainWords, PRIVATE).headline).toBe(
     "1 PR shipped this week",
   );

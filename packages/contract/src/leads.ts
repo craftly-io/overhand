@@ -33,10 +33,10 @@ export const LEAD_TEMPLATES = {
     goal: "Test what's untested: of the files listed (changed most in the last 30 days, and no test names them), pick the riskiest few and add tests that pin down what they do today, in the repo's own test style. Don't change their behaviour; when a test finds a bug, report it rather than fix it in the same pull request.",
   },
   todos: {
-    goal: "Clear the TODOs: do the small, safe TODO, FIXME and HACK notes in the files listed. File each one that's bigger, or needs a decision, as a ticket in the project's tracker; when the project has no tracker, list them in the pull request's description instead.",
+    goal: "Clear the TODOs: do the small, safe TODO, FIXME and HACK notes in the files listed. File each one that's bigger, or needs a decision, as an issue in the project's tracker; when the project has no tracker, list them in the pull request's description instead.",
   },
   backlog: {
-    goal: "Work the backlog: take the tickets marked for agents, smallest first, one pull request each.",
+    goal: "Work the backlog: take the issues marked for agents, smallest first, one pull request each.",
   },
 } as const satisfies Record<LeadWorkKind, { goal: string }>;
 
@@ -143,7 +143,7 @@ export function leadWork(project: string, st: WorkSignals, tix: readonly Ticket[
     })),
     ...tix
       .filter((t) => t.labels.includes(queueLabel))
-      .map((t) => ({ kind: "backlog" as const, ref: t.key, url: t.url, brief: `Armed ticket ${t.key}: ${t.title} ${t.url}` })),
+      .map((t) => ({ kind: "backlog" as const, ref: t.key, url: t.url, brief: `Queued issue ${t.key}: ${t.title} ${t.url}` })),
   ];
 }
 

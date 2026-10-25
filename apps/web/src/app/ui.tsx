@@ -27,7 +27,7 @@ export type View = (typeof VIEWS)[number];
 /** Each view's name and the key that opens it when you aren't typing. */
 export const VIEW_META: Record<View, { word: WordKey; key: string }> = {
   work: { word: "viewWork", key: "W" },
-  crew: { word: "viewCrew", key: "C" },
+  crew: { word: "viewCrew", key: "A" },
   health: { word: "viewHealth", key: "H" },
 };
 

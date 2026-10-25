@@ -89,7 +89,7 @@ export function HouseRulesTab() {
         </div>
         <div className="grid gap-1 sm:col-span-2">
           <Label htmlFor={`${id}-n`} className="text-xs text-muted-foreground">
-            In your words, one per line (handed to every session, e.g. "No PRs to another project's repo")
+            In your words, one per line (handed to every session, e.g. "No pull requests to another project's repo")
           </Label>
           <Textarea
             id={`${id}-n`}

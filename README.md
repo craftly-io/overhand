@@ -3,14 +3,14 @@
 **Stop babysitting your coding agents.**
 
 Overhand is a program on your computer that runs the coding agents you already use across all your projects. They
-work through tickets, red builds, review comments and upkeep, and every change comes back as a pull request with the
+work through tasks, red builds, review comments and upkeep, and every change comes back as a pull request with the
 checks it ran and, for screen changes, screenshots. You only see the decisions. It runs Aider, Claude Code, Codex,
 Cursor Agent, Gemini CLI and OpenCode, on Claude, your own cloud, a gateway or a local model.
 
 ## Why
 
-- **You stop watching terminals.** Agents pick up tickets, red builds, review fixes, errors and dependency upgrades.
-- **Every change is a pull request.** Merging is yours, unless you turn on Ship for a project; then GitHub's own
+- **You stop watching terminals.** Agents pick up tasks, red builds, review fixes, errors and dependency upgrades.
+- **Every change is a pull request.** Merging is yours, unless you turn on Merge when green for a project; then GitHub's own
   auto-merge merges once the required checks pass.
 - **One screen.** What got done, what's running, and what waits on you.
 - **It stays on your machine.** Overhand keeps your code, keys and tokens on your computer, and no server of ours sees them; your agents talk to their model and GitHub as they always do.
@@ -42,7 +42,7 @@ You also need `git`, the GitHub CLI and one signed-in agent. `overhand doctor` s
 
 - **Setup is one screen.** Pick projects, an agent and its model. Every sign-in is your click.
 - **A first win.** An agent takes one small, safe task and opens a draft pull request.
-- **Give it work.** Label a GitHub issue `agent`, or press *Plan the day*. Projects start on Draft pull requests,
+- **Give it work.** Say what you want in the command bar, or assign an issue to yourself, and agents take it. Projects start on Draft pull requests,
   under a $10 daily cap.
 - **The night report.** Each morning: what merged and opened overnight, and what waits on you. Needs you holds the
   pull requests to review and the questions agents asked.
@@ -50,12 +50,13 @@ You also need `git`, the GitHub CLI and one signed-in agent. `overhand doctor` s
 ## Learn more
 
 [Docs](https://overhand.dev/docs/):
+[What Overhand is](https://overhand.dev/docs/what.html),
 [Install](https://overhand.dev/docs/install.html),
 [Servers](https://overhand.dev/docs/server.html),
 [First project](https://overhand.dev/docs/first-project.html),
 [Agents](https://overhand.dev/docs/agents.html),
 [Modes](https://overhand.dev/docs/modes.html),
-[Leads](https://overhand.dev/docs/leads.html),
+[Project agents](https://overhand.dev/docs/leads.html),
 [Guard](https://overhand.dev/docs/guard.html),
 [Runs](https://overhand.dev/docs/runs.html),
 [Phone](https://overhand.dev/docs/anywhere.html),

@@ -42,7 +42,7 @@ const PHRASED: Record<string, Phrased> = {
     },
   },
   "lead:mobile": {
-    what: "The Mobile app lead asks whether guest reminders go by email, push, or both.",
+    what: "The Mobile app agent asks whether guest reminders go by email, push, or both.",
     why: "It's a product call it won't make alone; if you don't answer, it builds both.",
     recommend: {
       option: "answer-default",

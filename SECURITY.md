@@ -16,7 +16,7 @@ are public.
 - Overhand never handles Claude.ai subscription credentials: it doesn't ask for, read, store or route a Claude
   subscription login or token. A Claude account either signs in to Claude Code itself, in a config folder of its own
   that Claude Code alone reads, or uses an Anthropic API key you provide (docs: Agents and accounts).
-- Secrets are stored in the macOS Keychain or the Linux keyring, never in config files or logs. On a Linux server
+- Secrets are stored in the secret store (the macOS Keychain or the Linux keyring), never in config files or logs. On a Linux server
   without a keyring, saving a secret fails unless you opt in to a file with `OVERHAND_SECRETS_FILE` (mode 0600).
 - Releases: only a repository admin can push a `v*` tag, and the workflow it starts signs `SHA256SUMS` with Sigstore
   under its own GitHub identity. The installer downloads over HTTPS only, checks every package's SHA-256, and with
@@ -55,22 +55,20 @@ are public.
   repository, or the settings, hooks, plugins and extensions that steer an agent, however the command is spelled. It
   can't read cloud credentials, browser profiles or Overhand's local key, and no run can read your GitHub and SSH
   sign-ins (gh's login, SSH keys, git's stored passwords) or reach your SSH agent: Overhand pushes a run's branch and
-  opens its pull request itself, and a lead's git push and fetch and its gh commands go through Overhand, which checks
+  opens its pull request itself, and a project agent's git push and fetch and its gh commands go through Overhand, which checks
   each one against the guard's rules first. It doesn't filter the network: a run can send what it can read to any
   site. No run can sign its commits with a key in ~/.ssh, or install a dependency over SSH. It doesn't
   stop what a run writes into its own project from running later when you run it, or a program that asks a service
   outside it to act, such as a database or a server on a local port: tmux, screen and Docker's sockets are closed to
-  it, other local sockets aren't, and on macOS neither is another app, through osascript or open. A lead can't make
-  git worktrees in its own checkout under it: no lead needs one, since Overhand makes the worktrees runs work in. On Plan
-  and warn only, Codex's commands can reach the network under it (Codex's own sandbox, which kept them off it, can't nest
-  inside Overhand's). With it off, Overhand's own checks run a project's files as you, as before. Leads and tasks
-  start your own MCP servers, handed over by Overhand and no others, since they need them for your trackers; a run on Plan and
-  warn only starts none of yours. State a tool or plugin keeps in your home, outside the run's folders, its caches and its
+  it, other local sockets aren't, and on macOS neither is another app, through osascript or open. A project agent can't make
+  git worktrees in its own checkout under it: no project agent needs one, since Overhand makes the worktrees runs work in. On Look only, Codex's commands can reach the network under it (Codex's own sandbox, which kept them off it, can't nest
+  inside Overhand's). With it off, Overhand's own checks run a project's files as you, as before. Project agents and tasks
+  start your own MCP servers, handed over by Overhand and no others, since they need them for your trackers; a run on Look only starts none of yours. State a tool or plugin keeps in your home, outside the run's folders, its caches and its
   agent's own, stays closed to it (a plugin's database in its own folder in your home, or firebase-tools' login and
   log): such a tool fails under it until it can be pointed at a folder the run writes. On macOS, Xcode builds don't run
   under it: xcodebuild writes macOS's shared temp and cache folders, and Swift packages start a sandbox of their own,
-  which can't nest. macOS Keychain items stay reachable, since the agents' logins live there: so does a GitHub
-  sign-in gh keeps in the Keychain, to a run that asks the Keychain for it by name. It
+  which can't nest. Items in the secret store stay reachable, since the agents' logins live there: so does a GitHub
+  sign-in gh keeps in the secret store, to a run that asks the secret store for it by name. It
   runs on macOS and on Linux with bubblewrap and user namespaces; elsewhere, including most Docker setups, runs have
   the guard only. A project with an Xcode project or workspace, a Package.swift or a firebase.json runs without the
   OS sandbox, set by Overhand itself, since those tools can't run inside it: its runs, and the checks Overhand runs in

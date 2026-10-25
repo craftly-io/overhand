@@ -28,7 +28,7 @@
         <li><b>OpenCode</b> It signs in to a provider, once per computer. In the app, <em>{{w.addAccountWith}}</em> runs a provider account's sign-in with a code to enter (ChatGPT), and <em>{{w.addAccountProviderKey}}</em> takes a provider's key (Anthropic, OpenAI, OpenRouter, Google, Groq, DeepSeek, Mistral or xAI) and types it into OpenCode's own sign-in for you. The key goes to OpenCode only; {{name}} keeps no copy.</li>
         <li><b>Already signed in</b> A sign-in already on this computer is reused, and so is GitHub through <code>gh</code>.</li>
         <li><b>Your own sign-in, under the OS sandbox</b> An account still on the sign-in you had before {{name}} can't run where the OS sandbox is on: runs can't reach your own agent config. Such an account is passed over, as one at its usage limit is, and Needs you shows a card to sign it in once, with its sign-in button. Once it's signed in in its own folder, it runs again.</li>
-        <li><b>An API key</b> Stored in your keychain, named after its account: <code>anthropic-key-&lt;account&gt;</code>, <code>codex-key-&lt;account&gt;</code>, <code>gemini-key-&lt;account&gt;</code> or <code>cursor-key-&lt;account&gt;</code>. Gemini CLI runs on a Gemini API key.</li>
+        <li><b>An API key</b> Stored in your secret store, named after its account: <code>anthropic-key-&lt;account&gt;</code>, <code>codex-key-&lt;account&gt;</code>, <code>gemini-key-&lt;account&gt;</code> or <code>cursor-key-&lt;account&gt;</code>. Gemini CLI runs on a Gemini API key.</li>
         <li><b>Never a subscription token</b> {{name}} doesn't ask for, store or pass on the token behind a Claude plan.</li>
       </ul>
     </section>
@@ -40,7 +40,7 @@
         <li><b>Pay-per-use</b> Charged per token: an API key, or a paid gateway.</li>
         <li><b>Cloud</b> Charged to your own cloud bill, as with Bedrock or Vertex AI.</li>
         <li><b>Local</b> A model on your own computer: no charge.</li>
-        <li><b>Out of usage</b> When an account's agent says it has hit a usage limit, tickets, leads and tests all skip that account until the reset the message names, and Settings says so on the account. Only the agent's own result and its limit events count: a project's test that prints "429" or "rate limit" is an ordinary failure. A task that waits uses no attempt, but each second time in a row its own run stops at the limit counts as one, so it can't rerun forever. While every account waits, the dashboard says when work resumes.</li>
+        <li><b>Out of usage</b> When an account's agent says it has hit a usage limit, tasks, project agents and tests all skip that account until the reset the message names, and Settings says so on the account. Only the agent's own result and its limit events count: a project's test that prints "429" or "rate limit" is an ordinary failure. A task that waits uses no attempt, but each second time in a row its own run stops at the limit counts as one, so it can't rerun forever. While every account waits, the dashboard says when work resumes.</li>
         <li><b>Signed out</b> When an account's agent says its sign-in has expired, the task waits instead of failing, the account is passed over, and Needs you shows the same Sign in card. Once it's signed in again, or its Test answers, its runs go on.</li>
         <li><b>How it knows</b> From the way the account signs in: <code>claude auth status</code> names a Claude subscription. When it can't tell, Needs you asks, and Settings lets you change it.</li>
       </ul>
@@ -51,13 +51,13 @@
       <ul class="facts">
         <li><b>Who uses what</b> Claude Code uses every backend below. Codex, OpenCode and Aider use a gateway's URL and model.</li>
         <li><b>Claude, by its own sign-in</b> Each account gets its own Claude Code config folder, <code>agent-home/accounts/&lt;account&gt;</code> in the config folder. Signing in runs <code>claude auth login</code> with <code>CLAUDE_CONFIG_DIR</code> set to it, through Anthropic's own flow.</li>
-        <li><b>Where that login lives</b> Claude Code keeps it: a Keychain item tied to that folder on macOS, <code>.credentials.json</code> inside it on Linux. {{name}} never reads, stores or passes it on, and runs that account's agents with <code>CLAUDE_CONFIG_DIR</code> pointing there.</li>
+        <li><b>Where that login lives</b> Claude Code keeps it: an item in the secret store tied to that folder on macOS, <code>.credentials.json</code> inside it on Linux. {{name}} never reads, stores or passes it on, and runs that account's agents with <code>CLAUDE_CONFIG_DIR</code> pointing there.</li>
         <li><b>Your own plan</b> Usage counts against your Claude plan, whose limits assume one person's ordinary use. Only Claude accounts show 5-hour and weekly usage.</li>
         <li><b>No setup token</b> {{name}} never asks for, stores or routes a token from <code>claude setup-token</code>, as <a href="https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use">Anthropic's terms</a> require.</li>
         <li><b>Claude, by API key</b> A key from <a href="https://platform.claude.com">platform.claude.com</a>, stored as <code>anthropic-key-&lt;account&gt;</code> and passed as <code>ANTHROPIC_API_KEY</code>. Billed per use to your Anthropic account, under its Commercial Terms.</li>
         <li><b>Amazon Bedrock</b> <code>CLAUDE_CODE_USE_BEDROCK=1</code> with the region (and optional AWS profile) you set. Credentials come from this machine's AWS credential chain.</li>
         <li><b>Google Vertex AI</b> <code>CLAUDE_CODE_USE_VERTEX=1</code>, <code>CLOUD_ML_REGION</code> and <code>ANTHROPIC_VERTEX_PROJECT_ID</code>. Credentials come from gcloud's Application Default Credentials.</li>
-        <li><b>A gateway</b> Any Anthropic-compatible endpoint through <code>ANTHROPIC_BASE_URL</code>, with <code>ANTHROPIC_AUTH_TOKEN</code> from a keychain item you name, or a placeholder for local servers that take any token. Presets for Ollama, LiteLLM and OpenRouter; tested end to end with Ollama and <code>qwen3:1.7b</code>.</li>
+        <li><b>A gateway</b> Any Anthropic-compatible endpoint through <code>ANTHROPIC_BASE_URL</code>, with <code>ANTHROPIC_AUTH_TOKEN</code> from a secret store item you name, or a placeholder for local servers that take any token. Presets for Ollama, LiteLLM and OpenRouter; tested end to end with Ollama and <code>qwen3:1.7b</code>.</li>
         <li><b>One model for every run</b> A model set on a Bedrock, Vertex or gateway account becomes <code>ANTHROPIC_MODEL</code> and pins the <code>opus</code>, <code>sonnet</code> and <code>haiku</code> aliases. A separate small model sets <code>ANTHROPIC_DEFAULT_HAIKU_MODEL</code>.</li>
         <li><b>Checked</b> <code>overhand doctor</code> reports a gateway that doesn't answer.</li>
         <li><b>Claude Code's own docs</b> <a href="https://code.claude.com/docs/en/amazon-bedrock">Bedrock</a>, <a href="https://code.claude.com/docs/en/google-vertex-ai">Vertex AI</a> and <a href="https://code.claude.com/docs/en/llm-gateway-connect">LLM gateways</a>.</li>
@@ -69,7 +69,7 @@
       <ul class="facts">
         <li><b>Only billed money</b> It counts what pay-per-use and cloud accounts are billed today. {{budgetUnknown}} {{plansLimit}}</li>
         <li><b>Set at install</b> {{name}} starts with {{firstDayCap}} a day, unless your first account is a local model. Change it in Settings → Schedule &amp; limits.</li>
-        <li><b>When it's reached</b> New runs and leads on the accounts it counts wait for tomorrow. <a href="{{root}}under-the-hood.html#cap">How the cap works</a>.</li>
+        <li><b>When it's reached</b> New runs and project agents on the accounts it counts wait for tomorrow. <a href="{{root}}under-the-hood.html#cap">How the cap works</a>.</li>
       </ul>
     </section>
   </div>

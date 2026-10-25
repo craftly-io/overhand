@@ -292,13 +292,13 @@ function ticketBrief(s: DashboardState, key: string, more: MoreFacts): Body | nu
   if (split)
     return {
       project,
-      what: `${key} is too big for one PR; the agent proposed ${split.length} smaller tickets.`,
+      what: `${key} is too big for one pull request; the agent proposed ${split.length} smaller tasks.`,
       why: "Nothing is built until you file the split (edited or as proposed).",
-      recommend: { option: "split", reason: "Smaller tickets each fit one reviewable PR.", confidence: "medium" },
+      recommend: { option: "split", reason: "Smaller tasks each fit one pull request you can review.", confidence: "medium" },
       evidence: [...evidence, ...split.map((p, i) => ({ text: `Part ${i + 1}: ${p.title}`, url: "" }))],
       detail,
       options,
-      ifNothing: { text: "It stays unbuilt; no agent picks up a ticket waiting on a split.", at: 0 },
+      ifNothing: { text: "It stays unbuilt; no agent picks up a task waiting on a split.", at: 0 },
     };
   return {
     project,
@@ -306,12 +306,12 @@ function ticketBrief(s: DashboardState, key: string, more: MoreFacts): Body | nu
     why: blocked
       ? asked
         ? `The agent stopped and asked: ${plainLine(asked, 160) || "see Details."}`
-        : `The agent stopped and labelled it ${s.labels.blocked}: it needs a decision only you can make, on the ticket.`
+        : `The agent stopped and labelled it ${s.labels.blocked}: it needs a decision only you can make, on the issue.`
       : `It's ${t.status.toLowerCase()} in the tracker.`,
     recommend: {
       option: "open-ticket",
       reason: blocked
-        ? `Answer on the ticket, then hand it back${assignable(s, project, key) ? " with Assign" : ` by removing ${s.labels.blocked}`}.`
+        ? `Answer on the issue, then hand it back${assignable(s, project, key) ? " with Assign" : ` by removing ${s.labels.blocked}`}.`
         : "The tracker has the full story.",
       confidence: blocked ? "medium" : "low",
     },
@@ -362,7 +362,7 @@ function leadBrief(s: DashboardState, key: string, now: number): Body | null {
   const recommend: Brief["recommend"] = stale
     ? { option: "dismiss", reason: "What it asks about has closed since; the question may no longer apply.", confidence: "medium" }
     : ask?.default
-      ? { option: "answer-default", reason: "The lead's own default is reasonable and keeps it moving.", confidence: "low" }
+      ? { option: "answer-default", reason: "The agent's own default is reasonable and keeps it moving.", confidence: "low" }
       : { option: "write", reason: "There's no default: only your answer moves it.", confidence: "medium" };
   return {
     project: g.project,
@@ -394,13 +394,13 @@ function prBrief(s: DashboardState, key: string, w: Words): Body | null {
   const evidence = [
     { text: `${gh ? `#${gh.number} ` : ""}${gh?.title ?? p.branch}`, url: p.url },
     ...(gh ? [{ text: `Checks ${gh.checks || "none"} · review ${gh.review || "none yet"}`, url: p.url }] : []),
-    ...(p.fixes ? [{ text: `${p.fixes} fix round${p.fixes === 1 ? "" : "s"} so far`, url: "" }] : []),
+    ...(p.fixes ? [{ text: `${p.fixes} round${p.fixes === 1 ? "" : "s"} of fixes so far`, url: "" }] : []),
     ...block.slice(0, 3).map((c) => ({ text: `${c.kind} in ${c.file}${c.line ? `:${c.line}` : ""}`, url: "" })),
     ...gaps.slice(0, 3).map((g) => ({ text: `Proof gap: ${clip(g, 160)}`, url: "" })),
   ];
   const [what, why, rec]: [string, string, Brief["recommend"]] = block.length
     ? [
-        `${key}'s PR may have cut a corner worth stopping for.`,
+        `${key}'s pull request may have cut a corner worth stopping for.`,
         `Its diff ${[...new Set(block.map((c) => c.kind))].join(", ")}: look before it goes further.`,
         { option: "review", reason: "Read the flagged lines in the diff; send it back if the corner was cut.", confidence: "high" },
       ]
@@ -415,40 +415,44 @@ function prBrief(s: DashboardState, key: string, w: Words): Body | null {
         ]
       : red
         ? [
-            `${key}'s PR has failing checks.`,
-            `Checks ${gh?.checks}; the agent has had ${p.fixes} fix round${p.fixes === 1 ? "" : "s"}.`,
-            { option: "open-pr", reason: "See which check fails and whether it's the PR or the base branch.", confidence: "medium" },
+            `${key}'s pull request has failing checks.`,
+            `Checks ${gh?.checks}; the agent has had ${p.fixes} round${p.fixes === 1 ? "" : "s"} of fixes.`,
+            {
+              option: "open-pr",
+              reason: "See which check fails and whether it's the pull request or the base branch.",
+              confidence: "medium",
+            },
           ]
         : gaps.length
           ? [
-              `${key}'s PR has gaps in its proof.`,
+              `${key}'s pull request has gaps in its proof.`,
               `${clip(gaps.slice(0, 2).join("; "), 200)}: what the agent didn't check is yours to check.`,
               { option: "review", reason: "See what was and wasn't checked before you trust it.", confidence: "medium" },
             ]
           : p.draft
             ? [
-                `${key}'s draft PR is ready for your review.`,
+                `${key}'s draft pull request is ready for your review.`,
                 "It's a draft until you mark it ready; it never merges on its own.",
                 { option: "review", reason: "Checks pass; reviewing it is the one step left before the team sees it.", confidence: "high" },
               ]
             : gh?.review === "CHANGES_REQUESTED"
               ? [
-                  `Changes were requested on ${key}'s PR.`,
-                  "A reviewer asked for changes; the agent picks them up on its next fix round.",
+                  `Changes were requested on ${key}'s pull request.`,
+                  "A reviewer asked for changes; the agent picks them up in its next round of fixes.",
                   { option: "review", reason: "Check the request is clear enough for the agent to act on.", confidence: "medium" },
                 ]
               : p.ship?.on
                 ? [
-                    `${key}'s PR merges on Ship once CI is green.`,
+                    `${key}'s pull request merges by itself once its checks are green.`,
                     "GitHub's auto-merge is on: it merges when every required check passes.",
                     {
                       option: "review",
-                      reason: "Nothing to do, unless you want to stop it: request changes or close the PR.",
+                      reason: "Nothing to do, unless you want to stop it: request changes or close the pull request.",
                       confidence: "low",
                     },
                   ]
                 : [
-                    `${key}'s PR is open.`,
+                    `${key}'s pull request is open.`,
                     p.ship?.why
                       ? `It waits for review and merge on the code host. ${p.ship.why}`
                       : "It waits for review and merge on the code host.",
@@ -464,7 +468,7 @@ function reviewBrief(s: DashboardState, url: string): Body | null {
   const red = /FAILURE|ERROR/.test(p.checks);
   return {
     project: p.client,
-    what: mine ? `Your PR #${p.number} in ${p.repo}: ${p.title}` : `#${p.number} in ${p.repo} asks for your review: ${p.title}`,
+    what: mine ? `Your pull request #${p.number} in ${p.repo}: ${p.title}` : `#${p.number} in ${p.repo} asks for your review: ${p.title}`,
     why: mine
       ? red
         ? `Its checks fail (${p.checks}).`
@@ -498,7 +502,7 @@ function groupBrief(s: DashboardState, repo: string, mine: boolean): Body | null
   if (!one) return null;
   return {
     project: one.client,
-    what: mine ? `${ps.length} of your PRs in ${repo} have changes requested` : `${ps.length} reviews asked of you in ${repo}`,
+    what: mine ? `${ps.length} of your pull requests in ${repo} have changes requested` : `${ps.length} reviews asked of you in ${repo}`,
     why: mine ? "Reviewers asked for changes; each waits on your push." : "Teammates are waiting on your review to merge.",
     recommend: {
       option: "open-list",
@@ -533,16 +537,16 @@ function ciBrief(s: DashboardState, rest: string): Body | null {
   return {
     project: c.client,
     what: red ? `The build on ${c.repo}${c.branch ? ` ${c.branch}` : ""} is red.` : `The build on ${c.repo} is ${c.state}.`,
-    why: red ? `Failing: ${c.failing.join(", ") || "a check"}. Every PR into it inherits the red.` : "Nothing is failing.",
+    why: red ? `Failing: ${c.failing.join(", ") || "a check"}. Every pull request into it inherits the red.` : "Nothing is failing.",
     recommend: options.some((o) => o.id === "assign")
-      ? { option: "assign", reason: "An agent can read the failing run and fix it in a PR you review.", confidence: "medium" }
+      ? { option: "assign", reason: "An agent can read the failing run and fix it in a pull request you review.", confidence: "medium" }
       : { option: "open-ci", reason: "The run's log shows whether it's the code or the pipeline.", confidence: "medium" },
     evidence: [
       { text: `${c.repo} ${c.branch} · ${c.state}`, url: c.url },
       ...c.failing.slice(0, 4).map((f) => ({ text: `Failing: ${f}`, url: "" })),
     ],
     options,
-    ifNothing: red ? { text: `It stays red; agents' PRs into ${c.branch || "it"} can't show green.`, at: 0 } : null,
+    ifNothing: red ? { text: `It stays red; agents' pull requests into ${c.branch || "it"} can't show green.`, at: 0 } : null,
   };
 }
 
@@ -597,7 +601,7 @@ function planBrief(s: DashboardState, f: DashboardState["findings"][number], tas
       option: "go",
       reason:
         autonomyOf(s, f.project) === "ship"
-          ? "It builds this as a pull request that merges on Ship once CI is green; Undo reverts it."
+          ? "It builds this as a pull request that merges by itself once its checks are green; Undo reverts it."
           : "It builds this as a pull request you review; nothing merges without you.",
       confidence: "medium",
     },
@@ -657,9 +661,9 @@ function heldBrief(s: DashboardState, id: string, w: Words): Body | null {
   options.push({ id: "dismiss", do: "dismiss", what: "held", target: f.id }, snooze);
   const rec: Brief["recommend"] =
     options.some((o) => o.id === "assign") && f.from !== "inbox"
-      ? { option: "assign", reason: "It's work an agent found; assigning it builds it as a PR you review.", confidence: "low" }
+      ? { option: "assign", reason: "It's work an agent found; assigning it builds it as a pull request you review.", confidence: "low" }
       : options.some((o) => o.id === "post")
-        ? { option: "post", reason: "It's feedback for the ticket; posting it puts it where the team reads.", confidence: "low" }
+        ? { option: "post", reason: "It's feedback for the issue; posting it puts it where the team reads.", confidence: "low" }
         : { option: "dismiss", reason: "Nothing to post or build from it.", confidence: "low" };
   return {
     project: f.project,
@@ -667,7 +671,7 @@ function heldBrief(s: DashboardState, id: string, w: Words): Body | null {
     // held on watch, or for a task with no ticket to post on, on any level
     why:
       autonomyOf(s, f.project) === "watch"
-        ? `${f.project} is on Plan and warn only: Overhand holds what it would post, so you decide what goes out.`
+        ? `${f.project} is on Look only: Overhand holds what it would post, so you decide what goes out.`
         : (w.heldNoTicket ?? ""),
     recommend: rec,
     evidence: [{ text: `From the ${f.from}${f.key ? ` on ${f.key}` : ""}`, url: "" }],

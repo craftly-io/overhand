@@ -30,7 +30,7 @@ const SUFFIX = ", and the follow-up in src/features/orders/OrderSummaryPanel.tsx
  */
 export const TABLE_QUESTION = [
   "## Release check for the Acme storefront",
-  "| PR | Status | Checks | Note |",
+  "| Pull request | Status | Checks | Note |",
   "|----|--------|--------|------|",
   "| #123 | **CHANGES_REQUESTED** | `a1b2c3d4e5f6a7b8` passing | The reviewer asks to split the database migration from the UI change before it can merge |",
   "| #124 | APPROVED | `0f9e8d7c6b5a4f3e` failing | A flaky checkout test on https://example.com/checkout?step=payment&retry=3&locale=en-GB |",
@@ -87,7 +87,7 @@ export function stressed(s: DashboardState): DashboardState {
         {
           ...asker,
           key: "release-check",
-          label: `Release check lead${LONG_NAME}`,
+          label: `Release check agent${LONG_NAME}`,
           inbox: { ...asker.inbox, text: TABLE_QUESTION },
           ask: { default: "I wait for the reviewer until tomorrow morning.", deadline: 0, stale: null, recheck: 0 },
         },

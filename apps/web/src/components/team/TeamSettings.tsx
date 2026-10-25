@@ -254,7 +254,7 @@ export function TeamSettings() {
       <FieldCard title="What you share">
         <div className="flex items-center gap-2 text-sm sm:col-span-2">
           <Switch id="team-share-prs" checked={t.sharePrs} onCheckedChange={(on) => void run("share", { on })} />
-          <label htmlFor="team-share-prs">Share PR links in your results (off: teammates see the title and outcome only)</label>
+          <label htmlFor="team-share-prs">Share pull request links in your results (off: teammates see the title and outcome only)</label>
         </div>
         <p className="text-xs text-muted-foreground sm:col-span-2">
           Never shared: code, diffs, keys, tokens, agent transcripts. Seats and the plan:{" "}

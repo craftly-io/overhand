@@ -19,7 +19,7 @@ import { leadName } from "@/lib/sessions";
 import { guessProject, looksLikeTask } from "@/lib/task";
 
 /**
- * ⌘K / Ctrl+K or "/" opens the command bar; W, C and H open Work, Crew and Health and F turns Focus on or off when you
+ * ⌘K / Ctrl+K or "/" opens the command bar; W, A and H open Work, Agents and Health and F turns Focus on or off when you
  * aren't typing; Escape closes either (via Radix).
  */
 function useShortcut(open: () => void, openView: (v: View) => void) {

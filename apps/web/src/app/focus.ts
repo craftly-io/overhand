@@ -33,7 +33,7 @@ export function setFocus(on: boolean): void {
   changed();
 }
 
-/** The key that turns Focus on or off when you aren't typing (beside W, C and H, which open the views). */
+/** The key that turns Focus on or off when you aren't typing (beside W, A and H, which open the views). */
 export const FOCUS_KEY = "F";
 
 /** Turns Focus the other way: the F key and the command bar. */

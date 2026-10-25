@@ -217,7 +217,7 @@ export async function checks(c: Config, code = CODE): Promise<Check[]> {
           ? `Account ${s.slice(13)}: stored Claude token (local opt-in)`
           : update
             ? `Status update ${update.name}: webhook URL in ${SECRET_STORE}`
-            : `${SECRET_STORE} ${s}`,
+            : `${s} in ${SECRET_STORE}`,
       fix: key
         ? `${secretCommand(s, acct)}   # paste an Anthropic API key from platform.claude.com`
         : `${secretCommand(s, acct)}   # paste the ${update ? "webhook URL" : "API token"}`,

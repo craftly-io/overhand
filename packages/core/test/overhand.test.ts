@@ -622,7 +622,7 @@ test("demandBrief lists red builds, new errors, review feedback and armed ticket
   expect(demandBrief("Honeycrust", st, tix, "agent", ["reviews"])).toBe("- Review feedback on app#4: t u");
   expect(demandBrief("Honeycrust", st, tix, "agent", ["backlog", "errors"]).split("\n")).toEqual([
     "- New error: boom u",
-    "- Armed ticket A-1: x u",
+    "- Queued issue A-1: x u",
   ]);
 });
 

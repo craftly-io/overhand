@@ -1,6 +1,6 @@
 ---
 name: overhand
-description: Install and work with Overhand, the program on a person's computer that runs their coding agents across their projects and calls them only when it matters. Use when they ask to set up Overhand, check that it runs, answer a question one of its leads asked, hold its heavy jobs, or look up how any part of it works.
+description: Install and work with Overhand, the program on a person's computer that runs their coding agents across their projects and calls them only when it matters. Use when they ask to set up Overhand, check that it runs, answer a question one of its agents asked, hold its heavy jobs, or look up how any part of it works.
 ---
 
 # Overhand
@@ -39,12 +39,17 @@ when its Start is pressed; Settings saved before then leave it open.
   only when the person asks for it, and `--dry-run` first to show them what goes.
 - `overhand open`: the dashboard in the browser, signed in.
 
+## Give it work
+
+- The person types what they want in the dashboard's command bar, or assigns an issue to themselves in their
+  tracker. Either way it shows under Work and an agent takes it.
+
 ## Answer what it asks
 
-- A lead's open question shows in the dashboard under Needs you. With the person's answer, run
+- An agent's open question shows in the dashboard under Needs you. With the person's answer, run
   `overhand answer <lead> "<answer>"`, or `overhand answer <lead> --default` to accept the default the question gave.
-- With no question open, `overhand answer <lead> "<text>"` sends the lead a message from the person instead; its reply
-  shows in the lead's conversation in the dashboard. Send one only when the person asked you to.
+- With no question open, `overhand answer <lead> "<text>"` sends that project agent a message from the person instead; its
+  reply shows in its conversation in the dashboard. Send one only when the person asked you to.
 - A request handed to your session: `overhand ack <id> done`, or `overhand ack <id> refuse "<why>"`.
 - Over MCP instead: `overhand mcp` is a stdio MCP server with the same answers and requests as tools, plus `status`
   (what's running and what needs you). Add it with `claude mcp add overhand -- overhand mcp` or your agent's own way.

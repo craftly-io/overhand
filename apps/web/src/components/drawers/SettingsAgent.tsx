@@ -69,7 +69,7 @@ export function AgentTuning({ account, runtime, home }: { account: string; runti
         <summary className="flex min-h-11 cursor-pointer items-center text-xs text-muted-foreground select-none">Advanced</summary>
         <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
           {has("fallbackModel") ? <Field label="Fallback model (when the model is busy)" path={`${at}.fallbackModel`} /> : null}
-          {has("maxRunUsd") ? <Field label="Cost cap per ticket run (USD, empty = none)" path={`${at}.maxRunUsd`} kind="num" /> : null}
+          {has("maxRunUsd") ? <Field label="Cost cap per task run (USD, empty = none)" path={`${at}.maxRunUsd`} kind="num" /> : null}
           <Field label="Timeout per run (min, empty = Schedule & limits)" path={`${at}.timeoutMin`} kind="num" />
           {has("blockedTools") ? <Field label="Blocked tools (e.g. WebFetch, mcp__slack)" path={`${at}.blockedTools`} kind="csv" /> : null}
           {has("mcpServers") ? <Field label="Only these MCP servers (empty = all)" path={`${at}.mcpServers`} kind="csv" /> : null}

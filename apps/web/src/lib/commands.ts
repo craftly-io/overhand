@@ -36,6 +36,8 @@ const SIMPLE = {
   pause: "pause",
   resume: "resume",
   overdrive: "overdrive",
+  start: "overdrive",
+  everything: "overdrive",
   allout: "overdrive",
   unleash: "overdrive",
   sweep: "sweep",
@@ -51,7 +53,7 @@ const SIMPLE = {
 } as const;
 const isSimple = (w: string): w is keyof typeof SIMPLE => Object.hasOwn(SIMPLE, w);
 
-/** A command bar line: "queue HONEY-123", "HONEY-123", "lead fernway", "theme legion", "plan"… */
+/** A command bar line: "queue HONEY-123", "HONEY-123", "agent fernway", "theme legion", "plan"… */
 export function parseCommand(text: string): Command | null {
   const [cmd = "", arg = ""] = text.trim().split(/\s+/);
   if (!cmd) return null;
@@ -60,7 +62,7 @@ export function parseCommand(text: string): Command | null {
   if (c === "queue" && arg) return { name: "queue", key: arg.toUpperCase() };
   if (c === "open" && arg) return { name: "open", key: arg.toUpperCase() };
   if (c === "review" && arg) return { name: "review", key: arg.toUpperCase() };
-  if ((c === "lead" || c === "godmode") && arg) return { name: "lead", key: arg.toLowerCase() };
+  if ((c === "agent" || c === "lead" || c === "godmode") && arg) return { name: "lead", key: arg.toLowerCase() };
   if (c === "theme") return { name: "theme", id: arg.toLowerCase() };
   if (isSimple(c)) return { name: SIMPLE[c] };
   return { name: "unknown", text: cmd };
