@@ -1,8 +1,8 @@
 /**
  * Hosted runs (issue #15), the daemon's side: "Run here when my computer is off", per project. While this computer is
  * on, each work pass hands the queued tickets of those projects to the relay over one socket, each with the API key of
- * yours its run uses (never a sign-in); the relay keeps them in memory only and runs them only once this computer has
- * gone away (relay/src/hosted.ts). Back on, the daemon takes the finished runs in: a PR is tracked like its own (Review,
+ * yours its run uses (never a sign-in); the relay never stores a key, and runs them only once this computer has gone
+ * away (relay/src/hosted.ts, Runner). Back on, the daemon takes the finished runs in: a PR is tracked like its own (Review,
  * fix rounds), the ticket hears about it, and a run that stopped or never started shows as a card with its fix.
  *
  * Off unless this build switches hosted runs on (`hostedRunsOn`), this computer is linked, and a plan is active.
@@ -23,7 +23,7 @@ import { ACCOUNTS, CFG, LABEL, OPS, providerOf, runtimeOf, sh } from "./env";
 import { recordOutcome } from "./history";
 import { notify, report } from "./notify";
 import { readSecret } from "./platform";
-import { hostedActive, relayLinked, relayRequest, relaySocketUrl } from "./relay";
+import { hostedActive, relayLinked, relayRequest, relaySocketUrl, relayTiming } from "./relay";
 import { baseOf } from "./ship";
 import { readJson, type State, writeJsonAtomic } from "./state";
 import { comment, setLabels, tickets } from "./trackers/index";
@@ -108,6 +108,8 @@ export async function handOff(jobs: HostedJob[]): Promise<void> {
   if (!url) return;
   const ws = new WebSocket(url);
   sock = ws;
+  // the relay's object hibernates between messages; its runtime answers these without waking it (relay.ts's timing)
+  const ping = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send("ping"), relayTiming.ping);
   ws.onopen = send;
   ws.onmessage = (ev) => {
     try {
@@ -118,6 +120,7 @@ export async function handOff(jobs: HostedJob[]): Promise<void> {
     }
   };
   ws.onclose = () => {
+    clearInterval(ping);
     if (sock === ws) sock = null; // the next work pass opens it again while there's anything to hand over
   };
 }

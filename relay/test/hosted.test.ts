@@ -11,10 +11,10 @@ import {
 } from "@overhand/contract";
 import { billingPage } from "../src/billing";
 import { keepsMargin, RUN_COST_PER_MIN_USD, RUN_MARGIN, RUN_PACKS } from "../src/cost";
-import { appJwt, mintToken, minutesOf, type RunDeps, Runner, type RunnerSocket, recentRuns, reserve, runJob, settle } from "../src/hosted";
+import { appJwt, mintToken, minutesOf, type RunDeps, Runner, type RunnerState, recentRuns, reserve, runJob, settle } from "../src/hosted";
 import { applyEvent, type D1, selectPacks } from "../src/paddle";
 import { type Env, relayKeys, route } from "../src/worker";
-import { fakeD1 } from "./fakes";
+import { type FakeSocket, fakeD1, fakeState, socket } from "./fakes";
 import catalog from "./packs.json";
 
 let db: D1;
@@ -202,74 +202,116 @@ describe("one hosted run", () => {
   });
 });
 
-/** A socket the Runner can be handed, recording what it sent. */
-function fakeSocket() {
-  const on: Record<string, ((ev: { data?: unknown }) => void)[]> = {};
-  const sent: unknown[] = [];
-  const s: RunnerSocket & { sent: unknown[]; emit(type: string, data?: unknown): void } = {
-    sent,
-    send: (m) => sent.push(JSON.parse(m)),
-    addEventListener: (type, fn) => {
-      on[type] = [...(on[type] ?? []), fn];
-    },
-    emit: (type, data) => {
-      for (const fn of on[type] ?? []) fn({ data });
+/** A Runner's state: the hibernation API's sockets, storage as a map, and the one alarm. */
+function runnerState() {
+  const st = fakeState();
+  const data = new Map<string, unknown>();
+  const alarm = { at: null as number | null };
+  const state: RunnerState = {
+    ...st,
+    storage: {
+      get: async <T>(k: string) => data.get(k) as T | undefined,
+      put: async (k, v) => {
+        data.set(k, structuredClone(v));
+      },
+      delete: async (k) => data.delete(k),
+      setAlarm: async (at) => {
+        alarm.at = at;
+      },
+      deleteAlarm: async () => {
+        alarm.at = null;
+      },
     },
   };
-  return s;
+  return { state, data, alarm };
 }
 
 describe("the Runner", () => {
-  const runner = () => {
+  const runner = (grace = 120_000) => {
     const ran: string[] = [];
     const { deps } = fakeDeps();
-    const r = new Runner({}, env(true), {
-      grace: 0,
+    const s = runnerState();
+    const r = new Runner(s.state, env(true), {
+      grace,
+      hold: 0,
       deps: () => ({
         ...deps,
         box: async (j, t, m) => {
-          ran.push(j.key);
+          ran.push(`${j.key}:${j.apiKey}`);
           return deps.box(j, t, m);
         },
       }),
     });
-    return { r, ran };
+    return { r, ran, ...s };
+  };
+  const hand = (jobs: HostedJob[]) => JSON.stringify({ type: "hand", jobs });
+  const close = async (r: Runner, sock: FakeSocket) => {
+    sock.closed = 1006;
+    await r.webSocketClose(sock);
   };
 
-  test("runs what was handed over once the computer stays away, and tells a reconnect what it took", async () => {
-    const { r, ran } = runner();
-    const s = fakeSocket();
-    r.attach(s, "w");
-    s.emit("message", JSON.stringify({ type: "hand", jobs: [job("HONEY-1"), job("HONEY-2")] }));
-    // the close starts the grace (0 here)
-    s.emit("close");
-    await r.settled();
-    expect(ran).toEqual(["HONEY-1", "HONEY-2"]);
-    const back = fakeSocket();
-    r.attach(back, "w");
+  test("a close sets the alarm for the grace's end; a reconnect cancels it", async () => {
+    const { r, alarm } = runner();
+    const sock = socket();
+    await r.accept(sock, "w");
+    const before = Date.now();
+    await close(r, sock);
+    expect(alarm.at).toBeGreaterThanOrEqual(before + 120_000);
+    await r.accept(socket(), "w");
+    expect(alarm.at).toBeNull();
+  });
+
+  test("the list is stored without its keys; at the alarm, each ticket runs on the key its socket carried", async () => {
+    const { r, ran, data } = runner();
+    const sock = socket();
+    await r.accept(sock, "w");
+    await r.webSocketMessage(sock, hand([job("HONEY-1"), job("HONEY-2")]));
+    expect(JSON.stringify([...data.entries()])).not.toContain("sk-ant-secret");
+    expect(JSON.stringify(sock.attachment)).toContain("sk-ant-secret"); // held with the socket, in the runtime's memory
+    await close(r, sock);
+    await r.alarm();
+    expect(ran).toEqual(["HONEY-1:sk-ant-secret", "HONEY-2:sk-ant-secret"]);
+    expect(data.has("jobs")).toBe(false);
+    const back = socket();
+    await r.accept(back, "w");
     expect(back.sent[0]).toEqual({ type: "taken", keys: ["HONEY-1", "HONEY-2"] });
   });
 
-  test("a computer back within the grace runs everything itself", async () => {
+  test("an alarm with the computer back runs nothing", async () => {
     const { r, ran } = runner();
-    const s = fakeSocket();
-    r.attach(s, "w");
-    s.emit("message", JSON.stringify({ type: "hand", jobs: [job()] }));
-    r.attach(fakeSocket(), "w"); // a new connection before the old one's grace ends
-    s.emit("close");
-    await r.settled();
+    const sock = socket();
+    await r.accept(sock, "w");
+    await r.webSocketMessage(sock, hand([job()]));
+    await r.accept(socket(), "w"); // a second connection before the first closes
+    await close(r, sock);
+    await r.alarm();
     expect(ran).toEqual([]);
   });
 
-  test("an empty hand-off holds nothing", async () => {
+  test("evicted during the grace, the keys are gone: nothing runs, and each ticket is recorded as not started", async () => {
+    const s = runnerState();
+    const { deps, calls } = fakeDeps();
+    const first = new Runner(s.state, env(true), { deps: () => deps, hold: 0 });
+    const sock = socket();
+    await first.accept(sock, "w");
+    await first.webSocketMessage(sock, hand([job()]));
+    sock.closed = 1006;
+    await first.webSocketClose(sock);
+    // a fresh object, woken by the alarm, has the stored list and no keys
+    await new Runner(s.state, env(true), { deps: () => deps }).alarm();
+    expect(calls.box).toBe(0);
+    expect((await recentRuns(db, "w")).map((x) => x.status)).toEqual(["not-started"]);
+  });
+
+  test("an empty or broken hand-off holds nothing", async () => {
     const { r, ran } = runner();
-    const s = fakeSocket();
-    r.attach(s, "w");
-    s.emit("message", JSON.stringify({ type: "hand", jobs: [job()] }));
-    s.emit("message", JSON.stringify({ type: "hand", jobs: [] }));
-    s.emit("message", "not json");
-    s.emit("close");
-    await r.settled();
+    const sock = socket();
+    await r.accept(sock, "w");
+    await r.webSocketMessage(sock, hand([job()]));
+    await r.webSocketMessage(sock, hand([]));
+    await r.webSocketMessage(sock, "not json");
+    await close(r, sock);
+    await r.alarm();
     expect(ran).toEqual([]);
   });
 });

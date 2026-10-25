@@ -126,7 +126,8 @@ live in [`src/cost.ts`](src/cost.ts):
 - The allowance that comes with a plan (Pro 300 minutes a month, Team 1,000 per seat) costs us at most $0.65 and $2.15
   a month per workspace.
 
-The `Runner` Durable Object holds its socket open (not hibernating) only while a daemon has tickets to hand over, so
-its duration is billed then: 128 MB for 10 hours a day is 0.125 × 36,000 × 30 ≈ 135,000 GB-s a month per such
-daemon, inside the 400,000 included for the first few, then about $1.69 a month each. A pack's price leaves room
-for it, and Workers Paid is needed for Containers either way.
+The `Runner` Durable Object's socket hibernates, so an idle one costs nothing. Its keep-alive pings are auto-answered
+and free, and only a computer with a paid plan and a project switched on opens one. What's billed is a few ms per
+hand-off message, plus one awake wait through the 2-minute grace each time the socket closes. At 0.125 GB × 125 s ≈
+16 GB-s per close and 6 closes a day, that's about 2,800 GB-s a month per daemon, $0.035 past the included 400,000.
+The Pro or Team plan every such computer is on covers it many times over.

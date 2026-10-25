@@ -76,12 +76,16 @@ neither the app nor billing shows anything of it. The code: `src/hosted.ts` (rel
 
 1. **Hand-off.** Each work pass, the daemon sends the tickets it would run on those projects (at most 5, each with the
    API key its run uses: Claude Code on an Anthropic key or Codex on its key, never a sign-in) over one socket,
-   `/relay/hosted/ws`, to its workspace's `Runner` Durable Object. The socket is a plain one, so the object stays in
-   memory while it's open, and the list lives only there. A ticket that starts on the computer is taken off the list
-   first, and an empty list closes the socket.
-2. **Away.** When the socket closes and no new one opens within 2 minutes, the computer has gone. The object runs the
-   list one ticket at a time. If the object is evicted in the meantime, the list is gone and nothing runs: the computer
-   runs them when it's back.
+   `/relay/hosted/ws`, to its workspace's `Runner` Durable Object. Only a computer with a paid plan and at least one
+   project switched on ever opens it. The socket hibernates, so an idle one costs no Durable Object time, and its
+   keep-alive pings are answered without waking the object. The list (without keys) goes into the object's storage,
+   and each key onto the socket's attachment. A ticket that starts on the computer is taken off the list first, and an
+   empty list closes the socket.
+2. **Away.** When the socket closes, the object takes the keys into memory and sets an alarm 2 minutes out; a
+   reconnect cancels it. The object stays awake through those 2 minutes (one short wait per close) so the keys are
+   still in memory when the alarm fires. It then runs the list one ticket at a time. If it was evicted anyway, the keys
+   are gone: those tickets are recorded as not started (a card on the computer) and the computer runs them when it's
+   back. That's the fail-safe choice: a key is never put in storage to survive eviction.
 3. **One run.** The plan is checked (`access`: Pro, or a seat on Team). The run reserves its longest length
    (`HOSTED_RUN_MAX_MIN`, 60) from the month's allowance (`HOSTED_ALLOWANCE`: Pro 300, Team 1,000 per seated member),
    then from bought minutes. Too few minutes means no start, recorded as `no-minutes`. Then the Overhand GitHub App mints
@@ -96,8 +100,9 @@ neither the app nor billing shows anything of it. The code: `src/hosted.ts` (rel
    Needs you: no minutes gives "Buy run minutes" (this billing page), a stop gives "Assign an agent" here. Then
    `POST /relay/hosted/seen`.
 
-**Where keys and tokens live.** The API key goes from the daemon's secret store over the socket (TLS) into the Runner's
-memory, then into the container's in-memory secrets file (`/dev/shm`) and the agent's environment, for that run only.
+**Where keys and tokens live.** The API key goes from the daemon's secret store over the socket (TLS) onto that
+socket's attachment, which the runtime keeps in memory with the socket and drops with it. After a close it's in the
+Runner's memory until the run. Then it goes into the container's in-memory secrets file (`/dev/shm`) and the agent's environment, for that run only.
 The GitHub token lives in the Runner's memory and the container's `overhand` process environment, for one run: GitHub
 expires it within the hour, and the Runner revokes it when the run ends. Neither is written to D1 or any log. Known
 limit: inside the container the agent runs as the same user as Overhand. The token is out of its environment and out
@@ -135,9 +140,9 @@ pack sells below cost × 2.5. The billing page shows minutes left, the packs and
    it builds the image (Docker needed), creates the `Runner` class (migration `v3`) and the container application.
 6. **Try it.** Run a daemon with `OVERHAND_HOSTED_RUNS=1 OVERHAND_RELAY_URL=https://staging-app.overhand.dev` and the
    staging relay key, linked to a staging account with a sandbox plan, on a project with an API-key account. Switch the
-   project on in Quick settings, queue a ticket, and stop the daemon. Watch the Worker's logs. On staging, check that the
-   Runner stays in memory through the 2-minute grace. If it doesn't, the list is lost and nothing runs (safe, but no
-   hosted run): then move the grace into the container's start.
+   project on in Quick settings, queue a ticket, and stop the daemon. Watch the Worker's logs. Check that the alarm
+   finds the keys after the 2-minute grace (a run starts, not a "not started" card). If it doesn't, start the container
+   at the close instead and let it wait out the grace, charging those minutes to the run.
 7. **Production**, when staging holds: the same steps without `--env staging` (`overhand-relay`, live Paddle). Then add
    `RUNNER` and `containers` to the top level of `wrangler.jsonc` and set `HOSTED_RUNS: "1"`. Ship a daemon release
    that turns `hostedRunsOn` on by default, and move the feature from the docs' What's next into the features list
