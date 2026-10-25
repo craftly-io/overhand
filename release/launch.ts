@@ -61,8 +61,9 @@ function preflight(): void {
   step(1, "Preflight");
   need(read(["gh", "repo", "view", REPO]).ok, `${REPO} exists`, "rename the GitHub org and repo to it first");
   need(read(["git", "remote", "get-url", "origin"]).out.includes(REPO), `origin is ${REPO}`, `git remote set-url origin ${REPO_URL}.git`);
+  // main itself, or a worktree detached at it: the main checkout runs the daemon, so a release may go out from beside it
   const branch = read(["git", "branch", "--show-current"]).out;
-  need(branch === "main", "on main", `on ${branch || "a detached HEAD"}`);
+  need(branch === "main" || branch === "", "on main", `on ${branch}`);
   need(read(["git", "status", "--porcelain"]).out === "", "clean working tree");
   read(["git", "fetch", "-q", "origin", "main", "--tags"]);
   const head = read(["git", "rev-parse", "HEAD"]).out;
