@@ -14,11 +14,8 @@ import {
   isBilled,
 } from "@overhand/contract";
 import type { Words } from "@overhand/themes";
-import { fmt, money } from "./format";
+import { and, fmt, money } from "./format";
 import { budgetApplies, windowOf } from "./spend";
-
-/** "a, b and c": the house's words are English. */
-const and = (xs: string[]) => new Intl.ListFormat("en", { type: "conjunction" }).format(xs);
 
 /** What a fact means, and what to do about it. */
 export interface Explained {

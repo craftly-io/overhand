@@ -32,6 +32,7 @@ import { FirstRun } from "@/components/now/FirstRun";
 import { FirstWin } from "@/components/now/FirstWin";
 import { BeatCaption, Prologue } from "@/components/now/Story";
 import { Today } from "@/components/now/Today";
+import { Tonight } from "@/components/now/Tonight";
 import { MapWindow } from "@/components/now/Window";
 import { Worktrees } from "@/components/now/Worktrees";
 import { PlaceNav } from "@/components/PlaceBar";
@@ -272,6 +273,9 @@ export const PATTERNS: Entry[] = [
   pane("today", "Today", "Today", "What's on today: the calendar beside what the agents will do.", (m) => <Today m={m} />),
   pane("activity", "Activity", "The day so far", "Everything that happened, newest first, in plain words.", (m) => <Activity m={m} />),
   pane("first-win", "FirstWin", "First win", "A new project's first pull request, made right after setup.", (m) => <FirstWin m={m} />),
+  pane("tonight", "Tonight", "Set up tonight", "While the first win runs: the first night set up, one click per card.", (m) =>
+    m.s.firstWin ? <Tonight m={m} win={m.s.firstWin} /> : null,
+  ),
   {
     id: "first-run",
     group: "patterns",

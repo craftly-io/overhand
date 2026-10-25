@@ -149,6 +149,42 @@ const REVIEWS: Record<
   string,
   { repo: string; number: number; title: string; body: string; diff: string; draft?: boolean; corners?: Corner[] }
 > = {
+  // the first win: a test file for the bill splitter, nothing else touched
+  "APP-0": {
+    repo: "sam/mobile-app",
+    number: 58,
+    draft: true,
+    title: "Add tests for splitting the bill",
+    body: [
+      "First task from Overhand's check-up: `splitBill` in src/bill.js had no test.",
+      "",
+      "- 5 tests: an even split, a remainder cent, a tip, one guest, and a guest who ate nothing.",
+      "- `splitBill` itself is unchanged.",
+      "",
+      "Verified: `npm test` passes, 53 of 53.",
+    ].join("\n"),
+    diff: [
+      "diff --git a/src/bill.test.js b/src/bill.test.js",
+      "new file mode 100644",
+      "--- /dev/null",
+      "+++ b/src/bill.test.js",
+      "@@ -0,0 +1,14 @@",
+      '+import { expect, test } from "vitest";',
+      '+import { splitBill } from "./bill.js";',
+      "+",
+      '+test("an even bill splits evenly", () => {',
+      "+  expect(splitBill(60, 3)).toEqual([20, 20, 20]);",
+      "+});",
+      "+",
+      '+test("the leftover cent goes to the first guest", () => {',
+      "+  expect(splitBill(10, 3)).toEqual([3.34, 3.33, 3.33]);",
+      "+});",
+      "+",
+      '+test("a guest who ate nothing pays nothing", () => {',
+      "+  expect(splitBill(40, 2, { skip: [1] })).toEqual([40, 0]);",
+      "+});",
+    ].join("\n"),
+  },
   "WEB-31": {
     repo: "example/website",
     number: 52,

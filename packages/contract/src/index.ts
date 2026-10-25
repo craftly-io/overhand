@@ -580,6 +580,10 @@ export const CheckupReportSchema = z.object({
 });
 export type CheckupReport = z.infer<typeof CheckupReportSchema>;
 
+/** The steps a first win's card ticks through: reading the code, making the change, running the checks, opening the PR. */
+export const WIN_STEPS = ["read", "change", "checks", "pr"] as const;
+export type WinStep = (typeof WIN_STEPS)[number];
+
 /**
  * The first win: right after setup, one small safe task Overhand found in your own repos and runs at once. `looking`
  * while it searches, `queued` until a work pass starts it, `running`, then `pr` (a draft PR), `report` (a watch project:
@@ -599,6 +603,14 @@ export const FirstWinSchema = z.object({
   /** The agent's summary, a watch project's report, or why it failed. */
   message: z.string(),
   at: z.number(),
+  /** While running: the furthest step its run has reached, read from the run's own output. Absent before it starts. */
+  step: z.enum(WIN_STEPS).optional(),
+  /** When its run started (0 = not yet): once it's settled, `at - since` is how long it took. */
+  since: z.number().default(0),
+  /** What its run cost at API prices, from the run's own record; 0 until it's settled. */
+  cost: z.number().default(0),
+  /** How the account it ran on is paid for, when that's known: what `cost` means. */
+  billing: BillingSchema.optional(),
 });
 export type FirstWin = z.infer<typeof FirstWinSchema>;
 

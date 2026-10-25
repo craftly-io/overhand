@@ -26,6 +26,7 @@ import {
   unassign,
 } from "./assign";
 import { policyOf, prCreateFlags, ticketRules } from "./autonomy";
+import { recordedBilling } from "./billing";
 import { claude } from "./claude";
 import { gitRepos } from "./cleanup";
 import type { Client } from "./config";
@@ -677,7 +678,10 @@ async function runFirstWin(state: State): Promise<boolean> {
   const w = loadWin();
   const c = w && winToRun(w) ? CLIENTS.find((x) => x.name === w.project) : undefined;
   if (!w || !c) return false;
-  const save = (patch: Partial<StoredWin>) => saveWin({ ...w, ...patch, at: Date.now() });
+  const since = Date.now();
+  // each save keeps the latest step: the card ticks over as the run reaches them (stepOf reads its output)
+  let step: StoredWin["step"] = "read";
+  const save = (patch: Partial<StoredWin>) => saveWin({ ...w, since, step, ...patch, at: Date.now() });
   save({ state: "running" });
   try {
     const wt = await prepareWorktree(w.repoPath, w.key);
@@ -694,28 +698,38 @@ async function runFirstWin(state: State): Promise<boolean> {
     ]
       .join("\n")
       .trimEnd();
-    const run = await claude<AgentResult>(state, prompt, wt.path, RESULT_SCHEMA, w.key, { client: c });
+    const run = await claude<AgentResult>(state, prompt, wt.path, RESULT_SCHEMA, w.key, {
+      client: c,
+      onStep: (s) => {
+        step = s;
+        save({ state: "running" });
+      },
+    });
     if (!run) {
-      save({ state: "queued" });
+      save({ state: "queued", since: 0, step: undefined });
       return false;
     }
     const r = run.out;
     const tag = `${w.key} (${run.account}, $${run.cost.toFixed(2)})`;
+    // what it took and cost, from the run's own record: the done card says it
+    const spent = { cost: run.cost, billing: recordedBilling(run.account) };
     if (r.status === "done" && policyOf(c.autonomy).pr === "none") {
-      save({ state: "report", message: r.message });
+      save({ state: "report", message: r.message, ...spent });
       report(`👁 ${tag}: first task reported`);
       return true;
     }
     if (r.status !== "done") {
-      save({ state: "failed", message: r.message });
+      save({ state: "failed", message: r.message, ...spent });
       report(`✗ ${tag} first task: ${failureLine(run.failure ?? "stuck")}`);
       return true;
     }
+    step = "pr";
+    save({ state: "running" });
     const pr = await openPr({ client: c, key: w.key }, wt, r, run.transcript);
     state.prs[w.key] = pr;
     await checkCorners(w.key, pr);
     recordOutcome(OPS, { key: w.key, event: "pr", url: pr.url, ...sizeOf(pr) });
-    save({ state: "pr", url: pr.url, message: r.message });
+    save({ state: "pr", url: pr.url, message: r.message, ...spent });
     report(`✅ ${tag} → ${pr.url}${pr.draft ? " (draft)" : ""}`);
     notify(pr.draft ? `Your first draft to review: ${w.key}` : `Your first PR: ${w.key}`, w.title);
     return true;

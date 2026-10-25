@@ -250,19 +250,25 @@ export function sh(cmd: string[], cwd = SRC, timeoutMs = 10 * 60_000): { ok: boo
 /**
  * What a process printed on each of `streams`, and its exit code: read until it exits, then for `graceMs` more. A
  * process it started and left running (a dev server, an MCP server's helper) keeps the pipes open, and reading to
- * their end then never finished: a first win's agent was done in 36 s and its pull request never opened.
+ * their end then never finished: a first win's agent was done in 36 s and its pull request never opened. `onText` hears
+ * the first stream as it arrives (a run's progress).
  */
 export async function untilExit(
   exited: Promise<number>,
   streams: ReadableStream<Uint8Array>[],
   graceMs = 2000,
+  onText?: (chunk: string) => void,
 ): Promise<{ texts: string[]; code: number }> {
   const readers = streams.map((s) => s.getReader());
-  const texts = readers.map(async (r) => {
+  const texts = readers.map(async (r, i) => {
     const dec = new TextDecoder();
     let text = "";
     try {
-      for (let c = await r.read(); !c.done; c = await r.read()) text += dec.decode(c.value, { stream: true });
+      for (let c = await r.read(); !c.done; c = await r.read()) {
+        const chunk = dec.decode(c.value, { stream: true });
+        text += chunk;
+        if (i === 0) onText?.(chunk);
+      }
     } catch {} // cancelled after the grace: what came before stays
     return text + dec.decode();
   });

@@ -16,6 +16,8 @@ import {
   saveWin,
   untestedPure,
   winToRun,
+  withoutWinTask,
+  withWinRun,
 } from "../src/firstwin";
 
 const README =
@@ -148,6 +150,8 @@ test("the dashboard sees the first win without its local path or brief", () => {
     url: "",
     message: "",
     at: Date.now(),
+    since: 0,
+    cost: 0,
     repoPath: "/Users/someone/code/shop",
     brief: "secret-ish details",
   });
@@ -173,4 +177,47 @@ test("the first-win gate holds everything else back while it's looked for, waits
   for (const state of ["pr", "failed", "none", "report"] as const) expect(firstWinFirst({ state, at: now - 60_000 }, now)).toBe(false);
   expect(firstWinFirst(null, now)).toBe(false); // no first win: an install from before them
   expect(firstWinFirst({ state: "running", at: now - 2 * 3_600_000 }, now)).toBe(false); // stuck: it lets go
+});
+
+const WIN = {
+  state: "running" as const,
+  kind: "readme" as const,
+  title: "Add install and run steps to the README",
+  project: "Honeycrust",
+  repo: "shop",
+  key: "HONEY-0",
+  url: "",
+  message: "",
+  at: 5_000,
+  since: 2_000,
+  cost: 0,
+};
+
+test("a running first win counts as a run in progress, even between processes, and only once", () => {
+  expect(withWinRun([], WIN)).toEqual([{ name: "HONEY-0", account: "", cwd: "", startedAt: 2_000, pid: 0 }]);
+  const live = { name: "HONEY-0", account: "main", cwd: "/w", startedAt: 3_000, pid: 42 };
+  expect(withWinRun([live], WIN)).toEqual([live]); // its own process: as it is
+  for (const state of ["queued", "pr", "failed"] as const) expect(withWinRun([], { ...WIN, state })).toEqual([]);
+  expect(withWinRun([], null)).toEqual([]);
+});
+
+test("the check-up stops offering the task the first win took, in that repo only", () => {
+  const report = {
+    repo: "shop",
+    findings: [
+      {
+        id: "readme",
+        tone: "warn" as const,
+        title: "README doesn't say how to run it",
+        task: { kind: "readme" as const, title: WIN.title },
+      },
+      { id: "ci", tone: "warn" as const, title: "No CI", task: { kind: "ci" as const, title: "Add a CI workflow" } },
+    ],
+  };
+  for (const state of ["queued", "running", "pr", "report"] as const)
+    expect(withoutWinTask(report, { ...WIN, state }).findings.map((f) => f.id)).toEqual(["ci"]);
+  // it failed or found nothing: still on offer; another repo: untouched
+  expect(withoutWinTask(report, { ...WIN, state: "failed" }).findings).toHaveLength(2);
+  expect(withoutWinTask({ ...report, repo: "blog" }, WIN).findings).toHaveLength(2);
+  expect(withoutWinTask(report, null).findings).toHaveLength(2);
 });

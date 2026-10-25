@@ -110,10 +110,12 @@ function Bridge({ m }: { m: Model }) {
       />
     </section>
   );
+  // on a phone, a first win under way leads Now, above the story and the window: it's what a newcomer is waiting for
+  const winFirst = phone && ["looking", "queued", "running"].includes(m.s.firstWin?.state ?? "");
   const slot: Record<Exclude<BridgeSlot, "window">, ReactNode> = {
     needs: (
       <Slot key="needs" i={1} id="jump-needs" className="grid scroll-mt-20 gap-(--space-gap)">
-        {m.s.firstWin ? <FirstWin m={m} /> : null}
+        {m.s.firstWin && !winFirst ? <FirstWin m={m} /> : null}
         <NeedsYou m={m} />
       </Slot>
     ),
@@ -155,6 +157,11 @@ function Bridge({ m }: { m: Model }) {
           <div className="order-5 short:order-none">{slot.activity}</div>
         </div>
         <div className="contents short:grid short:gap-(--space-gap)">
+          {winFirst ? (
+            <div className="order-0 short:order-none tablet:col-span-2">
+              <FirstWin m={m} />
+            </div>
+          ) : null}
           <div className={"order-1 short:order-none tablet:col-span-2"}>{view}</div>
           <div className="order-4 short:order-none tablet:order-6 tablet:col-span-2">{ribbon}</div>
         </div>

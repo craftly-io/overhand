@@ -18,7 +18,7 @@ import { type Config, lastGoodFile } from "./config";
 import { loadBeats, loadRequests, quietEnd } from "./control";
 import { snoozedItems } from "./decide";
 import { ACCOUNTS, BUNDLED, CFG, CLIENTS, CONFIG_NOTE, HOME, INSTALL, LABEL, MIN, needsSetup, OPS, OWNER, SLACK_MCP, today } from "./env";
-import { firstWinState } from "./firstwin";
+import { firstWinState, withWinRun } from "./firstwin";
 import { gate, holders, readMachine } from "./governor";
 import { guardBlocks } from "./guard";
 import { guides, refreshGuides } from "./guide";
@@ -305,7 +305,7 @@ export async function dashboardState(): Promise<DashboardState> {
     pauseReason: read(join(OPS, "PAUSE")),
     daemon: Date.now() - heartbeat < 30_000,
     setup: needsSetup(),
-    running: currentRuns(),
+    running: withWinRun(currentRuns(), firstWinState()),
     accounts: ACCOUNTS.map((name) => {
       const usage = loadUsage(OPS)[name] ?? null;
       const id = identityOf(name);

@@ -37,7 +37,11 @@
       <ul class="facts">
         <li><b>One small, safe task</b> Straight after setup, {{name}} searches your projects on your computer, read-only and in under 30 seconds, for a check your own scripts report failing, a patch-level dependency upgrade, a README with no way to run the project, or a test for an untested pure function.</li>
         <li><b>Old repos count</b> A repo you just added is searched however long ago its last commit was.</li>
-        <li><b>An agent starts on it</b> Now shows Your first win until its draft pull request is ready for you.</li>
+        <li><b>An agent starts on it</b> Now shows Your first win until its draft pull request is ready for you. On a phone it sits at the top of Now while it runs.</li>
+        <li><b>It ticks over</b> The card shows the step the run has reached: {{w.winStepRead}}, {{w.winStepChange}}, {{w.winStepChecks}}, {{w.winStepPr}}. {{name}} reads them from the agent's own output, not a clock. What it last did is behind Details, and the header and The cast count it as an agent at work.</li>
+        <li><b>Set up tonight</b> While it runs, three cards cover your first night: when the night report arrives ({{cfg.schedule.briefAtHour}}:00 unless you change it, on your phone too once ntfy is set up), what agents take tonight (the check-up's other findings and issues assigned to you, four at most, under the daily cap) and how far agents may go in the project. Each is one click to accept and stays editable in Settings.</li>
+        <li><b>Done looks done</b> In green, with how long it took and what it cost ("about $0.30 of your plan", or "included in your plan"), how big the change is and its proof in one sentence, such as "The tests ran and passed." Review opens the change, its proof and screenshots when {{name}} took them, with {{w.reviewMarkReady}}, {{w.reviewRequestChanges}} and {{w.reviewClose}}.</li>
+        <li><b>Not offered twice</b> Once the first win has a task, the check-up stops offering it.</li>
         <li><b>Nothing else first</b> Until that pull request opens, or the task fails, {{name}} starts no other agent run on its own: no plan of the day, no Slack inbox, no other work. What you ask for still runs.</li>
         <li><b>Only what you added</b> Needs you and the plan show pull requests from your projects, not the rest of your GitHub account.</li>
         <li><b>Nothing in your tracker</b> The first win never adds a ticket anywhere.</li>
@@ -51,7 +55,7 @@
         <li><b>When an agent asks</b> It asks on the issue. Answer there, then label the issue again.</li>
         <li><b>Plan the day</b> On request, {{name}} gathers what's on your plate and proposes work; you arm what should start. To have it every morning, turn on <em>{{w.setPlanOn}}</em> in Settings, Schedule &amp; limits. It's off on a new install.</li>
         <li><b>Standing work</b> A project's view in Crew suggests <a href="leads.html">leads</a> from its own work, each previewed before it starts.</li>
-        <li><b>Come back to pull requests</b> They wait under Needs you, with any question an agent couldn't answer alone. Review opens the diff: mark it ready, ask for changes (the agent's next round) or close it.</li>
+        <li><b>Come back to pull requests</b> They wait under Needs you, with any question an agent couldn't answer alone. Review opens the diff: {{w.reviewMarkReady}}, {{w.reviewRequestChanges}} (the agent's next round) or close it.</li>
         <li><b>A careful start</b> New projects start on {{modePropose}}. See <a href="modes.html">Modes</a>.</li>
         <li><b>Only what you label</b> On a new install, agents take only the issues you label, under a {{firstDayCap}} <a href="agents.html#cap">daily cap</a>.</li>
       </ul>

@@ -24,8 +24,20 @@ const base: Proof = {
   gaps: [],
 };
 
+/** The first win's: one new test file, and the repo's tests run and passing. */
+const firstWin: Proof = {
+  ...base,
+  checks: [{ kind: "test", command: "npm test", ok: true, summary: "Tests  53 passed (53)", skipped: 0 }],
+  files: 1,
+  added: 38,
+  removed: 0,
+  areas: ["src"],
+  verified: "Ran the whole test suite: the 5 new tests and the 48 already there pass.",
+};
+
 /** A demo PR's proof; BOOK-88's fix round skipped a test, so it carries that gap. */
 export function demoProof(key: string): Proof {
+  if (key === "APP-0") return firstWin;
   if (key !== "BOOK-88") return base;
   return {
     ...base,
