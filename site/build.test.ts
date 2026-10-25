@@ -333,12 +333,13 @@ test("the guard's limits are said plainly, from one source: it isn't a sandbox",
   expect(GUARD_LIMIT).toContain("isn't a sandbox");
   expect(GUARD_LIMIT).toContain("can write Overhand's own files");
   for (const rel of ["under-the-hood.html", "docs/guard.html"]) expect(built.find(([r]) => r === rel)?.[1], rel).toContain(GUARD_LIMIT);
-  expect(GUARD_LIMIT).toContain("OS sandbox's job, when you turn it on");
+  expect(GUARD_LIMIT).toContain("OS sandbox's job, on by default where the computer can run it");
 });
 
 test("the OS sandbox's claims, what it stops and what it can't, come from one source, on the site and in SECURITY", () => {
-  // it ships off by default: no claim may say every run is sandboxed
+  // on by default only where the machine can run it, and off per project: no claim may say every run is sandboxed
   expect(SANDBOX_STOPS).toStartWith("With the OS sandbox on,");
+  expect(SANDBOX_PROJECT_OFF).not.toContain("never switches it for you");
   for (const word of ["network", "~/.ssh", "Keychain", "guard only"]) expect(SANDBOX_LIMIT).toContain(word);
   for (const rel of ["under-the-hood.html", "docs/guard.html"])
     for (const claim of [SANDBOX_STOPS, SANDBOX_LIMIT]) expect(built.find(([r]) => r === rel)?.[1], rel).toContain(claim);

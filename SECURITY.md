@@ -44,7 +44,7 @@ are public.
   closed when it can't start. Its limit: it judges the command an agent asks for, not what a script that command runs
   does next, so give agent accounts credentials without admin or deploy rights all the same. Confirmed blocking in a real run: Claude Code, Codex and OpenCode. Aider has no pre-tool hook: it runs no shell commands (confirmed), and the OS sandbox, when on, holds its writes to the run's folder as it does every agent's. Set up to each agent's documented pre-tool hook, not yet confirmed in a real run: Cursor Agent and Gemini CLI. See the
   guard page in the docs (overhand.dev/docs/guard.html).
-- The OS sandbox (Settings, Agent accounts; off by default, or log only first): With the OS sandbox on, each agent run
+- The OS sandbox (Settings, Agent accounts; on by default where this computer can run it, one switch to turn it off): With the OS sandbox on, each agent run
   Overhand starts, and each check Overhand itself runs in a project's own files (its package manager, lint script,
   virtualenv or screenshot preview), can write only its own folder, the git data its commits need, its own temp folder (gone when it ends),
   its project's package caches and its agent's own state in a folder of Overhand's: never Overhand's files, another
@@ -69,11 +69,12 @@ are public.
   which can't nest. macOS Keychain items stay reachable, since the agents' logins live there: so does a GitHub
   sign-in gh keeps in the Keychain, to a run that asks the Keychain for it by name. It
   runs on macOS and on Linux with bubblewrap and user namespaces; elsewhere, including most Docker setups, runs have
-  the guard only. A project that needs Xcode, Swift packages or firebase-tools can run without the OS sandbox: set its
-  sandbox to off (Settings, Projects, or sandbox: off on the project in the config). Its runs, and the checks Overhand
-  runs in its files, then have the guard only, and Settings says so. With Refuse runs without it on, the project stays
-  inside the sandbox. Overhand suggests it when a project has an Xcode project or workspace, a Package.swift or a
-  firebase.json, and never switches it for you.
+  the guard only. A project with an Xcode project or workspace, a Package.swift or a firebase.json runs without the
+  OS sandbox, set by Overhand itself, since those tools can't run inside it: its runs, and the checks Overhand runs in
+  its files, have the guard only, and Needs you says so, with Keep it in the sandbox to put it back (sandbox: keep on
+  the project in the config). Any other project can leave it too: set its sandbox to off (Settings, Projects, or
+  sandbox: off on the project in the config). With Refuse runs without it on (Settings, Advanced), every project stays
+  inside the sandbox.
 - Plugins (Settings, Plugins; none until you install one): A plugin runs only inside a sandbox of its own, never
   without it: of the files on your computer it reads only the system's own programs and libraries, its own folder and a
   scratch folder that's gone when it ends, and writes only that scratch folder. It has no network of its own: its only

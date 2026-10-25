@@ -428,7 +428,16 @@ test("a sandbox that can't run, a failed plan and blocked git each come with the
   const base = state({});
   const by = (s: typeof base) => computeAlerts(s, parsePlan([]), plainWords, NOW);
   const sb = by({ ...base, sandboxRefuse: "sandbox-exec is missing" }).find((a) => a.title === plainWords.alSandboxRefuse);
-  expect([sb?.sub, sb?.target]).toEqual(["sandbox-exec is missing", { kind: "settings", tab: "system" }]);
+  // the sandbox switch is in Agent accounts
+  expect([sb?.sub, sb?.target]).toEqual(["sandbox-exec is missing", { kind: "settings", tab: "accounts" }]);
+  // a project Overhand put on the guard only says so, with Keep it in the sandbox as its fix
+  const auto = by({ ...base, sandboxAuto: { "Mac app": "Xcode" } }).find((a) => a.target.kind === "sandbox");
+  expect(auto).toMatchObject({
+    title: "Mac app runs on the guard only",
+    sub: "Xcode can't run inside the OS sandbox, so Overhand runs this project without it.",
+    item: "sandbox:Mac app",
+    target: { kind: "sandbox", project: "Mac app" },
+  });
   const failed = ["08:00 📋 plan written: 3 agent tasks ready", "09:00 ✗ plan failed (no capacity)"];
   expect(by({ ...base, reports: failed }).some((a) => a.target.kind === "replan")).toBe(true);
   expect(by({ ...base, reports: [...failed, "10:00 📋 plan written: 2 agent tasks ready"] }).some((a) => a.target.kind === "replan")).toBe(

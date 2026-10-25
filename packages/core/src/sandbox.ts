@@ -26,7 +26,7 @@ import { AGENT_HOMES, pendingMove } from "./agent-home";
 import { RUN_CACHES, runCacheKey } from "./cleanup-sources";
 import type { RuntimeId } from "./config";
 import { controlDir, outboxDir, RUN_KEY_ENV, runKey, writeAtomic } from "./control";
-import { CFG, OPS, safeCmd, shAsync } from "./env";
+import { CFG, CODE, OPS, safeCmd, shAsync } from "./env";
 import { BROWSERS, projectAt, selfPaths } from "./guard";
 import { report } from "./notify";
 import { gitCommonDir, gitEnv, gitPointersOk } from "./runtimes/runtime";
@@ -521,19 +521,22 @@ export interface SandboxState {
   why: string;
   /** Runs don't start: macOS, where a failing probe is a bug, or `sandbox.required` on a machine without it. */
   refuse: boolean;
-  /** This project is set to run without the sandbox (contract guardOnly): its runs have the guard only. */
+  /** This project runs without the sandbox (contract guardOnly): its runs have the guard only. */
   guardOnly?: boolean;
+  /** Overhand set it so itself: the project holds this tool, which can't run inside the sandbox (hostTool). */
+  tool?: string;
 }
 
 // ponytail: one probe per daemon (a machine's sandbox doesn't come and go); a restart probes again
 let probed: SandboxProbe | null = null;
 
 /**
- * The sandbox state for `cfg` (config `sandbox`), probing once. With `project` (that project's own `sandbox` setting),
- * the state its runs get: one set to off runs on the guard only, unless the sandbox is required.
+ * The sandbox state for `cfg` (config `sandbox`), probing once. With `project` (that project's own `sandbox` setting)
+ * and `tool` (the tool it holds that can't run inside the sandbox, hostTool), the state its runs get: one set to off, or
+ * left as the machine's on enforce while it holds such a tool, runs on the guard only, unless the sandbox is required.
  */
 export function sandboxState(
-  cfg: { mode: SandboxMode; required: boolean; project?: ProjectSandbox | undefined },
+  cfg: { mode: SandboxMode; required: boolean; project?: ProjectSandbox | undefined; tool?: string },
   platform: NodeJS.Platform = process.platform,
   probe: () => SandboxProbe = () => {
     probed ??= probeSandbox(platform);
@@ -541,15 +544,44 @@ export function sandboxState(
   },
 ): SandboxState {
   if (cfg.mode === "off") return { mode: "off", effective: "off", ok: true, why: "", refuse: false };
-  if (guardOnly(cfg, cfg.project)) return { mode: cfg.mode, effective: "off", ok: true, why: "", refuse: false, guardOnly: true };
+  if (guardOnly(cfg, cfg.project, cfg.tool)) {
+    const set = cfg.project === "off" ? {} : { tool: cfg.tool };
+    return { mode: cfg.mode, effective: "off", ok: true, why: "", refuse: false, guardOnly: true, ...set };
+  }
   const p = probe();
   if (!p.ok) return { mode: cfg.mode, effective: "off", ok: false, why: p.why, refuse: platform === "darwin" || cfg.required };
   return { mode: cfg.mode, effective: cfg.mode === "log" && platform !== "darwin" ? "off" : cfg.mode, ok: true, why: "", refuse: false };
 }
 
+// ponytail: a project's tools are read once per daemon; one that gains an Xcode project later is seen after a restart
+const tools = new Map<string, string>();
+
+/** The tool in a configured project's folder that can't run inside the sandbox (hostTool), read once per folder. */
+function projectTool(dir: string): string {
+  const at = join(CODE, dir);
+  const t = tools.get(at) ?? hostTool(at);
+  tools.set(at, t);
+  return t;
+}
+
 /** The sandbox state `project`'s runs and checks get, from the config: the one place a spawn site asks. */
-export const projectSandbox = (project: string): SandboxState =>
-  sandboxState({ ...CFG.sandbox, project: CFG.clients.find((c) => c.name === project)?.sandbox });
+export function projectSandbox(project: string): SandboxState {
+  const c = CFG.clients.find((x) => x.name === project);
+  return sandboxState({ ...CFG.sandbox, project: c?.sandbox, tool: c ? projectTool(c.dir) : "" });
+}
+
+/** Each configured project's tool that can't run inside the sandbox, by name, for Settings: only those that hold one. */
+export const projectTools = (): Record<string, string> =>
+  Object.fromEntries(CFG.clients.map((c) => [c.name, projectTool(c.dir)]).filter(([, t]) => t));
+
+/**
+ * The projects Overhand itself runs on the guard only, by name, with the tool that can't run inside the sandbox: only
+ * while the machine's sandbox is enforced, so Needs you says so with Keep it in the sandbox (contract sandboxAuto).
+ */
+export function sandboxAuto(): Record<string, string> {
+  if (sandboxState(CFG.sandbox).effective !== "enforce") return {};
+  return Object.fromEntries(CFG.clients.map((c) => [c.name, projectSandbox(c.name).tool ?? ""]).filter(([, t]) => t));
+}
 
 /**
  * An account still on your own agent config (agent-home pendingMove) can't run where the sandbox is enforced
@@ -566,8 +598,8 @@ const HOST_TOOLS: [RegExp, string][] = [
 ];
 
 /**
- * The tool in `dir` that can't run inside the sandbox ("Xcode", "firebase-tools"), "" for none: for Settings to suggest
- * running the project without it. Never switches anything.
+ * The tool in `dir` that can't run inside the sandbox ("Xcode", "firebase-tools"), "" for none: a project holding one
+ * runs on the guard only unless it's set to keep the sandbox (projectSandbox).
  */
 export function hostTool(dir: string, depth = 2): string {
   let names: string[];
