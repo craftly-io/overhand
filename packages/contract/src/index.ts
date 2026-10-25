@@ -931,7 +931,8 @@ export const SettingsSchema = z.object({
 
 /**
  * Config fields only the computer itself changes: what the daemon runs as a command (a project's preview, cleanup's own
- * commands and the folders it empties), the OS sandbox, and the addresses allowed to call the dashboard. A paired device
+ * commands and the folders it empties, an agent's extra flags), the OS sandbox and an agent's own, and the addresses
+ * allowed to call the dashboard. A paired device
  * or the hosted page sees them read-only, and the daemon refuses a save from one that changes them (localOnlyChange).
  */
 export const LOCAL_ONLY = [
@@ -941,6 +942,8 @@ export const LOCAL_ONLY = [
   "clients.*.sandbox",
   "cleanup.categories.caches.commands",
   "cleanup.categories.caches.paths",
+  "runtimes.*.extraArgs",
+  "runtimes.*.sandbox",
 ] as const;
 
 /** Whether the field at dotted `path` (array items by index, as Settings binds them) is a LOCAL_ONLY field or inside one. */
@@ -949,7 +952,7 @@ export function localOnly(path: string): boolean {
   return LOCAL_ONLY.some((p) => p.split(".").every((s, i) => s === "*" || s === parts[i]));
 }
 
-/** Each value at `path` in `v`, by a concrete key: a `*` takes every array item, keyed by its `name` when it has one. */
+/** Each value at `path` in `v`, by a concrete key: a `*` takes every array item, keyed by its `name` when it has one, or every entry of a record, by its key. */
 function valuesAt(v: unknown, path: string[], key = ""): [string, unknown][] {
   const [head, ...rest] = path;
   if (head === undefined) return [[key, v]];
@@ -959,7 +962,9 @@ function valuesAt(v: unknown, path: string[], key = ""): [string, unknown][] {
           const name = typeof item === "object" && item !== null && "name" in item && typeof item.name === "string" ? item.name : String(i);
           return valuesAt(item, rest, `${key}.${name}`);
         })
-      : [];
+      : typeof v === "object" && v !== null
+        ? Object.entries(v).flatMap(([k, item]) => valuesAt(item, rest, `${key}.${k}`))
+        : [];
   const next = typeof v === "object" && v !== null && head in v ? (v as Record<string, unknown>)[head] : undefined;
   return valuesAt(next, rest, `${key}.${head}`);
 }
