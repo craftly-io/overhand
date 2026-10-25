@@ -475,3 +475,8 @@ export const hasDisplay = (env: Record<string, string | undefined> = process.env
 export function openBrowser(url: string): boolean {
   return hasDisplay() && run([MAC ? "open" : "xdg-open", url]).ok;
 }
+
+/** Opens a file in this computer's text editor; false with no desktop to open it on, or when that fails. */
+export function openFile(path: string): boolean {
+  return hasDisplay() && run(MAC ? ["open", "-t", path] : ["xdg-open", path]).ok;
+}

@@ -454,6 +454,37 @@ export function pruneRuns(ops: string, started: (pid: number) => string = startO
 }
 
 /**
+ * Headless runs a stopped Overhand left running: recorded, still the process that was started, and not a lead's (the
+ * lead supervisor takes those back). Their output went to the Overhand that stopped, so nothing can read their result.
+ */
+export function survivingRuns(ops: string, started: (pid: number) => string = startOf): { pid: number; run: string; project: string }[] {
+  return Object.entries(readParsed(runsFile(ops), RunsSchema, {}))
+    .filter(([p, r]) => r.start && !r.run.startsWith("lead-") && Number(p) !== process.pid && started(Number(p)) === r.start)
+    .map(([p, r]) => ({ pid: Number(p), run: r.run, project: r.project }));
+}
+
+const homeFile = (ops: string) => join(controlDir(ops), "daemon.json");
+const HomeSchema = z.object({ pid: z.number(), start: z.string(), port: z.number() });
+
+/**
+ * Claims this state folder (OVERHAND_HOME) for one daemon, by pid and start time like a run: two would both take the
+ * same task into the same worktree. Returns the other daemon that still holds it, or null once it's this one's.
+ */
+export function claimHome(
+  ops: string,
+  port: number,
+  pid = process.pid,
+  started: (pid: number) => string = startOf,
+): { pid: number; port: number } | null {
+  return withLock(homeFile(ops), () => {
+    const held = readParsed(homeFile(ops), HomeSchema.nullable(), null);
+    if (held && held.pid !== pid && held.start && started(held.pid) === held.start) return { pid: held.pid, port: held.port };
+    writeAtomic(homeFile(ops), JSON.stringify({ pid, start: started(pid), port }));
+    return null;
+  });
+}
+
+/**
  * Records an agent run Overhand just spawned, with the identity its runtime put in the environment it was given
  * (guardEnv), and forgets it once the process ends.
  */

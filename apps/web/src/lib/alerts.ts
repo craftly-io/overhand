@@ -62,6 +62,10 @@ type AlertTarget =
   | { kind: "leak"; finding: Finding }
   /** The dashboard failed its own render check: Report, Reload. */
   | { kind: "selfcheck" }
+  /** overhand.config.json won't load or has settings Overhand doesn't know: Open the file, and Restore when a good copy is kept. */
+  | { kind: "config"; restore: boolean }
+  /** A task whose agent was stopped when Overhand restarted under it: Try again. */
+  | { kind: "interrupted"; key: string }
   /** A control-room action card: its buttons are what Overhand does, with your authority. */
   | { kind: "card"; card: ActionCard }
   /** Quiet mode for `hours`: heavy jobs wait while you need the laptop (a meeting starting soon). */
@@ -399,6 +403,30 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       target: { kind: "rule", id: r.id, project: r.project },
     });
   // what agents and the Slack inbox found on watch projects, held instead of posted: you decide what goes out or gets built
+  // the config file: Overhand runs on the last copy that loaded (or on nothing) until you restore or fix it
+  const cf = s.configFile;
+  if (cf.broken)
+    a.push({
+      sev: 3,
+      broken: true,
+      title: cf.restore ? w.alConfigBroken : w.alConfigBlank,
+      sub: cf.restore ? w.alConfigBrokenSub : w.alConfigBlankSub,
+      target: { kind: "config", restore: cf.restore },
+    });
+  else if (cf.ignored.length)
+    a.push({
+      sev: 2,
+      title: fmt(w.alConfigIgnored, { keys: cf.ignored.join(", ") }),
+      sub: w.alConfigIgnoredSub,
+      target: { kind: "config", restore: false },
+    });
+  for (const t of s.interrupted)
+    a.push({
+      sev: 2,
+      title: fmt(w.alInterrupted, { key: t.key }),
+      sub: `${t.project} · ${w.alInterruptedSub}`,
+      target: { kind: "interrupted", key: t.key },
+    });
   if (!s.selfCheck.ok)
     a.push({
       sev: 3,

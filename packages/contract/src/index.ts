@@ -806,6 +806,15 @@ export const DashboardStateSchema = z.object({
   names: z.record(z.string(), z.string()).default({}),
   /** Installed plugins, each with its state and its last run's findings (core/src/plugins.ts). Empty for older daemons. */
   plugins: z.array(PluginStateSchema).default([]),
+  /**
+   * What's wrong with overhand.config.json: it didn't load (`broken`; `restore` when a copy that did is kept), and the
+   * settings in it Overhand doesn't know. All fine for older daemons.
+   */
+  configFile: z
+    .object({ broken: z.boolean(), restore: z.boolean(), ignored: z.array(z.string()) })
+    .default({ broken: false, restore: false, ignored: [] }),
+  /** Tasks whose agent was stopped when Overhand restarted under it, waiting for Try again. Empty for older daemons. */
+  interrupted: z.array(z.object({ key: z.string(), project: z.string(), at: z.number() })).default([]),
 });
 
 export type AccountUsage = z.infer<typeof AccountUsageSchema>;

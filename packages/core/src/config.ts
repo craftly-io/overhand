@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import {
   type Autonomy,
   AutonomySchema,
@@ -819,12 +819,45 @@ export async function startOrExplain(start: () => Promise<unknown>): Promise<voi
   }
 }
 
-/** Loads and validates overhand.config.json from the ops folder; throws a ConfigError when it is missing or wrong. */
+/** The copy of the last overhand.config.json that loaded, in control/ (which no agent may write): what Restore puts back. */
+export const lastGoodFile = (dir: string): string => join(dir, "control", "last-good-config.json");
+
+/** Writes `text` to `file` atomically (temp file + rename), so a crash never leaves half a file. */
+function writeFileAtomic(file: string, text: string): void {
+  writeFileSync(`${file}.tmp`, text, { mode: 0o600 });
+  renameSync(`${file}.tmp`, file);
+}
+
+/**
+ * Keeps a copy of `text` in control/, unless it holds that already. Best effort: the guard hook and `overhand ask` load
+ * the config inside a sandboxed run too, where control/ can't be written, and a config that loads still loads.
+ */
+function keepCopy(file: string, text: string): void {
+  try {
+    if (existsSync(file) && readFileSync(file, "utf8") === text) return;
+    mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+    writeFileAtomic(file, text);
+  } catch {}
+}
+
+/**
+ * Loads and validates overhand.config.json from the ops folder, and keeps it as the last good copy; throws a
+ * ConfigError when it is missing or wrong.
+ */
 export function loadConfig(dir: string): Config {
+  return readConfig(dir).config;
+}
+
+/** The config file's raw data and what it validates to (loadConfig), keeping it as the last good copy. */
+function readConfig(dir: string): { raw: unknown; config: Config } {
   const file = join(dir, "overhand.config.json");
   if (!existsSync(file)) throw new ConfigError(`Missing ${file}. Run bun run setup.`);
+  const text = readFileSync(file, "utf8");
   try {
-    return parseConfig(JSON.parse(readFileSync(file, "utf8")));
+    const raw: unknown = JSON.parse(text);
+    const config = parseConfig(raw);
+    keepCopy(lastGoodFile(dir), text);
+    return { raw, config };
   } catch (e) {
     throw new ConfigError(`overhand.config.json is invalid:\n${e instanceof Error ? e.message : String(e)}`);
   }
@@ -833,10 +866,66 @@ export function loadConfig(dir: string): Config {
 /** Validates and writes overhand.config.json atomically (temp file + rename), so a crash never leaves half a config. */
 export function saveConfig(dir: string, raw: unknown): Config {
   const c = parseConfig(raw);
-  const file = join(dir, "overhand.config.json");
-  writeFileSync(`${file}.tmp`, `${JSON.stringify(c, null, 2)}\n`, { mode: 0o600 });
-  renameSync(`${file}.tmp`, file);
+  const text = `${JSON.stringify(c, null, 2)}\n`;
+  writeFileAtomic(join(dir, "overhand.config.json"), text);
+  keepCopy(lastGoodFile(dir), text);
   return c;
+}
+
+/**
+ * The settings in raw config data that the schema doesn't know, so validating it dropped them (a typo like `autonmy`),
+ * as dotted paths. Older layouts the schema moves (migrate, legacyCleanup) count as known.
+ */
+export function ignoredKeys(raw: unknown, c: Config): string[] {
+  const moved = migrate(raw);
+  const input = isRecord(moved) && "cleanup" in moved ? { ...moved, cleanup: legacyCleanup(moved.cleanup) } : moved;
+  const walk = (a: unknown, b: unknown, at: string): string[] => {
+    if (Array.isArray(a) && Array.isArray(b)) return a.flatMap((x, i) => walk(x, b[i], `${at}[${i}]`));
+    if (!isRecord(a) || !isRecord(b)) return [];
+    return Object.entries(a).flatMap(([k, v]) => {
+      const path = at ? `${at}.${k}` : k;
+      return k in b ? walk(v, b[k], path) : [path];
+    });
+  };
+  return walk(input, c, "");
+}
+
+/** What the config file gave at start: the config to run on, whether the file itself failed to load, what it ignored. */
+export interface StartConfig {
+  config: Config;
+  /** Why overhand.config.json didn't load ("" when it did): the config is then the last good copy, else a blank one. */
+  broken: string;
+  /** Settings the file has that Overhand doesn't know (ignoredKeys). */
+  ignored: string[];
+}
+
+/**
+ * overhand.config.json for a start: when it won't load (cut short, empty, invalid), the last copy that did instead,
+ * else a blank config for `owner`, so the dashboard still comes up and says what's wrong. The broken file stays where
+ * it is for you to fix, with a copy beside the last good one, so no later save loses what you wrote.
+ */
+export function startConfig(dir: string, owner: string): StartConfig {
+  try {
+    const { raw, config } = readConfig(dir);
+    return { config, broken: "", ignored: ignoredKeys(raw, config) };
+  } catch (e) {
+    if (!(e instanceof ConfigError)) throw e;
+    const file = join(dir, "overhand.config.json");
+    if (existsSync(file)) keepCopy(join(dir, "control", "broken-config.json"), readFileSync(file, "utf8"));
+    try {
+      return { config: parseConfig(JSON.parse(readFileSync(lastGoodFile(dir), "utf8"))), broken: e.message, ignored: [] };
+    } catch {
+      return { config: blankConfig(owner), broken: e.message, ignored: [] };
+    }
+  }
+}
+
+/** Restore: puts the last good copy back as overhand.config.json and returns it loaded; throws when there is none. */
+export function restoreConfig(dir: string): Config {
+  const good = lastGoodFile(dir);
+  if (!existsSync(good)) throw new ConfigError("No config has loaded here yet, so there is nothing to restore.");
+  writeFileAtomic(join(dir, "overhand.config.json"), readFileSync(good, "utf8"));
+  return loadConfig(dir);
 }
 
 /** The config with one Quick settings switch applied (`QuickSettingSchema`); an unknown project is an error. */
@@ -855,7 +944,10 @@ function legacyCleanup(raw: unknown): unknown {
   if (raw === undefined) return {};
   if (!isRecord(raw) || "categories" in raw) return raw;
   const strings = (x: unknown): string[] => (Array.isArray(x) ? x.filter((v): v is string => typeof v === "string") : []);
+  // the disk floor and the unattended schedule were never flat settings: they stay where they are
   return {
+    minFreeGb: raw.minFreeGb,
+    auto: raw.auto,
     categories: {
       worktrees: { staleDays: raw.staleWorktreeDays },
       versions: { keep: raw.keepClaudeVersions },

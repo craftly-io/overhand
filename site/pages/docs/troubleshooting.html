@@ -34,6 +34,9 @@
       <h2 id="h-running">Running.</h2>
       <ul class="facts">
         <li><b><samp>is in use; is Overhand already running? (overhand status)</samp></b> Something already listens on {{name}}'s port, often {{name}} itself. <code>overhand status</code> says which.</li>
+        <li><b><samp>One Overhand per folder: stop that one first</samp></b> Another {{name}} already works from the same state folder, on the port the message names. Two would take the same task into one worktree. Stop it with <code>overhand stop</code>, or give each copy its own <code>OVERHAND_HOME</code>.</li>
+        <li><b><samp>doesn't load, so Overhand runs on the last copy that did</samp></b> Your config file was cut short or edited into something that isn't valid JSON. {{name}} keeps the last copy that loaded: Restore in Needs you puts it back, or fix the file and {{name}} takes it in by itself.</li>
+        <li><b><samp>has settings Overhand doesn't know</samp></b> A name in your config file is misspelt or no longer used, so it does nothing. Fix or remove the names the card lists.</li>
         <li><b><samp>Overhand isn't running (nothing answers on port</samp></b> Start it with <code>overhand start</code>.</li>
         <li><b><samp>Overhand didn't come up on port</samp></b> It started but never answered. The message names its log; read it with <code>overhand logs</code>.</li>
         <li><b><samp>No daemon log yet at</samp></b> The log appears once the login service has run; <code>overhand start</code> sets it up.</li>

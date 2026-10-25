@@ -16,7 +16,7 @@ import {
 import { homedir, userInfo } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { LOCAL_PORT } from "@overhand/contract";
-import { blankConfig, type Client, type Config, loadConfig, type Provider, type Runtime } from "./config";
+import { blankConfig, type Client, type Config, type Provider, type Runtime, startConfig } from "./config";
 import { effectiveClients } from "./groups";
 import { readSecret, SECRET_STORE } from "./platform";
 import { claudeCodeEnv } from "./runtimes/claude-code";
@@ -120,16 +120,26 @@ export let PROJECTS = ""; // set by applyConfig
 /** Today's local date as YYYY-MM-DD. */
 export const today = (): string => new Date().toLocaleDateString("sv-SE"); // local YYYY-MM-DD
 
-// Live config: the dashboard's Settings saves overhand.config.json and calls applyConfig, so no restart is needed.
-export let CFG: Config = existsSync(CONFIG_FILE) ? loadConfig(OPS) : blankConfig(userInfo().username);
+// Live config: the dashboard's Settings saves overhand.config.json and calls applyConfig, so no restart is needed. A file
+// that won't load starts Overhand on the last one that did (startConfig), and Needs you says so
+const START = existsSync(CONFIG_FILE)
+  ? startConfig(OPS, userInfo().username)
+  : { config: blankConfig(userInfo().username), broken: "", ignored: [] };
+export let CFG: Config = START.config;
 migrateSetupDone(OPS, CFG);
 export let CLIENTS: Client[] = [];
 export let ACCOUNTS: string[] = [];
 export let LABEL: Config["labels"] = CFG.labels;
 export let OWNER = "";
 export let SLACK: Config["slack"] = [];
+/**
+ * What's wrong with overhand.config.json, for Needs you: why it didn't load ("" when it did) and the settings in it
+ * Overhand doesn't know. A config made live (applyConfig) was just saved or loaded whole, so it clears both.
+ */
+export let CONFIG_NOTE: { broken: string; ignored: string[] } = { broken: "", ignored: [] };
 /** Makes a (re)loaded config live for every module. */
 export function applyConfig(c: Config): void {
+  CONFIG_NOTE = { broken: "", ignored: [] };
   CFG = c;
   CODE = codeRootOf(c);
   PROJECTS = projectsDirOf(c);
@@ -140,6 +150,20 @@ export function applyConfig(c: Config): void {
   SLACK = c.slack;
 }
 applyConfig(CFG);
+CONFIG_NOTE = { broken: START.broken, ignored: START.ignored };
+
+/**
+ * While overhand.config.json won't load: reads it again, and makes it live once you've fixed it. True when it did.
+ * Cheap enough to call every few seconds: it does nothing while the file loads.
+ */
+export function reloadIfFixed(ops = OPS): boolean {
+  if (!CONFIG_NOTE.broken) return false;
+  const r = startConfig(ops, userInfo().username);
+  if (r.broken) return false;
+  applyConfig(r.config);
+  CONFIG_NOTE = { broken: "", ignored: r.ignored };
+  return true;
+}
 
 export const MIN = 60_000;
 

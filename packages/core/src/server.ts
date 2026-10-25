@@ -60,7 +60,7 @@ import { BROKER_ROUTE, brokerRoute } from "./broker";
 import { noteCalls } from "./calls";
 import { type Checked, cachedCheckup } from "./checkup";
 import { refreshUsage, testAccount } from "./claude";
-import { type Config, parseConfig, RUNTIME_IDS, type RuntimeId, saveConfig, withQuick } from "./config";
+import { type Config, parseConfig, RUNTIME_IDS, type RuntimeId, restoreConfig, saveConfig, withQuick } from "./config";
 import { beatOf, loadBeats, loadRequests, RUN_KEY_HEADER, type RunWho, runByKey, writeAtomic } from "./control";
 import { controlRoute } from "./control-api";
 import { dashboardState, migrateLabels, roomChanged, startStateRefresh } from "./dashboard";
@@ -143,7 +143,7 @@ import { organiseBrief, organiseGet, organisePost } from "./organise-api";
 import { releaseLeak } from "./outward-release";
 import { serveOnTailnet, tailscale } from "./phone";
 import { armAll, editPlan, planFile, upsertPlanItem } from "./plan";
-import { openTerminal, readSecret, SECRET_STORE, writeSecret } from "./platform";
+import { openFile, openTerminal, readSecret, SECRET_STORE, writeSecret } from "./platform";
 import { pluginAction } from "./plugins";
 import { additions, addRepos, copyRoots, destOf, listGithubRepos, parseRepoInput, tilde } from "./projects";
 import {
@@ -172,7 +172,18 @@ import { checks, secretsOf } from "./setup";
 import { shipCheck, shipRefusal, shipSweep, undoShip } from "./ship";
 import { shotsDir } from "./shots";
 import { opencodeKey, SIGNIN_GONE, sendSignInCode, signInState, startSignIn } from "./signin";
-import { loadPrReview, loadSplits, loadState, saveName, savePrReview, saveSplits, type TrackedPr, ticketCache } from "./state";
+import {
+  loadInterrupted,
+  loadPrReview,
+  loadSplits,
+  loadState,
+  saveInterrupted,
+  saveName,
+  savePrReview,
+  saveSplits,
+  type TrackedPr,
+  ticketCache,
+} from "./state";
 import { refreshStatus } from "./status/index";
 import { summarize } from "./summary";
 import { startTeam, teamAction, tick as teamTick, touchTeam } from "./team";
@@ -1631,6 +1642,32 @@ async function route(req: Request): Promise<Response> {
       ticketCache.at = 0;
       report(`💬 ${tk.key}: you answered (${done})`);
       return json({ ok: true, done });
+    }
+    case "/api/task/retry": {
+      // Try again on a task whose agent was stopped when Overhand restarted under it: the next pass starts a new one
+      const key = String(body.key ?? "");
+      const all = loadInterrupted();
+      if (!all[key]) return json({ error: "that task isn't waiting any more; reload" }, 404);
+      delete all[key];
+      saveInterrupted(all);
+      writeFileSync(join(OPS, ".request-work"), "");
+      report(`🙋 ${key}: you asked for another try`);
+      return json({ ok: true });
+    }
+    case "/api/config/restore":
+      // Restore: the last overhand.config.json that loaded goes back in place (what's running already is that copy)
+      try {
+        applyConfig(restoreConfig(OPS));
+        report("⚙ you restored the last overhand.config.json that loaded");
+        return json({ ok: true });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : String(e) }, 400);
+      }
+    case "/api/config/open": {
+      const file = join(OPS, "overhand.config.json");
+      return openFile(file)
+        ? json({ ok: true })
+        : json({ error: `No editor opens on this machine: edit ${file} in a terminal on it.` }, 400);
     }
     case "/api/assign": {
       // Assign an agent: on a watch or propose project, build this one ticket (or a finding's task) at assignedAutonomy

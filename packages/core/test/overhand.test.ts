@@ -547,15 +547,14 @@ test("OVERHAND_HOME: run.ts loads its config from there, not from the code folde
   expect([r.exitCode, r.stderr.toString()]).toEqual([0, ""]);
 });
 
-test("a broken config is one plain line at daemon start and at setup, never a stack trace", () => {
+// the daemon starts on the last good copy instead (config.test.ts startConfig), so the dashboard can say what's wrong
+test("a broken config is one plain line at setup, never a stack trace", () => {
   const home = mkdtempSync(join(tmpdir(), "overhand-home-"));
   writeFileSync(join(home, "overhand.config.json"), "{ broken");
-  for (const cmd of [["run.ts", "daemon"], ["packages/core/src/setup-cli.ts"]]) {
-    const r = Bun.spawnSync(["bun", ...cmd], { cwd: SRC, env: { ...process.env, OVERHAND_HOME: home } });
-    const err = r.stderr.toString().trimEnd();
-    expect([cmd[0], r.exitCode, err.split("\n").length]).toEqual([cmd[0], 1, 1]);
-    expect(err).toStartWith("overhand.config.json is invalid: ");
-  }
+  const r = Bun.spawnSync(["bun", "packages/core/src/setup-cli.ts"], { cwd: SRC, env: { ...process.env, OVERHAND_HOME: home } });
+  const err = r.stderr.toString().trimEnd();
+  expect([r.exitCode, err.split("\n").length]).toEqual([1, 1]);
+  expect(err).toStartWith("overhand.config.json is invalid: ");
 });
 
 test("pool visits every item once and never runs more than the limit at a time", async () => {

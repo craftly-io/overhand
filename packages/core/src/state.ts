@@ -119,6 +119,15 @@ export function takePrReview(): PrReviewQueue {
   return q;
 }
 
+const INTERRUPTED_FILE = join(OPS, ".interrupted.json");
+/**
+ * Tasks whose agent Overhand stopped at its start because the Overhand before it had stopped mid-run, by key: no pass
+ * runs one again until you press Try again, so its half-done worktree never gets a second agent unasked.
+ */
+export const loadInterrupted = (): Record<string, { project: string; at: number }> => readJson(INTERRUPTED_FILE, {});
+/** Saves the interrupted tasks atomically. */
+export const saveInterrupted = (x: Record<string, { project: string; at: number }>): void => writeJsonAtomic(INTERRUPTED_FILE, x);
+
 const CURRENT_FILE = join(OPS, ".current.json");
 /** Headless runs in progress, from .current.json; runs whose process is gone (a crashed daemon) are dropped. */
 export function currentRuns(): CurrentRun[] {
