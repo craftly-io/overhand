@@ -9,11 +9,10 @@ import {
   guardOnly,
   REPO_URL,
   ROUTING_MODES,
-  SANDBOX_LIMIT,
-  SANDBOX_MODE_LABELS,
-  SANDBOX_STOPS,
+  SANDBOX_SWITCH,
   SettingsSavedSchema,
   SettingsSchema,
+  SITE,
   sandboxLine,
 } from "@overhand/contract";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -271,30 +270,35 @@ function AutonomyField({ i }: { i: number }) {
 }
 
 /**
- * A project's own OS sandbox setting, shown while the machine's sandbox is on (or the project is already off): the
- * suggestion where it holds a tool that can't run inside it, and the guard-only line once it's off. `named` puts the
- * project's name first, for the machine's sandbox card. Nothing here switches it: you do.
+ * A project's own OS sandbox setting, shown while the machine's sandbox is on (or the project is already set): where it
+ * holds a tool that can't run inside it, that Overhand runs it on the guard only, and the guard-only line once it's
+ * off. `named` puts the project's name first, for the machine's sandbox card.
  */
-function ProjectSandboxField({ i, suggest, named = false }: { i: number; suggest: Record<string, string>; named?: boolean }) {
+function ProjectSandboxField({ i, tools, named = false }: { i: number; tools: Record<string, string>; named?: boolean }) {
   const f = useForm();
   const w = useWords();
   const name = str(getAt(f.draft, `clients.${i}.name`));
-  const own = getAt(f.draft, `clients.${i}.sandbox`) === "off" ? "off" : "inherit";
+  const set = getAt(f.draft, `clients.${i}.sandbox`);
+  const own = set === "off" || set === "keep" ? set : "inherit";
   const mode = getAt(f.draft, "sandbox.mode");
   const machine = {
     mode: mode === "log" || mode === "enforce" ? mode : "off",
     required: getAt(f.draft, "sandbox.required") === true,
   } as const;
-  const tool = own === "inherit" && machine.mode === "enforce" ? (suggest[name] ?? "") : "";
+  const tool = tools[name] ?? "";
   if (machine.mode === "off" && own === "inherit") return null;
   if (named && !tool && own === "inherit") return null;
-  const line = tool ? w.sandboxSuggest.replace("{tool}", tool) : guardOnly(machine, own) ? w.sandboxGuardOnly : "";
+  const line = !guardOnly(machine, own, tool) ? "" : own === "off" ? w.sandboxGuardOnly : fmt(w.sandboxAutoLine, { tool });
   return (
     <div className="grid gap-1">
       <Field
         label={named ? `${name}: ${w.sandboxProjectLabel}` : w.sandboxProjectLabel}
         path={`clients.${i}.sandbox`}
-        kind={{ options: ["inherit", "off"], fallback: "inherit", labels: { inherit: w.sandboxProjectInherit, off: w.sandboxProjectOff } }}
+        kind={{
+          options: ["inherit", "off", "keep"],
+          fallback: "inherit",
+          labels: { inherit: w.sandboxProjectInherit, off: w.sandboxProjectOff, keep: w.sandboxKeep },
+        }}
       />
       {line ? <p className="text-xs text-muted-foreground">{line}</p> : null}
     </div>
@@ -305,12 +309,12 @@ function ProjectsTab({
   codeRoot,
   focus,
   onLeads,
-  suggest,
+  tools,
 }: {
   codeRoot: string;
   focus?: string;
   onLeads: () => void;
-  suggest: Record<string, string>;
+  tools: Record<string, string>;
 }) {
   const w = useWords();
   const f = useForm();
@@ -373,7 +377,7 @@ function ProjectsTab({
             <Field label="Folder" path={`clients.${i}.dir`} kind="list" />
             <Field label="Ticket prefix" path={`clients.${i}.prefix`} />
             <AutonomyField i={i} />
-            <ProjectSandboxField i={i} suggest={suggest} />
+            <ProjectSandboxField i={i} tools={tools} />
             <Field label="Git host" path={`clients.${i}.host`} kind={{ options: ["github", "bitbucket"] }} />
             <Field
               label="Tracker"
@@ -953,7 +957,7 @@ export function SettingsDrawer({ tab: opening = "projects", project }: { tab?: s
           ))}
         </TabsList>
         <TabsContent value="projects" className="grid gap-3">
-          <ProjectsTab codeRoot={data.codeRoot} focus={project} onLeads={() => setTab("leads")} suggest={data.sandbox.suggest} />
+          <ProjectsTab codeRoot={data.codeRoot} focus={project} onLeads={() => setTab("leads")} tools={data.sandbox.tools} />
         </TabsContent>
         <TabsContent value="accounts" className="grid gap-3">
           <p className="text-sm text-muted-foreground">
@@ -985,21 +989,21 @@ export function SettingsDrawer({ tab: opening = "projects", project }: { tab?: s
               store={(s, v) => void storeSecret(s, v)}
             />
           </FieldCard>
-          <FieldCard title="OS sandbox">
+          <FieldCard title={w.safetyTitle}>
             <FeatureTip at="settings-sandbox" className="col-span-full" />
-            <Field
-              label="Sandbox"
-              path="sandbox.mode"
-              kind={{ options: ["off", "log", "enforce"], fallback: "off", labels: SANDBOX_MODE_LABELS }}
-            />
-            <Field label="Refuse runs without it" path="sandbox.required" kind="bool" />
+            {/* one switch: on is enforce; log only stays a config value, and shows as on */}
+            <Field label={w.sandboxSwitch} path="sandbox.mode" kind={{ off: "off", on: "enforce" }} />
+            <p className="col-span-full text-xs text-muted-foreground">
+              {SANDBOX_SWITCH}{" "}
+              <a className="text-primary underline" href={`${SITE}/docs/guard.html#limit`} target="_blank" rel="noopener noreferrer">
+                {w.sandboxCantStop}
+              </a>
+            </p>
             <p className="col-span-full text-xs text-muted-foreground">{sandboxLine(data.sandbox)}</p>
             {objects(form.draft.clients).map((_, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: config items have no id; version re-keys them when items shift
-              <ProjectSandboxField key={`${form.version}-${i}`} i={i} suggest={data.sandbox.suggest} named />
+              <ProjectSandboxField key={`${form.version}-${i}`} i={i} tools={data.sandbox.tools} named />
             ))}
-            <p className="col-span-full text-xs text-muted-foreground">{SANDBOX_STOPS}</p>
-            <p className="col-span-full text-xs text-muted-foreground">{SANDBOX_LIMIT}</p>
           </FieldCard>
           <ProviderCards homes={data.homes} />
         </TabsContent>
@@ -1053,6 +1057,9 @@ export function SettingsDrawer({ tab: opening = "projects", project }: { tab?: s
           <Button variant="outline" className="justify-self-start" onClick={applyJson}>
             Apply JSON
           </Button>
+          <FieldCard title={w.sandboxSwitch}>
+            <Field label={w.sandboxRefuseLabel} path="sandbox.required" kind="bool" />
+          </FieldCard>
         </TabsContent>
       </Tabs>
       {error ? (
