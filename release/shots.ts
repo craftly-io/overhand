@@ -917,7 +917,21 @@ async function fakeApi(page: Page, mode: "setup" | "setup-organise" | "pair"): P
   });
 }
 
-const settle = (page: Page, ms = 450) => page.waitForTimeout(ms);
+/**
+ * A short wait, then until the page's entrances have finished (looping motion aside): under a full sweep's load a fixed
+ * wait can end mid-animation, and a popover still sliding in would be measured where it started, out of reach.
+ */
+async function settle(page: Page, ms = 450): Promise<void> {
+  await page.waitForTimeout(ms);
+  await page
+    .waitForFunction(
+      () =>
+        document.getAnimations().every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Number.POSITIVE_INFINITY),
+      undefined,
+      { timeout: 2000 },
+    )
+    .catch(() => {}); // still moving after 2 s: measure it as it is
+}
 const post = (page: Page, msg: Record<string, string>) => page.evaluate((m) => window.postMessage(m, "*"), msg);
 
 /** Opens the command bar and runs its first match for `keyword`. */
@@ -1247,6 +1261,9 @@ async function main(): Promise<void> {
   for (const app of o.build ? ["web", ...(o.screens.includes("design") ? ["design"] : [])] : [])
     if (Bun.spawnSync(["bun", "run", "--filter", app, "build"], { cwd: ROOT, stdout: "ignore", stderr: "inherit" }).exitCode !== 0)
       throw new Error(`the ${app} build failed`);
+  // the site's pages are built files (site/build.ts): a fresh checkout has none, and every page would answer "not found"
+  if (o.build && Bun.spawnSync(["bun", "site/build.ts"], { cwd: ROOT, stdout: "ignore", stderr: "inherit" }).exitCode !== 0)
+    throw new Error("the site build failed");
   rmSync(o.out, { recursive: true, force: true });
   mkdirSync(o.out, { recursive: true });
   const { chromium } = await import("playwright-core");

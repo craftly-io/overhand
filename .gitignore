@@ -48,6 +48,7 @@ site/public/llms-full.txt
 site/public/skill.md
 site/public/sitemap.xml
 site/public/.well-known/
+site/public/server/
 site/og/og.html
 
 # local-only: browser-tool captures and personal scripts
