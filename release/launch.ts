@@ -10,6 +10,7 @@ import { join, resolve } from "node:path";
 import { INSTALLER as GET, IMAGE, REPO, REPO_URL, SITE as WWW } from "../packages/contract/src/links";
 import { safeCmd } from "../packages/core/src/runtimes/runtime";
 import { formula } from "./formula";
+import { lsRemoteTag, taggedCommit } from "./tag";
 
 const ROOT = resolve(import.meta.dir, "..");
 const DRY = process.argv.includes("--dry-run");
@@ -112,11 +113,7 @@ function preflight(): void {
       "bun release/soak.ts --minutes 20; see release/out/soak/chart.html",
     );
 
-  // an annotated tag lists its own object and, as <tag>^{}, the commit it points at
-  const refs = read(["git", "ls-remote", "--tags", "origin", TAG, `${TAG}^{}`])
-    .out.split("\n")
-    .filter(Boolean);
-  const tagged = (refs.find((l) => l.endsWith("^{}")) ?? refs[0] ?? "").split(/\s+/)[0] ?? "";
+  const tagged = taggedCommit(read(lsRemoteTag(TAG)).out);
   need(!tagged || tagged === head, `${TAG} not released from another commit`, "bump package.json's version");
   if (tagged === head) console.log(`    ${TAG} already points at HEAD: resuming`);
 
@@ -249,7 +246,10 @@ function verifyInstall(): void {
 
 function npm(): void {
   step(6, "npm: npx overhand / bunx overhand");
-  if (read(["npm", "view", `overhand@${version}`, "version"]).out !== version) {
+  // the registry may take a minute to list a version the job just published
+  const listed = (): boolean => read(["npm", "view", `overhand@${version}`, "version"]).out === version;
+  for (let i = 0; !DRY && i < 12 && !listed(); i++) Bun.sleepSync(10_000);
+  if (!listed()) {
     // the release workflow's npm job publishes it (.github/workflows/release.yml)
     if (DRY) {
       console.log(`    overhand@${version} isn't on npm yet; the release workflow's npm job publishes it`);
