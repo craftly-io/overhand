@@ -1,13 +1,14 @@
 import { type Connection, ConnectionsSchema } from "@overhand/contract";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { type CSSProperties, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useWords } from "@/app/theme";
+import { SignIn } from "@/components/SignIn";
 import { Button } from "@/components/ui/button";
 import { SkeletonRows } from "@/components/ui/skeleton";
-import { get, post, Refused } from "@/lib/api";
+import { get, post } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import { nth } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -190,37 +191,21 @@ export function Connections({ className, style }: { className?: string; style?: 
 
 /**
  * The one fix for a GitHub command tool that's missing or signed out, wherever it shows: a link to its installer, or
- * GitHub's own browser sign-in opened in a terminal you can watch (the page then sees it by itself). Where no terminal
- * opens (a server, a container) it shows the command to run there instead, as the agent step does.
+ * GitHub's own device sign-in, run by Overhand (SignIn): its one-time code and an Open GitHub button, no terminal. Once
+ * signed in, every view reads GitHub again. Where the sign-in can't start it shows the command to run instead.
  */
 export function GithubFix({ installed = true }: { installed?: boolean }) {
   const w = useWords();
-  const [byHand, setByHand] = useState<Refused | null>(null);
+  const qc = useQueryClient();
+  const [started, setStarted] = useState(false);
   return installed ? (
-    <span className="grid gap-1.5">
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="w-fit"
-        onClick={() =>
-          void post("/api/github/signin", {}, z.object({ ok: z.boolean() })).catch((e: unknown) => {
-            if (e instanceof Refused && e.command) setByHand(e);
-            else toast.error(e instanceof Error ? e.message : String(e));
-          })
-        }
-      >
+    started ? (
+      <SignIn path="/api/github/signin" tool="GitHub" tab={null} onSignedIn={() => void qc.invalidateQueries()} />
+    ) : (
+      <Button type="button" size="sm" variant="outline" className="w-fit" onClick={() => setStarted(true)}>
         {w.setupGhSignIn}
       </Button>
-      {byHand ? (
-        <>
-          <span className="max-w-[33em] text-xs text-muted-foreground">{byHand.message}</span>
-          <code className="w-fit max-w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-[13px] break-all select-all">
-            {byHand.command}
-          </code>
-        </>
-      ) : null}
-    </span>
+    )
   ) : (
     <a className="w-fit text-sm text-primary underline" href="https://cli.github.com" target="_blank" rel="noopener noreferrer">
       {w.setupGhGet}

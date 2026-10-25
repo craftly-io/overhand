@@ -1,6 +1,7 @@
 /**
  * Add an agent account in the demo: the account is added, its sign-in shows its link (Overhand's agents docs, not a
- * real sign-in) and asks for the code back, and any code signs it in; its test call answers. Nothing leaves the page.
+ * real sign-in) and asks for the code back, and any code signs it in; its test call answers. GitHub's sign-in shows a
+ * sample one-time code and waits. Nothing leaves the page but the link you open.
  */
 let codeSent = false;
 
@@ -14,6 +15,8 @@ export function demoSignInPost(url: string, body: Record<string, unknown>): unkn
     codeSent = false;
     return { ok: true, id: "demo", url: "https://overhand.dev/docs/agents", code: "", asks: true };
   }
+  // GitHub's sign-in shows its one-time code and the page GitHub asks for it on
+  if (url === "/api/github/signin") return { ok: true, id: "demo", url: "https://github.com/login/device", code: "DEMO-2026", asks: false };
   if (url === "/api/accounts/login/code") {
     codeSent = true;
     return { ok: true };

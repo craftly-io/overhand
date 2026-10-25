@@ -25,7 +25,8 @@
         <li><b><samp>Checksum mismatch for</samp></b> The download didn't match the release's sums, so nothing was installed. Run the installer again; if it repeats, <a href="{{root}}contact.html">tell us</a>.</li>
         <li><b><samp>Download failed:</samp></b> The release files couldn't be reached from here. Check the connection, or a proxy in the way.</li>
         <li><b><samp>Overhand runs on macOS and Linux; this is</samp></b> There's no package for this system.</li>
-        <li><b><samp>isn't installed yet; the setup page shows how to get it.</samp></b> <code>git</code> or <code>gh</code> is missing. Install it; {{name}} itself is installed.</li>
+        <li><b><samp>isn't installed yet; the setup page shows how to get it.</samp></b> <code>git</code> is missing, or <code>gh</code> and the installer found no way to install it here. Install it; {{name}} itself is installed.</li>
+        <li><b><samp>needs an administrator to install</samp></b> Installing <code>gh</code> on Linux takes <code>sudo</code>, which would ask for a password. Run the command it printed; the setup page goes on by itself.</li>
         <li><b><samp>Overhand didn't start.</samp></b> The lines above it say why; <code>overhand logs</code> has the rest.</li>
       </ul>
     </section>
@@ -47,7 +48,7 @@
     <section class="block hood" id="accounts" aria-labelledby="h-accounts">
       <h2 id="h-accounts">Accounts and tools.</h2>
       <ul class="facts">
-        <li><b><samp>agents open pull requests and read issues through it</samp></b> The GitHub CLI isn't signed in. Run <code>gh auth login</code> yourself.</li>
+        <li><b><samp>agents open pull requests and read issues through it</samp></b> The GitHub CLI isn't signed in. Press Sign in to GitHub on the setup page or in Health, or run <code>gh auth login</code> yourself.</li>
         <li><b><samp>doesn't look like an Anthropic API key</samp></b> The stored key isn't one; store a key from platform.claude.com again.</li>
         <li><b><samp>nothing answers there: start the gateway or fix its URL</samp></b> A gateway account's address gives no answer: start the gateway, or fix its URL in Settings.</li>
         <li><b><samp>Tailscale isn't running on this Mac.</samp></b> Open Tailscale and sign in, then try Settings → Phone again.</li>

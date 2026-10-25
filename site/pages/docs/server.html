@@ -73,11 +73,11 @@ curl -fsSL {{serverFiles}}/user-data.sh | sh</code></pre></li>
       <h2 id="h-signin">Agent sign-ins without a desktop.</h2>
       <ul class="facts">
         <li><b>Agent accounts sign in from the app</b> Settings → Agent accounts runs the agent's own sign-in on the server, and its page opens on your laptop or phone. Nothing to run over SSH. See <a href="agents.html#signin">Sign-ins and API keys</a>.</li>
-        <li><b>Setup shows the command</b> No terminal window can open on a server, so setup shows the exact command to install an agent and sign it in, and <b>{{w.setupGhSignIn}}</b> shows GitHub's. Run it over SSH; in Docker, inside the container:
+        <li><b>Setup shows the command</b> No terminal window can open on a server, so setup shows the exact command to install an agent and sign it in. Run it over SSH; in Docker, inside the container:
           <pre><code>docker exec -it overhand sh -c '&lt;the command setup shows&gt;'</code></pre></li>
         <li><b>Claude Code, by hand</b> <code>claude auth login</code> prints a link. Open it on your laptop, sign in, and paste the code it gives you back into the terminal.</li>
         <li><b>Codex, by hand</b> Plain <code>codex login</code> waits for your browser on the server's own port 1455. Run <code>codex login --device-auth</code> instead, and enter the code it shows on your laptop.</li>
-        <li><b>GitHub</b> <code>gh auth login --web</code> shows a one-time code; enter it at github.com/login/device on any device.</li>
+        <li><b>GitHub signs in from the app</b> <b>{{w.setupGhSignIn}}</b> runs GitHub's own sign-in on the server and shows its one-time code with an Open GitHub button; enter the code on any device. Where it can't start, it shows <code>gh auth login --web</code> to run over SSH instead.</li>
         <li><b>An API key instead</b> Add it in Settings → Agent accounts. With no keyring on the server it goes to <code>OVERHAND_SECRETS_FILE</code>, which the image sets. See <a href="agents.html">Agents and accounts</a>.</li>
       </ul>
     </section>

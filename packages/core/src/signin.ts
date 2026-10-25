@@ -1,7 +1,7 @@
 /**
- * An agent CLI's own sign-in, run by the daemon instead of in a terminal: the CLI runs in a pseudo-terminal (it behaves
- * as it would in one), Overhand reads its output only for the sign-in link (and a one-time code it shows, or whether it
- * asks for one back), and keeps it waiting. The app opens the link on whatever device you're on and sends back the code
+ * A CLI's own sign-in (an agent's, or GitHub's `gh`), run by the daemon instead of in a terminal: the CLI runs in a
+ * pseudo-terminal (it behaves as it would in one), or on plain pipes where it then asks less. Overhand reads its output
+ * only for the sign-in link (and a one-time code it shows, or whether it asks for one back), and keeps it waiting. The app opens the link on whatever device you're on and sends back the code
  * the browser gives you. Nothing the CLI prints is logged or kept past the link; the credential stays with the CLI.
  */
 import type { Subprocess } from "bun";
@@ -52,6 +52,8 @@ export async function startSignIn(o: {
   verify: () => Promise<boolean>;
   ms?: number;
   urlMs?: number;
+  /** Runs it without a terminal: a CLI that asks more in one (gh asks about Git first) then asks nothing. */
+  pipes?: boolean;
 }): Promise<SignInStart | { error: string }> {
   for (const [id, s] of LIVE) if (s.key === o.key) stopSignIn(id);
   const id = crypto.randomUUID();
@@ -63,27 +65,34 @@ export async function startSignIn(o: {
   });
   let settle: Timer | undefined;
   const decoder = new TextDecoder();
+  const feed = (chunk: Uint8Array) => {
+    if (!reading || out.length >= READ_MAX) return;
+    out += decoder.decode(chunk, { stream: true });
+    // a beat after the link, for the lines that follow it (a code to enter, a prompt for one)
+    if (signInUrl(out) && !settle)
+      settle = setTimeout(() => {
+        shown({ id, url: signInUrl(out), code: shownCode(out), asks: asksForCode(out) });
+        reading = false;
+        out = "";
+      }, 400);
+  };
+  // the CLI opens no browser here: the app opens the link on the device you're on
+  const env = { ...process.env, ...o.env, BROWSER: "true", NO_OPEN_BROWSER: "1" };
   let proc: Subprocess;
   try {
-    proc = Bun.spawn(o.argv, {
-      // the CLI opens no browser here: the app opens the link on the device you're on
-      env: { ...process.env, ...o.env, BROWSER: "true", NO_OPEN_BROWSER: "1" },
-      terminal: {
-        cols: 1000, // wide, so a long link never wraps
-        rows: 50,
-        data: (_t, chunk) => {
-          if (!reading || out.length >= READ_MAX) return;
-          out += decoder.decode(chunk, { stream: true });
-          // a beat after the link, for the lines that follow it (a code to enter, a prompt for one)
-          if (signInUrl(out) && !settle)
-            settle = setTimeout(() => {
-              shown({ id, url: signInUrl(out), code: shownCode(out), asks: asksForCode(out) });
-              reading = false;
-              out = "";
-            }, 400);
-        },
-      },
-    });
+    if (o.pipes) {
+      const p = Bun.spawn(o.argv, { env, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+      // read to the end, so a CLI that goes on printing never waits on a full pipe; past the link nothing is kept
+      for (const s of [p.stdout, p.stderr])
+        void (async () => {
+          for await (const c of s) feed(c);
+        })().catch(() => {});
+      proc = p;
+    } else
+      proc = Bun.spawn(o.argv, {
+        env,
+        terminal: { cols: 1000, rows: 50, data: (_t, chunk) => feed(chunk) }, // wide, so a long link never wraps
+      });
   } catch {
     return { error: SIGNIN_NO_LINK };
   }

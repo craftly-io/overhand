@@ -192,7 +192,7 @@ export const plainWords = {
   setupGithubOk: "GitHub: signed in as {login}",
   setupGhTitle: "Sign in to GitHub first",
   setupGhBody:
-    "Agents read issues and open pull requests through GitHub's command tool, and it isn't signed in yet. The button opens GitHub's own sign-in in your browser; this step updates by itself.",
+    "Agents read issues and open pull requests through GitHub's command tool, and it isn't signed in yet. The button shows a one-time code, then opens GitHub's own sign-in in your browser; this step updates by itself.",
   setupGhSignIn: "Sign in to GitHub",
   setupNoProjects: "None yet. Pick one below: it's where your first agent works.",
   setupTrackerRepo: "Issues from",
@@ -262,7 +262,7 @@ export const plainWords = {
   setupSlotPick: "Pick one",
   setupSlotSignIn: "Sign in",
   setupSlotInstall: "Install one",
-  setupGhInstall: "Install GitHub's app for Overhand",
+  setupGhInstall: "Install GitHub's command tool",
   setupGhWhy:
     "Agents hand you their work as pull requests on GitHub, through GitHub's own small command tool. Download its installer, open it like any other app, and this step updates by itself.",
   setupGhGet: "Get it from GitHub",
@@ -322,6 +322,7 @@ export const plainWords = {
   signInStarting: "Getting {tool}'s sign-in ready…",
   signInWaiting: "Waiting for you to sign in…",
   signInOpenAgain: "Open the sign-in page again",
+  signInOpenTool: "Open {tool}",
   signInBrowser: "Sign in in your browser",
   signInEnterCode: "Enter this code on the sign-in page:",
   signInPasteCode: "Paste the code from the browser",

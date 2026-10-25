@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -14,7 +14,9 @@ function fakeRelease(tag = ""): string {
     const pkg = join(dir, p);
     mkdirSync(join(pkg, "web"), { recursive: true });
     writeFileSync(join(pkg, "web", "index.html"), "");
-    writeFileSync(join(pkg, "overhand"), `#!/bin/sh\necho ${[p, tag].filter(Boolean).join(" ")}\n`);
+    // `start` says what the real one says on a desktop, where it opens the browser
+    const opened = 'echo "Overhand is running. Opened http://127.0.0.1:4317 to set it up."';
+    writeFileSync(join(pkg, "overhand"), `#!/bin/sh\n[ "$1" = start ] && ${opened}\necho ${[p, tag].filter(Boolean).join(" ")}\n`);
     chmodSync(join(pkg, "overhand"), 0o755);
     const tar = `overhand-${p}.tar.gz`;
     Bun.spawnSync(["tar", "-czf", join(dir, tar), "-C", pkg, "overhand", "web"]);
@@ -32,6 +34,10 @@ interface Machine {
   /** What `ldd --version` prints: musl's on Alpine. */
   ldd?: string;
   env?: Record<string, string>;
+  /** Only the tools the installer needs on PATH, and none of gh, brew, apt-get, dnf or sudo but the `fakes`. */
+  bare?: boolean;
+  /** More fake commands, by name: each a shell script's body. */
+  fakes?: Record<string, string>;
 }
 
 /** Writes an executable shell script. */
@@ -39,6 +45,18 @@ const script = (path: string, body: string): void => {
   writeFileSync(path, `#!/bin/sh\n${body}\n`);
   chmodSync(path, 0o755);
 };
+
+/** A folder of links to the plain tools the installer runs, for a PATH with nothing else on it. */
+const TOOLS = (() => {
+  const dir = mkdtempSync(join(tmpdir(), "overhand-tools-"));
+  const names =
+    "sh cat chmod cp curl cut dirname basename grep gzip head ln ls mkdir mktemp mv readlink rm sed shasum sha256sum sleep tar touch tr unzip wc";
+  for (const name of names.split(" ")) {
+    const at = Bun.which(name);
+    if (at) symlinkSync(at, join(dir, name));
+  }
+  return dir;
+})();
 
 /**
  * Runs the installer as a machine whose `uname -s` and `uname -m` say `os` and `machine` (and whose sysctl and ldd say
@@ -56,12 +74,15 @@ async function install(
   script(join(bin, "uname"), `case "$1" in -s) echo ${os} ;; -m) echo ${machine} ;; esac`);
   script(join(bin, "sysctl"), `echo ${m.translated ?? "0"}`);
   script(join(bin, "ldd"), `echo '${m.ldd ?? "ldd (GNU libc) 2.36"}'`);
+  // gh is there unless the machine is bare; not root, so installing it takes sudo
+  const fakes = m.bare ? { id: 'case "$1" in -u) echo 1000 ;; *) echo tester ;; esac', ...m.fakes } : { gh: "exit 0", ...m.fakes };
+  for (const [name, body] of Object.entries(fakes)) script(join(bin, name), body);
   // output goes to a file, not a pipe: reading the pipes of a quickly exiting process can fail on Linux (EBADF, epoll_ctl)
   const log = join(mkdtempSync(join(tmpdir(), "overhand-install-log-")), "out");
-  const p = Bun.spawn(["sh", "-c", 'sh "$0" >"$1" 2>&1', INSTALLER, log], {
+  const p = Bun.spawn(["/bin/sh", "-c", 'sh "$0" >"$1" 2>&1', INSTALLER, log], {
     cwd: home,
     env: {
-      PATH: [bin, process.env.PATH].join(":"),
+      PATH: [bin, m.bare ? TOOLS : process.env.PATH].join(":"),
       HOME: home,
       OVERHAND_DOWNLOAD: `file://${release}`,
       OVERHAND_NO_START: "1",
@@ -181,6 +202,13 @@ test("for overhand update, the installer stops after its install lines: no Start
   expect(r.out).toContain("Installed Overhand");
   expect(r.out).not.toContain("Start it with");
   expect(r.out).not.toContain("isn't installed yet");
+  // and leaves gh and the shell's startup files alone
+  const quiet = await install(fakeRelease(), "Darwin", "arm64", {
+    bare: true,
+    fakes: { brew: 'echo "$*" >>"$HOME/brew.log"' },
+    env: { OVERHAND_QUIET: "1", SHELL: "/bin/zsh" },
+  });
+  expect(readdirSync(quiet.home).sort()).toEqual([".local", ".overhand", "fakebin"]);
 });
 
 test("started on a server with no display, the installer ends with the one SSH tunnel that opens it", async () => {
@@ -195,4 +223,120 @@ test("started on a server with no display, the installer ends with the one SSH t
   // a desktop opens it itself
   const desktop = await install(fakeRelease(), "Linux", "x86_64", { env: { ...env, DISPLAY: ":0" } });
   expect(desktop.out).not.toContain("ssh -N");
+  expect(desktop.out).toContain("It's open in your browser: finish setting up there.");
+});
+
+const PATH_LINE = 'export PATH="$HOME/.local/bin:$PATH" # added by Overhand';
+
+test("the installer puts ~/.local/bin on PATH in the shell's own startup file, once, and says so", async () => {
+  const release = fakeRelease();
+  for (const [os, shell, file, line] of [
+    ["Darwin", "/bin/zsh", ".zshrc", PATH_LINE],
+    ["Darwin", "/bin/bash", ".bash_profile", PATH_LINE],
+    ["Linux", "/bin/bash", ".bashrc", PATH_LINE],
+    ["Linux", "/usr/bin/fish", ".config/fish/config.fish", "fish_add_path $HOME/.local/bin # added by Overhand"],
+    ["Linux", "", ".profile", PATH_LINE],
+  ] as const) {
+    const first = await install(release, os, "arm64", { env: { SHELL: shell } });
+    expect(first.code, first.out).toBe(0);
+    expect(first.out).toContain(`Added ~/.local/bin to your PATH in ~/${file}: new terminals find overhand`);
+    expect(first.out).not.toContain("isn't on your PATH");
+    // this terminal's PATH is as it was, so what it's told to run goes by the full path
+    expect(first.out).toContain("Start it with: ~/.local/bin/overhand start");
+    const again = await install(release, os, "arm64", { home: first.home, env: { SHELL: shell } });
+    expect(again.out).not.toContain("Added ~/.local/bin");
+    expect(readFileSync(join(first.home, file), "utf8")).toBe(`\n${line}\n`);
+  }
+}, 30_000);
+
+test("a startup file that already sets ~/.local/bin is left alone, and OVERHAND_NO_PATH=1 edits none", async () => {
+  const release = fakeRelease();
+  const home = mkdtempSync(join(tmpdir(), "overhand-install-"));
+  writeFileSync(join(home, ".zshrc"), "path+=(~/.local/bin)\n");
+  const r = await install(release, "Darwin", "arm64", { home, env: { SHELL: "/bin/zsh" } });
+  expect(r.code, r.out).toBe(0);
+  expect(readFileSync(join(home, ".zshrc"), "utf8")).toBe("path+=(~/.local/bin)\n");
+
+  const ci = await install(release, "Darwin", "arm64", { env: { SHELL: "/bin/zsh", OVERHAND_NO_PATH: "1" } });
+  expect(existsSync(join(ci.home, ".zshrc"))).toBe(false);
+  expect(ci.out).toContain("~/.local/bin isn't on your PATH. Add this line to ~/.zshrc, then open a new terminal:");
+});
+
+/** A fake sudo that keeps what it was asked to run in ~/sudo.log; `password` makes it refuse to run without asking. */
+const sudo = (password = false) =>
+  password ? 'echo "$*" >>"$HOME/sudo.log"; exit 1' : 'echo "$*" >>"$HOME/sudo.log"; [ "$1 $2" = "-n true" ] || touch "$HOME/fakebin/gh"';
+const log = (home: string, name: string): string => (existsSync(join(home, name)) ? readFileSync(join(home, name), "utf8") : "");
+
+test("with gh missing, the installer installs it the vendor's way for the machine, and leaves one that's there", async () => {
+  const release = fakeRelease();
+  // there already: nothing runs
+  const there = await install(release, "Darwin", "arm64", { fakes: { brew: 'echo "$*" >>"$HOME/brew.log"' } });
+  expect([there.out.includes("Installed GitHub's command tool"), log(there.home, "brew.log")]).toEqual([false, ""]);
+
+  // a Mac with Homebrew
+  const mac = await install(release, "Darwin", "arm64", { bare: true, fakes: { brew: 'echo "$*" >>"$HOME/brew.log"' } });
+  expect(mac.code, mac.out).toBe(0);
+  expect(log(mac.home, "brew.log")).toBe("install gh\n");
+  expect(mac.out).toContain("Installed GitHub's command tool (gh)");
+
+  // Debian or Ubuntu: GitHub's apt repository, as root through sudo that asks nothing
+  const apt = await install(release, "Linux", "x86_64", { bare: true, fakes: { "apt-get": "exit 0", sudo: sudo() } });
+  expect(apt.code, apt.out).toBe(0);
+  const ran = log(apt.home, "sudo.log").split("\n")[1] ?? "";
+  expect(ran).toStartWith("-n sh -c mkdir -p -m 755 /etc/apt/keyrings");
+  expect(ran).toContain("https://cli.github.com/packages stable main");
+  expect(ran).toEndWith("apt-get install -y gh");
+  expect(apt.out).toContain("Installed GitHub's command tool (gh)");
+
+  // Fedora: GitHub's dnf repository
+  const dnf = await install(release, "Linux", "arm64", { bare: true, fakes: { dnf: "exit 0", sudo: sudo() } });
+  expect(log(dnf.home, "sudo.log")).toContain("gh-cli.repo && dnf install -y gh --repo gh-cli");
+
+  // sudo would ask for a password, which no one can type into a piped script: the one command, and the install goes on
+  const asks = await install(release, "Linux", "x86_64", { bare: true, fakes: { "apt-get": "exit 0", sudo: sudo(true) } });
+  expect(asks.code, asks.out).toBe(0);
+  expect(asks.out).toContain(
+    "GitHub's command tool (gh) needs an administrator to install. Run this, and the setup page goes on by itself:",
+  );
+  expect(asks.out).toMatch(/ {4}sudo sh -c 'mkdir -p -m 755 \/etc\/apt\/keyrings .*apt-get install -y gh'\n/);
+  expect(log(asks.home, "sudo.log")).toBe("-n true\n");
+
+  // no package manager it knows: the setup page has the rest
+  const other = await install(release, "Linux", "x86_64", { bare: true });
+  expect(other.out).toContain("gh isn't installed yet; the setup page shows how to get it.");
+}, 30_000);
+
+test.skipIf(!Bun.which("zip"))("a Mac without Homebrew gets GitHub's own build of gh, checked against its checksums", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "overhand-gh-release-"));
+  const name = "gh_9.9.9_macOS_arm64";
+  mkdirSync(join(dir, name, "bin"), { recursive: true });
+  script(join(dir, name, "bin", "gh"), "echo gh version 9.9.9");
+  Bun.spawnSync(["zip", "-qr", `${name}.zip`, name], { cwd: dir });
+  const sums = { good: `${sha(join(dir, `${name}.zip`))}  ${name}.zip\n`, bad: `${"0".repeat(64)}  ${name}.zip\n` };
+  let want: keyof typeof sums = "good";
+  const server = Bun.serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    fetch: (req) => {
+      const path = new URL(req.url).pathname;
+      if (path === "/latest") return new Response(null, { status: 302, headers: { Location: "/tag/v9.9.9" } });
+      if (path === "/tag/v9.9.9") return new Response("ok");
+      if (path === `/download/v9.9.9/${name}.zip`) return new Response(Bun.file(join(dir, `${name}.zip`)));
+      if (path === "/download/v9.9.9/gh_9.9.9_checksums.txt") return new Response(sums[want]);
+      return new Response("not found", { status: 404 });
+    },
+  });
+  try {
+    const env = { OVERHAND_GH_DOWNLOAD: `http://127.0.0.1:${server.port}` };
+    const r = await install(fakeRelease(), "Darwin", "arm64", { bare: true, env });
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toContain("Installed GitHub's command tool (gh)");
+    expect(Bun.spawnSync([join(r.home, ".local", "bin", "gh")]).stdout.toString()).toBe("gh version 9.9.9\n");
+    want = "bad";
+    const tampered = await install(fakeRelease(), "Darwin", "arm64", { bare: true, env });
+    expect(existsSync(join(tampered.home, ".local", "bin", "gh"))).toBe(false);
+    expect(tampered.out).toContain("gh isn't installed yet");
+  } finally {
+    server.stop(true);
+  }
 });

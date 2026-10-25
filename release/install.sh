@@ -1,12 +1,14 @@
 #!/bin/sh
 # Installs (or updates) Overhand: downloads the package for this machine from the latest release, checks its SHA-256,
 # unpacks it into its own folder in ~/.overhand/releases and points the ~/.overhand/app link at it in one rename, so an
-# install is either complete or not there at all. Links `overhand` into ~/.local/bin and starts it; a running Overhand
-# sees its binary moved and restarts on the new one once no agent is running.
+# install is either complete or not there at all. Links `overhand` into ~/.local/bin, installs GitHub's command tool
+# when it's missing, puts ~/.local/bin on PATH in the shell's startup file and starts Overhand, which opens the dashboard
+# in the browser; a running Overhand sees its binary moved and restarts on the new one once no agent is running.
 #   curl -fsSL https://get.overhand.dev | sh
-# OVERHAND_DOWNLOAD points at another copy of the release files (a mirror, a test server);
-# OVERHAND_NO_START=1 installs without starting it (CI, images); OVERHAND_QUIET=1 also stops after the install lines, for
-# `overhand update`, which says what happens next itself. NO_COLOR, or output that isn't a terminal, turns colour off.
+# OVERHAND_DOWNLOAD points at another copy of the release files (a mirror, a test server), OVERHAND_GH_DOWNLOAD at
+# another copy of gh's releases; OVERHAND_NO_START=1 installs without starting it (CI, images); OVERHAND_NO_PATH=1 edits
+# no startup file; OVERHAND_QUIET=1 stops after the install lines (no gh, no PATH line), for `overhand update`, which
+# says what happens next itself. NO_COLOR, or output that isn't a terminal, turns colour off.
 # The whole script is one function called on the last line, so a download cut off part way runs nothing.
 set -eu
 
@@ -29,6 +31,41 @@ fi
 step() { printf '  %s✓%s %s\n' "$ok" "$r" "$1"; }
 note() { printf '  %s!%s %s\n' "$warn" "$r" "$1"; }
 fail() { printf '  %s✗%s %s\n' "$bad" "$r" "$1" >&2; exit 1; }
+sum256() { if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1; else sha256sum "$1" | cut -d' ' -f1; fi; }
+
+# GitHub's command tool (gh), which agents open pull requests through, installed the vendor's own way (cli.github.com,
+# checked 2026-10-25): Homebrew on a Mac that has it, else GitHub's release for this Mac into ~/.local/bin; on Linux
+# GitHub's apt or dnf repository, as root, which needs sudo that asks nothing here (the script came down a pipe, so
+# there's no one to type a password); otherwise the one command to run. Anything else: the setup page links its docs.
+GH_APT='mkdir -p -m 755 /etc/apt/keyrings /etc/apt/sources.list.d && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gh'
+GH_DNF='curl -fsSL https://cli.github.com/packages/rpm/gh-cli.repo -o /etc/yum.repos.d/gh-cli.repo && dnf install -y gh --repo gh-cli'
+install_gh() {
+  if [ "$os" = darwin ]; then
+    if command -v brew >/dev/null 2>&1; then brew install gh >"${tmp}/gh.log" 2>&1; else gh_release >"${tmp}/gh.log" 2>&1; fi
+  else
+    if command -v apt-get >/dev/null 2>&1; then root_cmd="$GH_APT"; elif command -v dnf >/dev/null 2>&1; then root_cmd="$GH_DNF"; else root_cmd=""; fi
+    if [ -z "$root_cmd" ]; then false
+    elif [ "$(id -u)" = 0 ]; then sh -c "$root_cmd" >"${tmp}/gh.log" 2>&1
+    elif sudo -n true >/dev/null 2>&1; then sudo -n sh -c "$root_cmd" >"${tmp}/gh.log" 2>&1
+    else
+      note "GitHub's command tool (gh) needs an administrator to install. Run this, and the setup page goes on by itself:"
+      printf '    %s%s%s\n' "$b" "sudo sh -c '${root_cmd}'" "$r"
+      return 0
+    fi
+  fi && step "Installed GitHub's command tool (gh)" && return 0
+  note "gh isn't installed yet; the setup page shows how to get it."
+}
+# GitHub's own build of gh for this Mac, from its latest release, checked against the release's checksums
+gh_release() {
+  rel="${OVERHAND_GH_DOWNLOAD:-https://github.com/cli/cli/releases}"
+  tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "${rel}/latest")" || return 1
+  tag="${tag##*/}"
+  if [ "$arch" = x64 ]; then zip="gh_${tag#v}_macOS_amd64.zip"; else zip="gh_${tag#v}_macOS_arm64.zip"; fi
+  curl -fsSL "${rel}/download/${tag}/${zip}" -o "${tmp}/${zip}" || return 1
+  curl -fsSL "${rel}/download/${tag}/gh_${tag#v}_checksums.txt" -o "${tmp}/gh-sums" || return 1
+  [ "$(grep " ${zip}\$" "${tmp}/gh-sums" | cut -d' ' -f1)" = "$(sum256 "${tmp}/${zip}")" ] || return 1
+  unzip -q "${tmp}/${zip}" -d "${tmp}/gh" && mv "${tmp}/gh/${zip%.zip}/bin/gh" "${BIN}/gh"
+}
 
 printf '\n  %s◆ Overhand%s %sinstaller%s\n\n' "$b$hi" "$r" "$d" "$r"
 
@@ -67,7 +104,7 @@ step "Downloaded ${pkg}"
 
 curl -fsSL "${url}/SHA256SUMS" -o "${tmp}/SHA256SUMS" || fail "Couldn't fetch SHA256SUMS. The installed Overhand is unchanged."
 want="$(grep " ${pkg}\$" "${tmp}/SHA256SUMS" | cut -d' ' -f1)"
-if command -v shasum >/dev/null 2>&1; then got="$(shasum -a 256 "${tmp}/${pkg}" | cut -d' ' -f1)"; else got="$(sha256sum "${tmp}/${pkg}" | cut -d' ' -f1)"; fi
+got="$(sum256 "${tmp}/${pkg}")"
 if [ -z "$want" ] || [ "$want" != "$got" ]; then fail "Checksum mismatch for ${pkg}; not installing."; fi
 step "Checksum verified"
 
@@ -108,29 +145,43 @@ version="$("${APP}/overhand" version 2>/dev/null || true)"
 step "Installed Overhand ${version} at ~/.local/bin/overhand"
 if [ "$QUIET" = "1" ]; then return 0; fi
 
-for tool in git gh; do
-  command -v "$tool" >/dev/null 2>&1 || note "${tool} isn't installed yet; the setup page shows how to get it."
-done
+command -v git >/dev/null 2>&1 || note "git isn't installed yet; the setup page shows how to get it."
+if ! command -v gh >/dev/null 2>&1; then install_gh; fi
 
+# ~/.local/bin on PATH in every new terminal: one marked line in the shell's startup file, added once (never with
+# OVERHAND_NO_PATH=1, for CI and tests), and on this script's own PATH, so the service it starts finds overhand, gh and
+# agents installed there. This terminal keeps its PATH, so what's printed below runs ~/.local/bin/overhand by its path.
 path_line=""
+fresh=0
 case ":${PATH}:" in
   *":${BIN}:"*) ;;
   *)
-    # the exact line for the user's shell, so `overhand` works in every new terminal
+    fresh=1
+    line="export PATH=\"\$HOME/.local/bin:\$PATH\""
     case "$(basename "${SHELL:-sh}")" in
-      zsh) rc="~/.zshrc"; line="export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
-      bash) if [ "$os" = darwin ]; then rc="~/.bash_profile"; else rc="~/.bashrc"; fi; line="export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
-      fish) rc="~/.config/fish/config.fish"; line="fish_add_path \$HOME/.local/bin" ;;
-      *) rc="your shell's startup file"; line="export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
+      zsh) rc="${ZDOTDIR:-$HOME}/.zshrc" ;;
+      bash) if [ "$os" = darwin ]; then rc="${HOME}/.bash_profile"; else rc="${HOME}/.bashrc"; fi ;;
+      fish) rc="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"; line="fish_add_path \$HOME/.local/bin" ;;
+      *) rc="${HOME}/.profile" ;;
     esac
-    path_line="$line"
+    case "$rc" in "$HOME"/*) rc_short="~${rc#"$HOME"}" ;; *) rc_short="$rc" ;; esac
+    if [ "${OVERHAND_NO_PATH:-}" = "1" ]; then
+      path_line="$line"
+    elif ! grep -qs '\.local/bin' "$rc"; then
+      if mkdir -p "$(dirname "$rc")" && printf '\n%s # added by Overhand\n' "$line" >>"$rc"; then
+        step "Added ~/.local/bin to your PATH in ${rc_short}: new terminals find overhand"
+      else
+        path_line="$line"
+      fi
+    fi
+    export PATH="${BIN}:${PATH}"
     ;;
 esac
+if [ "$fresh" = 1 ]; then cmd="~/.local/bin/overhand"; else cmd="overhand"; fi
 
 if [ "$NO_START" = "1" ]; then
   head="Overhand is installed"
-  # until a new terminal picks up the PATH line below, only the full path runs
-  if [ -n "$path_line" ]; then tail="Start it with: ~/.local/bin/overhand start"; else tail="Start it with: overhand start"; fi
+  tail="Start it with: ${cmd} start"
 elif [ -n "$prev" ] && [ "$prev" != "$new" ] && curl -s -o /dev/null --max-time 2 "${URL_UI}/" 2>/dev/null; then
   # an update while Overhand runs: it sees its binary moved, and restarts on the new one between work passes
   head="Overhand ${version} is installed"
@@ -141,7 +192,8 @@ else
   # e.g. no systemd user session (a container, WSL): it runs in the background until a reboot
   grep '^Note: ' "${tmp}/start.log" | sed 's/^Note: //' | while IFS= read -r line; do note "$line"; done
   head="Overhand is running → ${URL_UI}"
-  tail="Open it to finish setting up."
+  # `overhand start` opens the dashboard, signed in, in this computer's browser when there is one
+  if grep -q 'Opened ' "${tmp}/start.log"; then tail="It's open in your browser: finish setting up there."; else tail="Open it to finish setting up."; fi
   # no display (a server over SSH, a container): the address opens only through a tunnel from your own computer
   if [ -n "${SSH_CONNECTION:-}" ] || { [ "$os" = linux ] && [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; }; then
     server="$(printf '%s' "${SSH_CONNECTION:-}" | cut -d' ' -f3)"
@@ -164,14 +216,13 @@ printf '  %s|%s %s%s %s|%s\n' "$d" "$r" "$tail" "$(pad "$tail" "$w")" "$d" "$r"
 printf '  %s+%s+%s\n\n' "$d" "$bar" "$r"
 
 if [ -n "${tunnel:-}" ]; then
-  if [ -n "$path_line" ]; then open_cmd="~/.local/bin/overhand open"; else open_cmd="overhand open"; fi
   printf '  1. On your own computer, open a tunnel to this one:\n'
   printf '    %s%s%s\n' "$b" "$tunnel" "$r"
-  printf '  2. Here, run %s%s%s and open the link it prints in that computer'"'"'s browser.\n\n' "$b" "$open_cmd" "$r"
+  printf '  2. Here, run %s%s open%s and open the link it prints in that computer'"'"'s browser.\n\n' "$b" "$cmd" "$r"
 fi
 
 if [ -n "$path_line" ]; then
-  printf '  ~/.local/bin isn'"'"'t on your PATH. Add this line to %s, then open a new terminal:\n' "$rc"
+  printf '  ~/.local/bin isn'"'"'t on your PATH. Add this line to %s, then open a new terminal:\n' "$rc_short"
   printf '    %s%s%s\n\n' "$b" "$path_line" "$r"
 fi
 }
