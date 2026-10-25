@@ -125,7 +125,9 @@ export function morningBrief(now = new Date()): void {
     status.reviews.length +
     prs.filter((p) => p.corners?.some((c) => c.severity === "block")).length;
   // the night: yesterday from 18:00, as nightCounts reads the activity log
-  const evening = new Date(now.getTime() - 864e5);
+  // by the calendar, not − 24 h: after the spring clock change a day has 23 hours, and 24 h back was two evenings ago
+  const evening = new Date(now.getTime());
+  evening.setDate(evening.getDate() - 1);
   evening.setHours(18, 0, 0, 0);
   const brief = composeBrief({
     ...nightCounts(read(yesterday), read(date)),
