@@ -242,8 +242,10 @@ export function keepAwakeWhile(pid: number): void {
         "-f",
         "/dev/null",
       ];
-  if (!Bun.which(cmd[0] ?? "")) return;
-  Bun.spawn(cmd, { stdout: "ignore", stderr: "ignore", detached: true }).unref();
+  const [bin = "", ...args] = cmd;
+  const helper = Bun.which(bin, { PATH: process.env.PATH ?? "" });
+  if (!helper) return;
+  Bun.spawn([helper, ...args], { stdout: "ignore", stderr: "ignore", detached: true }).unref();
 }
 
 /**
