@@ -14,7 +14,7 @@ import { keepsMargin, RUN_COST_PER_MIN_USD, RUN_MARGIN, RUN_PACKS } from "../src
 import { appJwt, mintToken, minutesOf, type RunDeps, Runner, type RunnerState, recentRuns, reserve, runJob, settle } from "../src/hosted";
 import { applyEvent, type D1, selectPacks } from "../src/paddle";
 import { type Env, relayKeys, route } from "../src/worker";
-import { type FakeSocket, fakeD1, fakeState, socket } from "./fakes";
+import { type FakeSocket, fakeD1, fakeState, proofTs, socket } from "./fakes";
 import catalog from "./packs.json";
 
 let db: D1;
@@ -375,7 +375,7 @@ describe("the daemon's routes", () => {
       iat: Date.now(),
     });
     return async (method: string, path: string) => {
-      const ts = Date.now();
+      const ts = proofTs();
       return {
         "x-overhand-cert": cert,
         "x-overhand-ts": String(ts),

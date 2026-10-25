@@ -20,8 +20,10 @@
     "not_found_handling": "none",
     "run_worker_first": ["/relay/*", "/", "/robots.txt", "/.well-known/security.txt"]
   },
+  // the static headers (a strict Content-Security-Policy among them) come from APP_HEADERS in src/worker.ts, which
+  // also puts them on the page the Worker serves at /
   "build": {
-    "command": "cd .. && bun run --filter web build && rm -rf relay/public && cp -R apps/web/dist relay/public && printf '/*\\n  X-Frame-Options: DENY\\n  Referrer-Policy: same-origin\\n  X-Content-Type-Options: nosniff\\n  Permissions-Policy: camera=(), microphone=(), geolocation=(), usb=(), serial=(), browsing-topics=()\\n' > relay/public/_headers"
+    "command": "cd .. && bun run --filter web build && rm -rf relay/public && cp -R apps/web/dist relay/public && bun -e 'process.stdout.write((await import(\"./relay/src/worker.ts\")).headersFile())' > relay/public/_headers"
   },
   "durable_objects": {
     "bindings": [

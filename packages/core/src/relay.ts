@@ -93,9 +93,14 @@ export function hostedActive(now = Date.now()): boolean {
   return entitlementState(claim, now) !== "none";
 }
 
-/** A request to the relay signed with the device key and carrying the link certificate. */
+let lastTs = 0;
+/**
+ * A request to the relay signed with the device key and carrying the link certificate. Each gets its own millisecond:
+ * the relay takes a signature once, so two requests in the same millisecond to one path must still differ.
+ */
 async function signed(path: string, method = "POST", s = load()): Promise<Record<string, string>> {
-  const ts = Date.now();
+  lastTs = Math.max(Date.now(), lastTs + 1);
+  const ts = lastTs;
   return {
     "x-overhand-cert": s.cert,
     "x-overhand-ts": String(ts),
@@ -153,12 +158,13 @@ export async function refreshEntitlement(): Promise<void> {
       headers: await signed("/relay/entitlement"),
       signal: AbortSignal.timeout(15_000),
     });
-    if (r.status === 402) {
-      save({ ...load(), ent: "" });
-      lastError = "";
-    } else if (r.ok) {
-      const { token } = z.object({ token: z.string() }).parse(await r.json());
-      save({ ...load(), ent: token });
+    if (r.status === 402 || r.ok) {
+      const body = z.object({ token: z.string().optional(), cert: z.string().optional() }).parse(await r.json().catch(() => ({})));
+      if (r.ok && !body.token) throw new Error("the relay sent no token");
+      // the relay renews the link certificate with each answer, plan or not: kept only when it's for this key
+      const link = body.cert && relayKey() ? await readToken(await verifyingKey(relayKey()), body.cert, "link") : null;
+      const cur = load();
+      save({ ...cur, ent: r.ok ? (body.token ?? "") : "", cert: link?.pub === cur.pub && body.cert ? body.cert : cur.cert });
       lastError = "";
     } else lastError = `the relay answered ${r.status}`;
   } catch (e) {

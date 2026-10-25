@@ -4,7 +4,8 @@
  * page. Every way ends in `authenticate`, which sets the one session. A new email simply becomes an account.
  *
  * The email flow keeps the address out of URLs and logs: it travels in POST bodies, then in a cookie the relay signs
- * and expires with the code. Sends and code attempts are counted per email and per IP in small fixed windows.
+ * and expires with the code. Sends and code attempts are counted per email and per network in small fixed windows,
+ * shaped so a stranger can slow one address down for minutes at most, and can't shut sign-in for anyone else.
  */
 import { b64url, sign, signToken, unb64url, verify } from "@overhand/contract";
 import { plainWords as w } from "@overhand/themes/words";
@@ -25,18 +26,23 @@ const OAUTH = { GitHubOAuth: w.signInGithub, GoogleOAuth: w.signInGoogle } as co
 export const LIMIT_WINDOW_MS = 15 * 60_000;
 export const LIMIT_DAY_MS = 24 * 60 * 60_000;
 /**
- * The tries each limit allows per window. Code attempts count per email and network first, so tries from another
- * network can't use up someone's own; per email across networks the cap is higher, and failures are capped per day.
+ * The tries each limit allows per window. Anything counted per email alone (which anyone who knows the address can
+ * spend) refuses for one short window at most; the day caps count per email and network, so tries from elsewhere
+ * never use up someone's own. All sends together are capped only for addresses that have never signed in: a flood of
+ * made-up addresses can hold up new accounts for a window, never an existing one, whose sends (like one address's
+ * day) only raise an alert past their mark. WorkOS's own expiry and invalidation of a code stays the brute-force defence.
  */
 export const LIMITS = {
   sendEmail: 5,
   sendIp: 20,
-  sendAll: 300,
-  sendEmailDay: 20,
+  sendNew: 300,
+  sendKnown: 300,
+  sendEmailIpDay: 20,
+  sendEmailDay: 40,
   codeEmailIp: 5,
   codeEmail: 10,
   codeIp: 30,
-  failEmailDay: 20,
+  failEmailIpDay: 20,
 } as const;
 
 const Provider = z.enum(["authkit", "GitHubOAuth", "GoogleOAuth"]);
@@ -48,7 +54,7 @@ const CodeForm = z.object({
     .regex(/^\d{6}$/),
 });
 const Flow = z.object({ email: z.email(), next: z.string(), exp: z.number() });
-const Authenticated = z.object({ user: z.object({ id: z.string(), email: z.string() }) });
+const Authenticated = z.object({ user: z.object({ id: z.string(), email: z.string(), email_verified: z.boolean().optional() }) });
 
 const STYLE =
   "<style>.ways{display:grid;gap:12px}.ways .button,.ways button{width:100%}.ways label{display:grid;gap:6px}.ways input{width:100%;margin:0}</style>";
@@ -106,8 +112,8 @@ async function openFlow(env: Env, req: Request, now: number): Promise<z.infer<ty
 }
 
 /**
- * The network an address is on, for its limits: an IPv4 address as it is, an IPv6 one by its /64 (one household or
- * server gets a whole /64 and can rotate through it), normalised so every spelling of it counts as one.
+ * The network an address is on, for its limits: an IPv4 address as it is, an IPv6 one by its /48 (one cheap server
+ * can get a /48 and rotate through its 65,536 /64s), normalised so every spelling of it counts as one.
  */
 export function network(ip: string): string {
   const a = ip.trim().toLowerCase().replace(/%.*$/, "");
@@ -119,17 +125,18 @@ export function network(ip: string): string {
   const t = tail ? tail.split(":") : [];
   const groups = [...h, ...Array<string>(Math.max(0, 8 - h.length - t.length)).fill("0"), ...t];
   return `${groups
-    .slice(0, 4)
+    .slice(0, 3)
     .map((g) => g.replace(/^0+(?=.)/, ""))
-    .join(":")}::/64`;
+    .join(":")}::/48`;
 }
 
-/** A counted thing: what (hashed before it's stored), its cap, and its window. */
-type Counter = { what: string; max: number; ms: number };
+/** A counted thing: what (hashed before it's stored), its cap and its window; with `alert`, the cap logs, never refuses. */
+type Counter = { what: string; max: number; ms: number; alert?: string };
 
 /**
- * Counts one try against each counter (or, with `count` false, only reads them); true when any is past its cap. Rows
- * hold a hash, never an email or address, and the window's start in ms; rows older than a day go now and then.
+ * Counts one try against each counter (or, with `count` false, only reads them); true when any refusing one is past
+ * its cap. Rows hold a hash, never an email or address, and the window's start in ms; rows older than a day go now
+ * and then.
  */
 async function overLimit(env: Env, counters: Counter[], now: number, count = true): Promise<boolean> {
   // ponytail: prune on ~1 in 50 calls; the win index keeps it cheap, a cron would make it exact
@@ -148,13 +155,31 @@ async function overLimit(env: Env, counters: Counter[], now: number, count = tru
           .bind(key, win)
           .first()
       : await env.DB.prepare("SELECT n + 1 AS n FROM sign_in_limits WHERE key = ? AND win = ?").bind(key, win).first();
-    if (Number(row?.n) > c.max) over = true;
+    const n = Number(row?.n);
+    // an alert logs once per window, as it's crossed: the owner looks, and nobody real is refused for it
+    if (!c.alert) over ||= n > c.max;
+    else if (count && n === c.max + 1) console.error(`sign-in: ${c.alert} passed ${c.max}`);
   }
   return over;
 }
 
+/** What an address that has signed in before is known by: a hash, never the address. */
+const accountKey = (email: string) => sha256(`account:${email.toLowerCase()}`);
+
+/** Whether this address has signed in here before: its sends then never share the pool made-up addresses use. */
+async function knownAccount(env: Env, email: string): Promise<boolean> {
+  return Boolean(
+    await env.DB.prepare("SELECT 1 AS x FROM sign_in_accounts WHERE key = ?")
+      .bind(await accountKey(email))
+      .first(),
+  );
+}
+
 /** Sets the session for a WorkOS user and goes to `next`; every way of signing in, and dev-login, ends here. */
 export async function signedIn(env: Env, ws: string, email: string, next: string, now: number): Promise<Response> {
+  await env.DB.prepare("INSERT OR IGNORE INTO sign_in_accounts (key, at) VALUES (?, ?)")
+    .bind(await accountKey(email), now)
+    .run();
   const token = await signToken((await relayKeys(env)).sign, { typ: "session", ws, email, iat: now, exp: now + SESSION_MS });
   const h = new Headers({ location: safeNext(next) });
   h.append("set-cookie", setCookie(SESSION, token, SESSION_MS / 1000));
@@ -163,8 +188,19 @@ export async function signedIn(env: Env, ws: string, email: string, next: string
   return new Response(null, { status: 302, headers: h });
 }
 
-/** One WorkOS authenticate call (a code from OAuth, or an email's Magic Auth code), then the session; null if refused. */
-async function authenticate(env: Env, req: Request, grant: Record<string, string>, next: string, now: number): Promise<Response | null> {
+/**
+ * One WorkOS authenticate call (a code from OAuth, or an email's Magic Auth code), then the session; null if refused.
+ * The email is trusted only when WorkOS says it's verified, or it's the address the Magic Auth code just proved
+ * (`proven`): a provider handing back an unverified address never gets that address's team invites.
+ */
+async function authenticate(
+  env: Env,
+  req: Request,
+  grant: Record<string, string>,
+  next: string,
+  now: number,
+  proven = "",
+): Promise<Response | null> {
   // the real client, so WorkOS's own abuse detection sees who is signing in, not the relay
   const client = { ip_address: req.headers.get("cf-connecting-ip") ?? "", user_agent: req.headers.get("user-agent") ?? "" };
   const seen = Object.fromEntries(Object.entries(client).filter(([, v]) => v));
@@ -175,7 +211,9 @@ async function authenticate(env: Env, req: Request, grant: Record<string, string
   }).catch(() => null);
   const auth = Authenticated.safeParse(await r?.json().catch(() => null));
   if (!r?.ok || !auth.success) return null;
-  return signedIn(env, auth.data.user.id, auth.data.user.email, next, now);
+  const { id, email, email_verified } = auth.data.user;
+  if (email_verified !== true && !(proven && email.toLowerCase() === proven)) return null;
+  return signedIn(env, id, email, next, now);
 }
 
 const form = async (req: Request): Promise<Record<string, string>> =>
@@ -244,8 +282,11 @@ export async function signInRoute(req: Request, env: Env, url: URL, now: number)
     const sends: Counter[] = [
       { what: `send:email:${email}`, max: LIMITS.sendEmail, ms: LIMIT_WINDOW_MS },
       { what: `send:ip:${ip}`, max: LIMITS.sendIp, ms: LIMIT_WINDOW_MS },
-      { what: "send:all", max: LIMITS.sendAll, ms: LIMIT_WINDOW_MS },
-      { what: `send:email-day:${email}`, max: LIMITS.sendEmailDay, ms: LIMIT_DAY_MS },
+      { what: `send:email-ip-day:${email}:${ip}`, max: LIMITS.sendEmailIpDay, ms: LIMIT_DAY_MS },
+      { what: `send:email-day:${email}`, max: LIMITS.sendEmailDay, ms: LIMIT_DAY_MS, alert: "one address's sends" },
+      (await knownAccount(env, email))
+        ? { what: "send:known", max: LIMITS.sendKnown, ms: LIMIT_WINDOW_MS, alert: "sends to accounts" }
+        : { what: "send:new", max: LIMITS.sendNew, ms: LIMIT_WINDOW_MS },
     ];
     if (await overLimit(env, sends, now)) return loginPage(env, next, w.signInTooMany, 429);
     // the same answer whatever WorkOS says, so the page never tells whether the address has an account
@@ -269,7 +310,7 @@ export async function signInRoute(req: Request, env: Env, url: URL, now: number)
     const q = CodeForm.safeParse(await form(req));
     // a malformed code, one past the limits and one WorkOS refuses all get the same answer
     const refused = () => codePage(flow.email, flow.next, w.signInCodeFailed, 400);
-    const failures: Counter[] = [{ what: `fail:email-day:${flow.email}`, max: LIMITS.failEmailDay, ms: LIMIT_DAY_MS }];
+    const failures: Counter[] = [{ what: `fail:email-ip-day:${flow.email}:${ip}`, max: LIMITS.failEmailIpDay, ms: LIMIT_DAY_MS }];
     const tries: Counter[] = [
       { what: `code:email-ip:${flow.email}:${ip}`, max: LIMITS.codeEmailIp, ms: LIMIT_WINDOW_MS },
       { what: `code:email:${flow.email}`, max: LIMITS.codeEmail, ms: LIMIT_WINDOW_MS },
@@ -277,7 +318,7 @@ export async function signInRoute(req: Request, env: Env, url: URL, now: number)
     ];
     if ((await overLimit(env, tries, now)) || (await overLimit(env, failures, now, false))) return refused();
     const grant = q.success ? { grant_type: "urn:workos:oauth:grant-type:magic-auth:code", code: q.data.code, email: flow.email } : null;
-    const done = grant && (await authenticate(env, req, grant, flow.next, now));
+    const done = grant && (await authenticate(env, req, grant, flow.next, now, flow.email));
     if (done) return done;
     await overLimit(env, failures, now);
     return refused();

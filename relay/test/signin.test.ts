@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { newKeyPair } from "@overhand/contract";
 import { plainWords as w } from "@overhand/themes/words";
 import { LIMIT_DAY_MS, LIMIT_WINDOW_MS, LIMITS, network } from "../src/signin";
+import { sha256 } from "../src/team";
 import { type Env, route } from "../src/worker";
 import { fakeD1 } from "./fakes";
 
@@ -37,7 +38,7 @@ beforeEach(() => {
     SITE_ORIGIN: "https://www.example",
   };
   calls = [];
-  authAnswer = () => Response.json({ user: { id: "user_01", email } });
+  authAnswer = () => Response.json({ user: { id: "user_01", email, email_verified: true } });
   realFetch = globalThis.fetch;
   const fake = async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
@@ -142,13 +143,29 @@ describe("sign-in page", () => {
     expect(cookieFrom(back, "hl_session")).not.toBe("hl_session=");
     const wrong = await route(new Request(`${APP}/relay/callback?code=c_1&state=other`, { headers: { cookie: auth } }), env);
     expect(wrong.status).toBe(400);
+    // a provider that hands back an address it hasn't verified gets no session for it (nor its team invites)
+    authAnswer = () => Response.json({ user: { id: "user_02", email: "owner@example.com", email_verified: false } });
+    const unverified = await route(new Request(`${APP}/relay/callback?code=c_2&state=${state}`, { headers: { cookie: auth } }), env, T0);
+    expect(unverified.status).toBe(502);
+    expect(cookieFrom(unverified, "hl_session")).toBe("");
+  });
+
+  test("an email is trusted when WorkOS verified it, or it's the address the Magic Auth code just proved", async () => {
+    // the code went to this address, so it's proven whatever the flag says
+    authAnswer = () => Response.json({ user: { id: "user_01", email, email_verified: false } });
+    expect((await enterCode((await sendCode()).flow, "123456")).status).toBe(302);
+    // an answer for some other, unverified address is refused
+    authAnswer = () => Response.json({ user: { id: "user_03", email: "other@example.com", email_verified: false } });
+    expect((await enterCode((await sendCode("x@example.com")).flow, "123456")).status).toBe(400);
   });
 
   test("next stays on this site", async () => {
     for (const bad of ["//evil.example", "https://evil.example", "/\\evil"]) {
       const page = await (await route(new Request(`${APP}/relay/login?next=${encodeURIComponent(bad)}`), env)).text();
       expect(page).toContain('name="next" value="/"');
-      const { flow } = await sendCode(`n${bad.length}@example.com`, bad);
+      const to = `n${bad.length}@example.com`;
+      authAnswer = () => Response.json({ user: { id: "user_01", email: to } });
+      const { flow } = await sendCode(to, bad);
       expect((await enterCode(flow, "123456")).headers.get("location")).toBe("/");
     }
   });
@@ -217,50 +234,87 @@ describe("sign-in by email", () => {
     expect((await sendCode("fresh@example.com", "/", { ip: "192.0.2.1", now: T0 + LIMIT_WINDOW_MS })).r.status).toBe(303);
   });
 
-  test("IPv6 counts by its /64, every spelling as one; IPv4 as it is", async () => {
-    expect(network("2001:db8:0:0:1::2")).toBe("2001:db8:0:0::/64");
-    expect(network("2001:0DB8::ABCD")).toBe("2001:db8:0:0::/64");
-    expect(network("2001:db8:1:2:3:4:5:6")).toBe("2001:db8:1:2::/64");
-    expect(network("fe80::1%en0")).toBe("fe80:0:0:0::/64");
+  test("IPv6 counts by its /48, every spelling as one; IPv4 as it is", async () => {
+    expect(network("2001:db8:0:0:1::2")).toBe("2001:db8:0::/48");
+    expect(network("2001:0DB8::ABCD")).toBe("2001:db8:0::/48");
+    expect(network("2001:db8:1:2:3:4:5:6")).toBe("2001:db8:1::/48");
+    expect(network("fe80::1%en0")).toBe("fe80:0:0::/48");
     expect(network("198.51.100.7")).toBe("198.51.100.7");
     expect(network("::ffff:198.51.100.7")).toBe("198.51.100.7");
-    // rotating through one /64 is still one network
+    // rotating through the /64s of one /48 is still one network
     for (let i = 0; i < LIMITS.sendIp; i++)
-      expect((await sendCode(`r${i}@example.com`, "/", { ip: `2001:db8::${i + 1}` })).r.status).toBe(303);
-    expect((await sendCode("r-last@example.com", "/", { ip: "2001:db8::ffff:1" })).r.status).toBe(429);
-    expect((await sendCode("r-last@example.com", "/", { ip: "2001:db8:0:1::1" })).r.status).toBe(303);
+      expect((await sendCode(`r${i}@example.com`, "/", { ip: `2001:db8:0:${(i + 1).toString(16)}::1` })).r.status).toBe(303);
+    expect((await sendCode("r-last@example.com", "/", { ip: "2001:db8:0:ffff::1" })).r.status).toBe(429);
+    expect((await sendCode("r-last@example.com", "/", { ip: "2001:db8:1::1" })).r.status).toBe(303);
   });
 
-  test("all sends together are capped per window, so rotating addresses can't mail many inboxes", async () => {
-    for (let i = 0; i < LIMITS.sendAll; i++) await sendCode(`g${i}@example.com`, "/", { ip: `10.${i >> 8}.${i & 255}.1` });
-    expect(calls).toHaveLength(LIMITS.sendAll);
+  test("a flood of made-up addresses holds up only new accounts: an address that signed in before still gets its code", async () => {
+    // the owner signed in once, so the relay knows the address (by a hash)
+    expect((await enterCode((await sendCode()).flow, "123456")).status).toBe(302);
+    expect(JSON.stringify(await env.DB.prepare("SELECT * FROM sign_in_accounts").all())).not.toContain(email);
+    // 300 throwaway addresses from 300 networks fill the pool for addresses without an account
+    for (let i = 0; i < LIMITS.sendNew; i++) await sendCode(`g${i}@example.com`, "/", { ip: `10.${i >> 8}.${i & 255}.1` });
+    const sent = calls.length;
     expect((await sendCode("one-more@example.com", "/", { ip: "192.0.2.99" })).r.status).toBe(429);
-    expect(calls).toHaveLength(LIMITS.sendAll);
+    expect(calls).toHaveLength(sent);
+    // the owner, from a fresh network, is sent a code all the same
+    expect((await sendCode(EMAIL, "/", { ip: "192.0.2.100" })).r.status).toBe(303);
+    expect(calls).toHaveLength(sent + 1);
   });
 
-  test("one email gets at most a day's sends, across windows", async () => {
-    for (let i = 0; i < LIMITS.sendEmailDay; i++)
-      expect((await sendCode(EMAIL, "/", { ip: `198.51.100.${i}`, now: D0 + i * LIMIT_WINDOW_MS })).r.status).toBe(303);
-    expect((await sendCode(EMAIL, "/", { ip: "192.0.2.5", now: D0 + LIMITS.sendEmailDay * LIMIT_WINDOW_MS })).r.status).toBe(429);
+  test("sends to addresses with an account are never refused all together; past the mark they raise an alert", async () => {
+    const err = spyOn(console, "error").mockImplementation(() => {});
+    const known = Array.from({ length: LIMITS.sendKnown + 1 }, (_, i) => `k${i}@example.com`);
+    for (const k of known)
+      await env.DB.prepare("INSERT INTO sign_in_accounts (key, at) VALUES (?, 0)")
+        .bind(await sha256(`account:${k}`))
+        .run();
+    for (const [i, k] of known.entries()) expect((await sendCode(k, "/", { ip: `10.${i >> 8}.${i & 255}.2` })).r.status).toBe(303);
+    expect(err.mock.calls.flat().join(" ")).toContain(`sends to accounts passed ${LIMITS.sendKnown}`);
+    expect(err.mock.calls).toHaveLength(1);
+    err.mockRestore();
   });
 
-  test("failed codes are capped per email per day, with the same refusal", async () => {
+  test("one address's sends in a day are capped per network, so strangers can't use up the owner's", async () => {
+    for (let i = 0; i < LIMITS.sendEmailIpDay; i++)
+      expect((await sendCode(EMAIL, "/", { ip: "198.51.100.1", now: D0 + i * LIMIT_WINDOW_MS })).r.status).toBe(303);
+    const after = D0 + LIMITS.sendEmailIpDay * LIMIT_WINDOW_MS;
+    expect((await sendCode(EMAIL, "/", { ip: "198.51.100.1", now: after })).r.status).toBe(429);
+    // the owner, on their own network, still gets a code
+    expect((await sendCode(EMAIL, "/", { ip: "192.0.2.5", now: after })).r.status).toBe(303);
+  });
+
+  test("failed codes are capped per email and network per day, with the same refusal; the owner's network is untouched", async () => {
     authAnswer = () => Response.json({ code: "invalid_one_time_code" }, { status: 400 });
     const perWindow = LIMITS.codeEmailIp - 1;
     let wrongText = "";
-    for (let k = 0; k * perWindow < LIMITS.failEmailDay; k++) {
+    for (let k = 0; k * perWindow < LIMITS.failEmailIpDay; k++) {
       const at = D0 + k * LIMIT_WINDOW_MS;
-      const { flow } = await sendCode(EMAIL, "/", { now: at });
-      for (let i = 0; i < perWindow; i++) wrongText = await (await enterCode(flow, "000000", { now: at + 1000 })).text();
+      const { flow } = await sendCode(EMAIL, "/", { now: at, ip: "198.51.100.66" });
+      for (let i = 0; i < perWindow; i++)
+        wrongText = await (await enterCode(flow, "000000", { now: at + 1000, ip: "198.51.100.66" })).text();
     }
     authAnswer = () => Response.json({ user: { id: "user_01", email } });
     const at = D0 + 10 * LIMIT_WINDOW_MS;
     const { flow } = await sendCode(EMAIL, "/", { now: at });
     const sent = calls.length;
-    const over = await enterCode(flow, "123456", { now: at + 1000 });
+    const over = await enterCode(flow, "123456", { now: at + 1000, ip: "198.51.100.66" });
     expect(calls.length).toBe(sent);
     expect(over.status).toBe(400);
     expect(await over.text()).toBe(wrongText);
+    // the stranger's day of wrong codes doesn't touch the owner's own network
+    expect((await enterCode(flow, "123456", { now: at + 2000 })).status).toBe(302);
+  });
+
+  test("per email across networks, wrong codes cost a short cool-down, never the day", async () => {
+    const { flow } = await sendCode(EMAIL, "/", { now: D0 });
+    authAnswer = () => Response.json({ code: "invalid_one_time_code" }, { status: 400 });
+    for (let i = 0; i < LIMITS.codeEmail; i++) await enterCode(flow, "000000", { now: D0 + 1000, ip: `198.51.100.${i}` });
+    authAnswer = () => Response.json({ user: { id: "user_01", email } });
+    expect((await enterCode(flow, "123456", { now: D0 + 2000 })).status).toBe(400);
+    // the next window, the owner's right code goes through
+    const { flow: again } = await sendCode(EMAIL, "/", { now: D0 + LIMIT_WINDOW_MS });
+    expect((await enterCode(again, "123456", { now: D0 + LIMIT_WINDOW_MS + 1000 })).status).toBe(302);
   });
 
   test("tries from another network don't use up the owner's", async () => {

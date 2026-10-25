@@ -68,3 +68,10 @@ export function fakeRoomState<M = unknown>() {
     },
   });
 }
+
+let lastTs = 0;
+/** A daemon's proof timestamp: now, never one used before, as the daemon signs (the relay takes each proof once). */
+export const proofTs = (): number => {
+  lastTs = Math.max(Date.now(), lastTs + 1);
+  return lastTs;
+};
