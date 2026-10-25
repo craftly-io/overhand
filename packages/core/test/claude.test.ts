@@ -1,18 +1,19 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { INSTRUCTIONS_FILE } from "../src/agent-home";
 import { awakeFor, claude, failureOf, stopRun, testAccount } from "../src/claude";
 import { parseConfig } from "../src/config";
 import { applyConfig, CFG } from "../src/env";
-import { alive } from "../src/governor";
+import { processTable } from "../src/governor";
 import { bench, benched, markSignedOut, signedOutAccounts } from "../src/limits";
 import { currentRuns, loadState } from "../src/state";
 
 // a fake Claude Code on PATH, ending each run the way the real one did in the failure audit (2026-10-25)
 const bin = mkdtempSync(join(tmpdir(), "overhand-fake-claude-"));
 const modeFile = join(bin, "mode");
+const CHILD = "4317.25"; // seconds the fake CLI's child sleeps: its name in the process table
 // the runs work in a folder shaped like the worktree Overhand makes for a task, as a ticket's run does
 const wt = join(bin, "repo", ".claude", "worktrees", "audit");
 mkdirSync(wt, { recursive: true });
@@ -36,16 +37,15 @@ if (mode === "ratelimitword") {
   out({ type: "result", subtype: "error_max_turns", is_error: true, total_cost_usd: 0.3, result: "Stopped: the rate limit test still fails (expected 429)" });
 }
 if (mode === "ok") out({ type: "result", subtype: "success", is_error: false, total_cost_usd: 0, result: "{}", structured_output: { ok: true } });
-// a dev server the agent detached and left behind, or a run that hangs with a child of its own: their pids in child.pid
+// a dev server the agent detached and left behind, or a run that hangs with a child of its own: told apart by how long
+// they sleep (CHILD), as a pid seen inside the Linux sandbox's own pid namespace means nothing outside it
 const cp = require("node:child_process");
 if (mode === "orphan") {
-  const child = cp.spawn("sleep", ["300"], { stdio: "ignore", detached: true });
-  child.unref();
-  fs.writeFileSync("child.pid", String(child.pid));
+  cp.spawn("sleep", [${JSON.stringify(CHILD)}], { stdio: "ignore", detached: true }).unref();
   out({ type: "result", subtype: "success", is_error: false, total_cost_usd: 0, result: "{}", structured_output: { ok: true } });
 }
 if (mode === "hang") {
-  fs.writeFileSync("child.pid", String(cp.spawn("sleep", ["300"], { stdio: "ignore" }).pid));
+  cp.spawn("sleep", [${JSON.stringify(CHILD)}], { stdio: "ignore" });
   cp.execFileSync("sleep", ["300"]);
 }
 `;
@@ -124,11 +124,10 @@ test("a run with no answer says why: timed out, signed out, crashed, or output O
   expect(failureOf({ ...failed({ code: 143 }), stopped: true })).toBe("stopped");
 });
 
-/** The pid the fake CLI wrote for its child, and whether that child is still running a moment later. */
+/** Whether the fake CLI's child (`sleep CHILD`) is still running a moment after its run. */
 async function childLives(): Promise<boolean> {
-  const pid = Number(readFileSync(join(wt, "child.pid"), "utf8"));
-  await Bun.sleep(200);
-  return alive(pid);
+  await Bun.sleep(300);
+  return processTable().some((p) => p.cmd.trim() === `sleep ${CHILD}`);
 }
 
 test("nothing a run started outlives it: a child it detached and left running ends with the run", async () => {
