@@ -1,12 +1,13 @@
 /** Status sources, refreshed in the background every 3 minutes. This module owns the status cache. */
 import { refreshUsage } from "../claude";
 import { shAsync } from "../env";
+import { firstWinFirst } from "../firstwin";
 import { report } from "../notify";
 import { checkOpsUpdate } from "../selfupdate";
 import { calendarToday } from "./calendar";
 import { ciHealth } from "./ci";
 import { dependabotAlerts } from "./dependabot";
-import { githubPrs } from "./github";
+import { githubPrs, projectScope } from "./github";
 import { sentryIssues } from "./sentry";
 import { status, type UiPr } from "./types";
 import { upkeep } from "./upkeep";
@@ -51,7 +52,7 @@ async function tellPrs(before: UiPr[], after: UiPr[], known: boolean): Promise<v
 /** Re-reads every status source; a failing source keeps its last value and adds an error line. */
 export async function refreshStatus(): Promise<void> {
   void checkOpsUpdate();
-  void refreshUsage();
+  if (!firstWinFirst()) void refreshUsage(); // a usage probe is a model run too (firstWinFirst)
   const errors: string[] = [];
   const safe = async <T>(name: string, f: () => Promise<T>, fallback: T): Promise<T> => {
     try {
@@ -61,9 +62,11 @@ export async function refreshStatus(): Promise<void> {
       return fallback;
     }
   };
+  // only your projects' PRs: gh searches your whole account
+  const inProjects = projectScope();
   const [myPrs, reviews, ci, deploys, sentry, advisories, calendar] = await Promise.all([
-    safe("GitHub PRs", () => githubPrs("is:pr is:open author:@me"), status.myPrs),
-    safe("GitHub reviews", () => githubPrs("is:pr is:open review-requested:@me"), status.reviews),
+    safe("GitHub PRs", () => githubPrs("is:pr is:open author:@me", inProjects), status.myPrs),
+    safe("GitHub reviews", () => githubPrs("is:pr is:open review-requested:@me", inProjects), status.reviews),
     safe("CI", ciHealth, status.ci),
     safe("Vercel", vercelDeploys, status.deploys),
     safe("Sentry", sentryIssues, status.sentry),

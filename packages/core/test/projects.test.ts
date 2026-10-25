@@ -158,7 +158,7 @@ test("proposeProjects groups added repos by owner and keeps a project's folder w
   );
   expect(ps.map((p) => [p.name, p.dir, p.prefix, p.repos.length])).toEqual([
     ["Honeycrust", "../Overhand/projects/honeycrust", "HONE2", 2],
-    ["Sam", "sam", "SAM", 1],
+    ["blog", "sam", "BLOG", 1],
   ]);
 });
 

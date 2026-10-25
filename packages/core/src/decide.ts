@@ -25,6 +25,7 @@ import { cachedCheckup } from "./checkup";
 import { claude } from "./claude";
 import { redactSecrets } from "./corners";
 import { CLIENTS, OPS, today } from "./env";
+import { firstWinFirst } from "./firstwin";
 import { loadState, readJson, writeJsonAtomic } from "./state";
 import { tickets } from "./trackers/index";
 
@@ -205,7 +206,9 @@ export function briefFor(
   const base = { ...facts, hash };
   const running = inflight.get(id);
   if (running) return { brief: { ...base, pending: true }, done: running };
-  if (store.failed[id] === hash || store.used >= (opts.cap ?? DAILY_CAP) || s.paused) return { brief: base, done: Promise.resolve() };
+  // no wording before the first win has its PR (firstWinFirst): the facts stand in
+  if (store.failed[id] === hash || store.used >= (opts.cap ?? DAILY_CAP) || s.paused || firstWinFirst())
+    return { brief: base, done: Promise.resolve() };
   store.used += 1;
   save(store);
   const call = opts.phrase ?? phrase;

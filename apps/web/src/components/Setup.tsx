@@ -265,7 +265,8 @@ export function Setup({ onSaved }: { onSaved?: (projects: number) => void } = {}
   );
   // once you've answered which AI you pay for, the question stays and locks on in place
   const askPlan = !agentOk || plan !== "";
-  const ready = Boolean(name.trim() && github && agentOk && backendReady && credentialReady && prefixesOk);
+  // a project too: the first win needs a repo to work in, and Overhand with none has nothing to show
+  const ready = Boolean(name.trim() && github && kept.length && agentOk && backendReady && credentialReady && prefixesOk);
   const edit = (i: number, patch: Partial<Pick>) => setPicks((ps) => ps.map((p, k) => (k === i ? { ...p, ...patch } : p)));
   const modelReady = Boolean(backendReady && credentialReady);
   const modelLabel =
@@ -398,8 +399,8 @@ export function Setup({ onSaved }: { onSaved?: (projects: number) => void } = {}
     {
       id: "projects",
       label: w.setupSlotProjects,
-      tone: !seen("repos") ? "pending" : !prefixesOk ? "warn" : kept.length ? "ok" : "idle",
-      value: kept.length ? String(kept.length) : w.setupSlotNone,
+      tone: !seen("repos") ? "pending" : !prefixesOk || !kept.length ? "warn" : "ok",
+      value: kept.length ? String(kept.length) : w.setupSlotPick,
     },
     {
       id: "agent",

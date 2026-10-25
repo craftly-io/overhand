@@ -27,8 +27,8 @@ import { claude } from "./claude";
 import { gitRepos } from "./cleanup";
 import type { Client } from "./config";
 import { inspectCorners } from "./corners";
-import { CFG, CLIENTS, CODE, clientOf, http, LABEL, MIN, OPS, sh, shAsync } from "./env";
-import { loadWin, type StoredWin, saveWin, winToRun } from "./firstwin";
+import { CFG, CLIENTS, CODE, clientOf, http, LABEL, MIN, OPS, repoActive, sh, shAsync } from "./env";
+import { firstWinFirst, loadWin, type StoredWin, saveWin, winToRun } from "./firstwin";
 import { protectedBranch } from "./guard";
 import { capReport, guideMerged, guideNext, guidePrompt, isGuideKey, loadGuides, type StoredGuide, saveGuide } from "./guide";
 import { recordOutcome } from "./history";
@@ -209,11 +209,9 @@ export async function openPr(
 
 // ---------- repos and worktrees ----------
 
-/** Git repos under a client folder with a commit within limits.dormantDays (worktrees and node_modules skipped). */
+/** Git repos under a client folder that are active (`repoActive`; worktrees and node_modules skipped). */
 export function activeRepos(c: Client): string[] {
-  return gitRepos(join(CODE, c.dir)).filter(
-    (repo) => Date.now() - Number(sh(["git", "log", "-1", "--format=%ct"], repo).out) * 1000 < CFG.limits.dormantDays * 24 * 60 * MIN,
-  );
+  return gitRepos(join(CODE, c.dir)).filter((repo) => repoActive(repo, Number(sh(["git", "log", "-1", "--format=%ct"], repo).out) * 1000));
 }
 
 /** Picks the repo a ticket belongs to: the only active one, or a quick Haiku call over each repo's recent history. */
@@ -787,6 +785,8 @@ export async function work(): Promise<boolean> {
     await takeInHosted(state, CLIENTS).catch((e: unknown) => report(`⚠ hosted runs: ${errorText(e)}`));
     // the first win, right after setup: before anything else, and inside the daily budget like any run
     if (await runFirstWin(state)) budget--;
+    // until it has its PR, nothing else runs (firstWinFirst)
+    if (firstWinFirst()) return false;
     // onboarding guides asked for from the dashboard: also inside the budget, and before the queue like the first win
     budget -= await runGuides(state, budget);
     saveState(state);

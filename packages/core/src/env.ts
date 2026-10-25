@@ -1,5 +1,17 @@
 /** Paths, live config and the small shell/HTTP helpers every other module uses. This module owns the live config. */
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync } from "node:fs";
+import {
+  chmodSync,
+  closeSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  realpathSync,
+  renameSync,
+  statSync,
+} from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { LOCAL_PORT } from "@overhand/contract";
@@ -262,6 +274,28 @@ export const DASHBOARD = `http://127.0.0.1:${UI_PORT}`;
 /** Display client for a GitHub org login: a tracked client by alias, then config.otherOrgs, else the login itself. */
 export const clientOfOrg = (login: string): string =>
   CLIENTS.find((c) => c.aliases.includes(login.toLowerCase()))?.name ?? CFG.otherOrgs[login.toLowerCase()] ?? login;
+/** When a repo was cloned onto this computer: the time of its reflog's first entry when that's the clone, else 0. */
+export function clonedAt(repo: string): number {
+  let fd: number | undefined;
+  try {
+    fd = openSync(join(repo, ".git", "logs", "HEAD"), "r");
+    const head = Buffer.alloc(1024);
+    const first = head.toString("utf8", 0, readSync(fd, head)).split("\n")[0] ?? "";
+    const m = first.match(/> (\d+) [+-]\d{4}\tclone: /);
+    return m ? Number(m[1]) * 1000 : 0;
+  } catch {
+    return 0;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
+
+/**
+ * Whether a repo counts as active: a commit within limits.dormantDays, or cloned here within them. A repo you just
+ * added is active however old its last commit, so its first win and check-up see it.
+ */
+export const repoActive = (repo: string, lastCommitMs: number, now = Date.now()): boolean =>
+  now - Math.max(lastCommitMs, clonedAt(repo)) < CFG.limits.dormantDays * 24 * 60 * MIN;
 /** First tracked client whose name or an alias appears in the text; "Other" when none does. */
 export const clientByText = (s: string): string => {
   const t = s.toLowerCase();

@@ -175,7 +175,7 @@ export const plainWords = {
   setupGhBody:
     "Agents read issues and open pull requests through GitHub's command tool, and it isn't signed in yet. The button opens GitHub's own sign-in in your browser; this step updates by itself.",
   setupGhSignIn: "Sign in to GitHub",
-  setupNoProjects: "None yet. You can start without one and add a project later in Overhand.",
+  setupNoProjects: "None yet. Pick one below: it's where your first agent works.",
   setupTrackerRepo: "Issues from",
   setupToolMissing: "{tool} isn't installed",
   setupFinish: "Start Overhand",
@@ -240,7 +240,7 @@ export const plainWords = {
   setupSlotAgent: "Agent",
   setupSlotModel: "Model",
   setupSlotProjects: "Projects",
-  setupSlotNone: "None yet",
+  setupSlotPick: "Pick one",
   setupSlotSignIn: "Sign in",
   setupSlotInstall: "Install one",
   setupGhInstall: "Install GitHub's app for Overhand",

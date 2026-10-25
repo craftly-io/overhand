@@ -44,8 +44,9 @@ GitHub with `gh auth status`. If it isn't signed in, ask the person to run `gh a
 ## 4. Finish in the browser, with the person
 
 Open http://127.0.0.1:4317 (`overhand start` opens it). Overhand looks at this machine and says what it found: where
-the code is, the projects (one per GitHub owner), the agents installed and signed in, and the model. Go through it with
-the person: they untick any project they don't want and press Start Overhand. Every sign-in it asks for is their click.
+the code is, the projects (one per repo, or one per GitHub owner for several of its repos), the agents installed and
+signed in, and the model. Go through it with the person: they keep at least one project, untick any they don't want and
+press Start Overhand. Every sign-in it asks for is their click.
 More agent accounts are added in Settings → Agent accounts: the agent's own sign-in opens in their browser and, when it
 asks, they paste the code back there. Nothing for you to run, except OpenCode, whose sign-in still opens in a terminal.
 
