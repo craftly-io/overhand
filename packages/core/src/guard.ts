@@ -46,7 +46,8 @@ export const protectedBranch = (branch: string): boolean => [...branch.matchAll(
 
 /**
  * A ticket, fix-round or other job run pushing: Overhand pushes its branch itself when it returns done (agent.ts
- * pushBranch), with your sign-in, which the run doesn't have (sandbox.ts SIGN_INS). Leads still push themselves.
+ * pushBranch), with your sign-in, which the run doesn't have (sandbox.ts SIGN_INS). A lead's push goes through Overhand
+ * (broker.ts).
  */
 const TICKET_PUSH: [RegExp, string] = [
   /\bgit\s+push\b/,

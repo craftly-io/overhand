@@ -41,7 +41,7 @@ test("a ticket run's git push is steered to Overhand's; a lead still pushes its 
   expect(bash("git commit -m x", "T-1")).toBeNull();
 });
 
-test("no run but a lead gets a GitHub or SSH sign-in in its environment, with the sandbox or without", () => {
+test("no run, a lead's neither, gets a GitHub or SSH sign-in in its environment, with the sandbox or without", () => {
   const cwd = real(mkdtempSync(join(tmpdir(), "overhand-push-")));
   const signIns = Object.fromEntries(SIGN_IN_ENV.map((k) => [k, "secret"]));
   const spawn = (run: string, project: "off" | "inherit") =>
@@ -60,10 +60,11 @@ test("no run but a lead gets a GitHub or SSH sign-in in its environment, with th
       join(cwd, "ops"),
     );
   for (const project of ["off", "inherit"] as const) {
-    const ticket = spawn("T-1", project);
-    for (const k of SIGN_IN_ENV) expect(ticket.env[k]).toBeUndefined();
-    expect(ticket.env.GIT_TERMINAL_PROMPT).toBe("0");
-    expect(spawn("lead-app", project).env.GH_TOKEN).toBe("secret");
-    ticket.done(Date.now());
+    for (const run of ["T-1", "lead-app"]) {
+      const r = spawn(run, project);
+      for (const k of SIGN_IN_ENV) expect(r.env[k]).toBeUndefined();
+      expect(r.env.GIT_TERMINAL_PROMPT).toBe("0");
+      r.done(Date.now());
+    }
   }
 });

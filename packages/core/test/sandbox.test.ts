@@ -130,7 +130,7 @@ test("the macOS profile denies on enforce and only reports on log", () => {
 test("bubblewrap's stand-in for a missing commondir says '.', so git in and out of the sandbox works, then goes", () => {
   const { repo, common, r, home, ops } = places();
   const lead = sandboxPolicy({ ...r, cwd: repo, gitDir: common, run: "lead-app" }, home, ops);
-  const { args, created } = bwrapArgs(lead, {});
+  const { args, created } = bwrapArgs(lead);
   const commondir = join(common, "commondir");
   expect(created).toContain(commondir);
   expect(readFileSync(commondir, "utf8")).toBe(".\n"); // what git outside reads while the run lasts: its own repo
@@ -153,7 +153,7 @@ test("bubblewrap masks only what's there, by its path on disk: a missing socket 
     deny: [],
     hide: [join(root, "varrun", "here.sock"), join(root, "varrun", "docker.sock"), join(root, "gone", "x")],
   };
-  const { args } = bwrapArgs(policy, {});
+  const { args } = bwrapArgs(policy);
   const masked = args.flatMap((a, i) => (a === "--ro-bind" && args[i + 1] === "/dev/null" ? [args[i + 2] ?? ""] : []));
   expect(masked).toContain(join(root, "run", "here.sock")); // through the link, where bwrap can make a mount point
   expect(masked.some((m) => m.includes("varrun"))).toBe(false);

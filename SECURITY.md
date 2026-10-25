@@ -45,11 +45,11 @@ are public.
   its project's package caches and its agent's own state in a folder of Overhand's: never Overhand's files, another
   project, your own agent config, your shell startup files, LaunchAgents, git config, hooks and where git finds the
   repository, or the settings, hooks, plugins and extensions that steer an agent, however the command is spelled. It
-  can't read cloud credentials, browser profiles or Overhand's local key, and no run but a lead can read your GitHub
-  and SSH sign-ins (gh's login, SSH keys, git's stored passwords) or reach your SSH agent: Overhand pushes a run's
-  branch and opens its pull request itself. It doesn't filter the network: a run can send what it can read to any
-  site. A lead still reads your GitHub and SSH sign-ins, since it pushes and uses gh itself; any other run can't sign
-  its commits with a key in ~/.ssh, or install a dependency over SSH. It doesn't
+  can't read cloud credentials, browser profiles or Overhand's local key, and no run can read your GitHub and SSH
+  sign-ins (gh's login, SSH keys, git's stored passwords) or reach your SSH agent: Overhand pushes a run's branch and
+  opens its pull request itself, and a lead's git push and fetch and its gh commands go through Overhand, which checks
+  each one against the guard's rules first. It doesn't filter the network: a run can send what it can read to any
+  site. No run can sign its commits with a key in ~/.ssh, or install a dependency over SSH. It doesn't
   stop what a run writes into its own project from running later when you run it, or a program that asks a service
   outside it to act, such as a database or a server on a local port: tmux, screen and Docker's sockets are closed to
   it, other local sockets aren't, and on macOS neither is another app, through osascript or open. A lead can't make

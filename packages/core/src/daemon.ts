@@ -569,6 +569,8 @@ export async function main(mode: string | undefined): Promise<void> {
   else if (mode === "ask") process.exitCode = await askCli(process.argv.slice(3));
   else if (mode === "ack") process.exitCode = await ackCli(process.argv.slice(3));
   else if (mode === "mcp") await serveMcp();
+  else if (mode === "broker")
+    process.exitCode = await (await import("./broker")).brokerCli(process.argv.slice(3)); // a lead's git and gh
   else if (mode === "hosted-run")
     (await import("./hosted-run")).serveHostedRun(); // inside a hosted run's container only
   else if (mode === "start") await start();

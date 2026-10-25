@@ -219,8 +219,12 @@ export function claudeMcpServers(repo: string, home = HOME): Record<string, unkn
  * It inherits the run's environment, so it calls the daemon with that run's own key and can do only what the run may.
  */
 export function overhandMcpServer(bundled = BUNDLED, exec = SELF_EXEC, src = SRC): { command: string; args: string[] } {
-  return { command: exec, args: bundled ? ["mcp"] : [join(src, "run.ts"), "mcp"] };
+  const [command = exec, ...args] = selfCommand(bundled, exec, src);
+  return { command, args: [...args, "mcp"] };
 }
+
+/** What runs Overhand's CLI from inside a run: the binary itself when bundled, else run.ts with the bun running this. */
+export const selfCommand = (bundled = BUNDLED, exec = SELF_EXEC, src = SRC): string[] => (bundled ? [exec] : [exec, join(src, "run.ts")]);
 
 /** The MCP servers a run starts with: yours (claudeMcpServers), and Overhand's own. */
 export const runMcpServers = (repo: string, home = HOME): Record<string, unknown> => ({

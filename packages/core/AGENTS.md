@@ -24,6 +24,7 @@ file per module, and run in a scratch `OVERHAND_HOME`.
 | `plan.ts` | The daily plan and its armed items |
 | `leads.ts` | Supervised leads and their processes |
 | `guard.ts`, `sandbox.ts` | What an agent may run, and the OS sandbox every run starts in |
+| `broker.ts` | A lead's git push, fetch and gh, run by the daemon with your sign-in the lead never has |
 | `plugins.ts` | Plugins: install from a pin, approval by digest, their own sandbox, the host bridge, findings (example in `plugins/`) |
 | `cleanup.ts`, `cleanup-sources.ts` | Disk cleanup and the caches it knows (printed to `docs/cleanup-sources.md`) |
 | `usage.ts` | Reading agent spend and usage limits from their output |

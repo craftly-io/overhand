@@ -18,6 +18,7 @@ import { plainWords } from "@overhand/themes";
 import { AGENT_HOMES, guardHooks, runHome, runMcpServers } from "./agent-home";
 import { leadRules } from "./autonomy";
 import { budgetUntil, recordedBilling } from "./billing";
+import { writeShims } from "./broker";
 import { accountsFor, mainCheckout, readyHome } from "./claude";
 import type { Config } from "./config";
 import { addRequest, type Beat, ingestOutboxes, recordSpawn } from "./control";
@@ -286,6 +287,7 @@ export function leadPrompt(g: Godmode, brief = ""): string {
     WAY_OF_WORKING,
     "Work on a feature branch named after the ticket or problem, and review your own diff before you open the pull request.",
     "Never push to protected branches, merge, deploy, run destructive migrations, or touch production data or secrets. Those stay with people.",
+    "Your git push, fetch and pull and your gh commands run through Overhand, which holds the sign-in you don't: use them as usual. To check a pull request out, fetch and switch to its branch (gh pr checkout isn't one of them).",
     "",
     `Questions: decide yourself whenever a reasonable engineer could. Ask ${OWNER} only for product decisions, money, legal, access you don't have, or anything irreversible. Append each question under its own "## " heading to ${inboxPathOf(g)}, with your recommendation, and end it with a line "If there's no answer: <what you'll do>", then carry on with other work. ${waitLine(g)} When it's a choice between two, put a line "Options: <first> | <second>" above that one so ${OWNER} can answer from the notification. Overhand shows these to ${OWNER} and as a notification.`,
     `${OWNER}'s answers appear in that file under "## Answer from ${OWNER}". Read them at the start of every run, act on them, and remove questions once handled. Leave the file empty when none are open: any text in it shows as a question.`,
@@ -696,6 +698,8 @@ function startLead(g: Godmode, st: LeadState, account: string, brief = ""): void
     spawn = sandboxSpawn(
       {
         ...lead,
+        // its git push, fetch and gh go through Overhand, which has your sign-in it doesn't (broker.ts)
+        env: { ...lead.env, PATH: [writeShims(), lead.env.PATH ?? process.env.PATH ?? ""].join(":") },
         cwd: leadDir(g),
         runtime: runtimeOf(account).kind,
         configDir: runHome(account),

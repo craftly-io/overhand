@@ -1,4 +1,5 @@
 /** The dashboard's HTTP server (http://127.0.0.1:4317): the page, /api/state and the actions it posts. */
+
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { totalmem } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
@@ -54,6 +55,7 @@ import {
 } from "./agent-home";
 import { assign, dropFinding, loadFindings, unassign } from "./assign";
 import { billingOf, forgetBilling } from "./billing";
+import { BROKER_ROUTE, brokerRoute } from "./broker";
 import { noteCalls } from "./calls";
 import { type Checked, cachedCheckup } from "./checkup";
 import { refreshUsage, testAccount } from "./claude";
@@ -613,9 +615,11 @@ async function oauthCallback(url: URL): Promise<Response> {
  * What a run may call with its own key, never the install's: `overhand ask` (as itself), `overhand ack` (only a request
  * sent to one of its own sessions) and `overhand answer` (a lead's open question, as anyone at a terminal may).
  */
-const RUN_ROUTES = new Set(["/api/requests", "/api/requests/ack", "/api/lead/answer"]);
+const RUN_ROUTES = new Set(["/api/requests", "/api/requests/ack", "/api/lead/answer", BROKER_ROUTE]);
 
 async function runRoute(path: string, raw: unknown, who: RunWho): Promise<Response> {
+  // a lead's git and gh, with your sign-in it doesn't have (broker.ts)
+  if (path === BROKER_ROUTE) return json(await brokerRoute(raw, who));
   const body = z.record(z.string(), z.unknown()).catch({}).parse(raw);
   if (path === "/api/lead/answer") {
     // only its own lead's question: a lead run answers itself (a subagent of it, say), no other run answers any lead

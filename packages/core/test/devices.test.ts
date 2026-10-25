@@ -240,7 +240,7 @@ test("the browser cookie alone reaches the sign-in returns, but a POST from a fo
   expect((await browser("/api/pause", { ...post, headers: { "content-type": "application/json" } })).status).toBe(403);
 });
 
-test("a run's own key opens only ask, ack and answer, as that run; an unknown or ended run's key opens nothing", async () => {
+test("a run's own key opens only ask, ack, answer and a lead's git and gh, as that run; an unknown or ended run's key opens nothing", async () => {
   const key = runKey();
   recordSpawn(OPS, { pid: process.pid, exited: new Promise(() => {}) }, { OVERHAND_RUN: "T-7", [RUN_KEY_ENV]: key });
   const asRun = (path: string, body: object, k = key) =>

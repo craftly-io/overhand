@@ -339,7 +339,7 @@ test("the guard's limits are said plainly, from one source: it isn't a sandbox",
 test("the OS sandbox's claims, what it stops and what it can't, come from one source, on the site and in SECURITY", () => {
   // it ships off by default: no claim may say every run is sandboxed
   expect(SANDBOX_STOPS).toStartWith("With the OS sandbox on,");
-  for (const word of ["network", "GitHub and SSH", "Keychain", "guard only"]) expect(SANDBOX_LIMIT).toContain(word);
+  for (const word of ["network", "~/.ssh", "Keychain", "guard only"]) expect(SANDBOX_LIMIT).toContain(word);
   for (const rel of ["under-the-hood.html", "docs/guard.html"])
     for (const claim of [SANDBOX_STOPS, SANDBOX_LIMIT]) expect(built.find(([r]) => r === rel)?.[1], rel).toContain(claim);
   expect(built.find(([r]) => r === "docs/guard.html")?.[1]).toContain(SANDBOX_PROJECT_OFF);

@@ -317,17 +317,18 @@ describe.skipIf(!works)("inside the real sandbox, a run can", () => {
     expect(inside(ticket(), `${g} fetch -q origin`)).toBe(true);
     expect(existsSync(join(remote, "refs", "heads", "feat"))).toBe(true);
   });
-  // a lead still pushes and uses gh itself (#14): it keeps your sign-ins, every other run has none
-  test("as a lead, still read your SSH keys and gh's sign-in", () => {
-    expect(inside(lead(), `cat ${q(join(home, ".ssh", "id_test"))} ${q(join(home, ".config", "gh", "hosts.yml"))}`, repo)).toBe(true);
+  // a lead's push, fetch and gh go through Overhand (broker.ts): no run, a lead's neither, has your sign-ins
+  test("not read your SSH keys or gh's sign-in, even as a lead", () => {
+    expect(inside(lead(), `cat ${q(join(home, ".ssh", "id_test"))}`, repo)).toBe(false);
+    expect(inside(lead(), `cat ${q(join(home, ".config", "gh", "hosts.yml"))}`, repo)).toBe(false);
   });
-  test("reach your SSH agent only as a lead", async () => {
+  test("not reach your SSH agent, even as a lead", async () => {
     const sock = join(real("/tmp"), `oh-agent-${process.pid}.sock`);
     const agent = Bun.listen({ unix: sock, socket: { data() {} } });
     process.env.SSH_AUTH_SOCK = sock;
     try {
       expect(inside(ticket(), connect(sock))).toBe(false);
-      expect(inside(lead(), connect(sock), repo)).toBe(true);
+      expect(inside(lead(), connect(sock), repo)).toBe(false);
     } finally {
       agent.stop(true);
     }
