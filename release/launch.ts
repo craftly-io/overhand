@@ -162,8 +162,8 @@ function assets(): string[] {
   const r = read(["gh", "release", "view", TAG, "-R", REPO, "--json", "assets", "-q", ".assets[].name"]);
   return r.ok ? r.out.split("\n").filter(Boolean) : [];
 }
-/** Every file a release carries. */
-const FILES = ["SHA256SUMS", ...PLATFORMS.map((p) => `overhand-${p}.tar.gz`)];
+/** Every file a release carries: the packages, their sums, and the sums' Sigstore signature (the release workflow's sign job). */
+const FILES = ["SHA256SUMS", "SHA256SUMS.sigstore.json", ...PLATFORMS.map((p) => `overhand-${p}.tar.gz`)];
 
 /** The release workflow's run for the tag (undefined until GitHub starts it). */
 function releaseRun(): string | undefined {
@@ -327,6 +327,11 @@ function image(): void {
     tag,
     "-t",
     `${IMAGE}:latest`,
+    // the image's OCI labels: which version, from which commit (HEAD, which preflight checked is the tag's)
+    "--build-arg",
+    `VERSION=${version}`,
+    "--build-arg",
+    `REVISION=${read(["git", "rev-parse", "HEAD"]).out}`,
     "--push",
     ".",
   ]);

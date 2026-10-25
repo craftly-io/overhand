@@ -21,6 +21,8 @@
       <h2 id="h-what">What the installer does.</h2>
       <ul class="facts">
         <li><b>Checks the download</b> It fetches the package for your machine (macOS or Linux, arm64 or x64) and stops if its SHA-256 doesn't match the release's <code>SHA256SUMS</code>.</li>
+        <li><b>Checks the signature</b> Each release's <code>SHA256SUMS</code> is signed with Sigstore by the release workflow itself, keyless: the signature names that workflow and the version tag it ran for, and no signing key exists to leak. When <code>cosign</code> is installed, the installer verifies it and stops if it fails; without <code>cosign</code> it checks the SHA-256 alone. To check a download by hand, beside the package:
+          <pre><code>{{verifyRelease}}</code></pre></li>
         <li><b>One folder, one link</b> Each version unpacks into its own folder in <code>~/.overhand/releases</code>, and <code>~/.overhand/app</code> links to the one in use. <code>overhand</code> is linked into <code>~/.local/bin</code>. Everything {{name}} keeps lives under <code>~/.overhand</code>.</li>
         <li><b>The right build</b> In a Rosetta terminal on an Apple silicon Mac it still picks the arm64 build. On Alpine and other musl Linux systems it stops and says so: the Linux builds need glibc.</li>
         <li><b>GitHub's command tool</b> When <code>gh</code> is missing it installs it the way GitHub does: with Homebrew on a Mac that has it, else GitHub's own build, checked against its release's checksums, into <code>~/.local/bin</code>. On Linux it adds GitHub's apt or dnf repository through <code>sudo</code>, when that asks for no password; otherwise it prints the one command to run.</li>

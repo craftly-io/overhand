@@ -1,0 +1,11 @@
+# Keeps the actions' pinned commits and the Dockerfile's pinned base images current, as pull requests
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
