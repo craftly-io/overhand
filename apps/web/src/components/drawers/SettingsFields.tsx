@@ -43,7 +43,7 @@ type Kind =
   | "list"
   | "bool"
   | Toggle
-  | { options: string[]; fallback?: string; labels?: Readonly<Record<string, string>> };
+  | { options: string[]; fallback?: string; labels?: Readonly<Record<string, string>>; num?: boolean };
 const NONE = "__none";
 
 /** On a device, under a field only the computer changes: where to change it instead. */
@@ -94,9 +94,9 @@ export function Field({ label, path, kind = "text" }: { label: string; path: str
           {label}
         </Label>
         <Select
-          value={stringAt(f.draft, path, kind.fallback) || NONE}
+          value={(kind.num && typeof v === "number" ? String(v) : stringAt(f.draft, path, kind.fallback)) || NONE}
           disabled={locked}
-          onValueChange={(x) => f.set(path, x === NONE ? "" : x)}
+          onValueChange={(x) => f.set(path, x === NONE ? "" : kind.num ? Number(x) : x)}
         >
           <SelectTrigger id={id} size="sm" className="w-full min-w-0" aria-describedby={why}>
             <SelectValue />

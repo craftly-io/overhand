@@ -30,7 +30,7 @@ export function checks(m: Model, url: string) {
 
 const HEAD: Record<Stage, { word: WordKey; hint?: WordKey; tone: string }> = {
   planned: { word: "stagePlanned", hint: "stagePlannedHint", tone: "var(--muted-foreground)" },
-  queued: { word: "stageQueued", hint: "stageQueuedHint", tone: "var(--primary)" },
+  queued: { word: "stageQueued", tone: "var(--primary)" },
   running: { word: "stageRunning", tone: "var(--primary)" },
   review: { word: "stageReview", tone: "var(--warn)" },
   merged: { word: "stageMerged", hint: "stageMergedHint", tone: "var(--ok)" },

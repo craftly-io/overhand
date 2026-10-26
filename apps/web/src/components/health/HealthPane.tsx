@@ -17,8 +17,8 @@ function ClientRow({ name, m }: { name: string; m: Model }) {
   const errs = Array.isArray(st.sentry) ? st.sentry.filter((i) => i.client === name) : [];
   const green = ci.filter((c) => c.state === "pass").length;
   return (
-    <li className="grid grid-cols-[6rem_1fr] items-start gap-2 border-t border-border py-2 text-xs first:border-0">
-      <b className="truncate text-sm font-medium" style={{ color: m.hue(name) }}>
+    <li className="grid grid-cols-[minmax(6rem,max-content)_1fr] items-start gap-x-3 gap-y-1 border-t border-border py-2 text-xs first:border-0">
+      <b className="max-w-40 text-sm font-medium break-words" style={{ color: m.hue(name) }}>
         {name}
       </b>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">

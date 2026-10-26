@@ -3,7 +3,7 @@ import { plainWords as w } from "@overhand/themes";
 import type { Model } from "@/app/data";
 import { fmt } from "@/lib/format";
 import { render, withDom } from "../render.test-util";
-import { doneOf, InProgress, rowsOf } from "./InProgress";
+import { doneOf, groupsOf, InProgress, type Row, rowsOf } from "./InProgress";
 
 /** In progress: every agent at work in one list, each row with its time and Open, today's finished runs folded away. */
 withDom();
@@ -56,4 +56,14 @@ test("today's finished runs fold into Done today, newest first, behind one line"
 test("with nobody at work it says so plainly", async () => {
   const body = await render((m) => <InProgress m={{ ...m, s: { ...m.s, running: [], godmode: [], sessions: [], prs: [], guides: [] } }} />);
   expect(body.textContent).toContain(w.emptyInProgress);
+});
+
+test("the field's In progress groups rows by project in first-seen order, work in no project last", () => {
+  const row = (id: string, project: string): Row => ({ id, project, text: id, meta: "", open: { kind: "crew" } });
+  const g = groupsOf([row("a", ""), row("b", "Shop"), row("c", "App"), row("d", "Shop")]);
+  expect(g.map(([p, rows]) => [p, rows.map((r) => r.id)])).toEqual([
+    ["Shop", ["b", "d"]],
+    ["App", ["c"]],
+    ["", ["a"]],
+  ]);
 });
