@@ -4,9 +4,9 @@ import { AttentionMap } from "@/map/AttentionMap";
 import type { WorldId } from "@/map/worlds";
 
 /**
- * The attention map: each project in its place, lit where something needs you, and its own keyboard surface. An
- * optional look, off by default (Settings › You); on Now it sits between the sentence and the two lists.
- * `always` draws it whatever the setting says (the design catalog).
+ * The attention map in a window: each project in its sector, lit where something needs you, and its own keyboard
+ * surface. Now on a computer draws the field instead (FieldHome); this one is the design catalog's, drawn whatever
+ * the setting says when `always` is set.
  */
 export function MapWindow({ m, world, always = false }: { m: Model; world: WorldId; always?: boolean }) {
   const [mode] = useMapMode();

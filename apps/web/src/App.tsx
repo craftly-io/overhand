@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useActions } from "@/app/actions";
 import { type Model, useLiveState, useModel, useStateQuery } from "@/app/data";
 import { useFreshOnReturn } from "@/app/fresh";
+import { useMapMode } from "@/app/mapMode";
 import { useEventChimes } from "@/app/sound";
 import { useTheme } from "@/app/theme";
 import { useDock, usePhone } from "@/app/ui";
@@ -14,16 +15,17 @@ import { Boot } from "./components/Boot";
 import { DrawerHost } from "./components/drawers/DrawerHost";
 import { Header, NightReport } from "./components/Header";
 import { NeedsYou } from "./components/now/Alerts";
+import { FieldHome } from "./components/now/FieldHome";
 import { FirstRun } from "./components/now/FirstRun";
 import { FirstWin } from "./components/now/FirstWin";
 import { InProgress } from "./components/now/InProgress";
 import { Prologue } from "./components/now/Story";
 import { Tonight } from "./components/now/Tonight";
-import { MapWindow } from "./components/now/Window";
 import { Pair } from "./components/Pair";
 import { Palette } from "./components/Palette";
 import { Setup, SetupOrganise } from "./components/Setup";
 import { MeTeam } from "./components/team/MeTeam";
+import { useTeamUi } from "./components/team/store";
 import { ContractError, Unpaired } from "./lib/api";
 import { winDone } from "./lib/firstwin";
 import { fmt } from "./lib/format";
@@ -68,18 +70,21 @@ function StateBanner() {
 }
 
 /**
- * Now, in three blocks, like the menu bar's glance: one sentence (who's at work, what needs you, what merged, what it
+ * Now. On a computer it's the field (FieldHome): one screen that never scrolls. With the field off in Settings › You,
+ * on a phone, or with the team view open, it's three blocks, like the menu bar's glance: one sentence (who's at work, what needs you, what merged, what it
  * cost; each number opens what it counts) with the Night report beside it on a phone, where the header has no room for
  * it; then Needs you and In progress, side by side from 1024. The first win leads Now on a phone while it's under way
  * (firstwin.ts SHOW_MS takes it away once it's days old), else it follows Needs you, which stays in view above the
  * fold. Once that phone's win is done it folds to its title and Review, and its tonight cards fold into one card in
- * Needs you, so both fit the first screen. The map shows above the two lists
- * only when it's switched on (Settings › You); with a team, Me / Team swaps the lists for the Team view.
+ * Needs you, so both fit the first screen. With a team, Me / Team swaps the lists for the Team view.
  */
 function Home({ m }: { m: Model }) {
   const phone = usePhone();
-  const { theme } = useTheme();
+  const [mode] = useMapMode();
+  const team = useTeamUi();
   if (!m.s.clients.length) return <FirstRun m={m} />;
+  // a computer gets the field, one screen that never scrolls, unless it's switched off or the team view is open
+  if (!phone && mode !== "off" && !(m.s.team && team.view === "team")) return <FieldHome m={m} still={mode === "still"} />;
   const win = m.s.firstWin;
   const winFirst = phone && (win?.state ?? "none") !== "none";
   const folded = winFirst && win && winDone(win) ? win : null;
@@ -93,18 +98,15 @@ function Home({ m }: { m: Model }) {
       <MeTeam
         m={m}
         mine={
-          <>
-            <MapWindow m={m} world={theme.world} />
-            <div className="grid items-start gap-(--space-gap) lg:grid-cols-2">
-              <div id="jump-needs" className="grid scroll-mt-20 gap-(--space-gap)">
-                <NeedsYou m={m} home tonight={folded ? <Tonight m={m} win={folded} folded /> : null} />
-                {m.s.firstWin && !winFirst ? <FirstWin m={m} /> : null}
-              </div>
-              <div id="jump-progress" className="scroll-mt-20">
-                <InProgress m={m} />
-              </div>
+          <div className="grid items-start gap-(--space-gap) lg:grid-cols-2">
+            <div id="jump-needs" className="grid scroll-mt-20 gap-(--space-gap)">
+              <NeedsYou m={m} home tonight={folded ? <Tonight m={m} win={folded} folded /> : null} />
+              {m.s.firstWin && !winFirst ? <FirstWin m={m} /> : null}
             </div>
-          </>
+            <div id="jump-progress" className="scroll-mt-20">
+              <InProgress m={m} />
+            </div>
+          </div>
         }
       />
     </div>

@@ -4,8 +4,8 @@ import { useUi } from "@/app/ui";
 import { render, withDom } from "./render.test-util";
 
 /**
- * Now in three blocks (issue 100): the sentence with the Night report, Needs you and In progress, and nothing else; no
- * tabs for Work, Agents and Health, whose keys and links open their drawers; the map only when it's switched on.
+ * Now (issues 100 and 166): on a computer the field, with the sentence, Needs you, In progress and Today, and nothing
+ * else; with the field off, the three blocks. No tabs for Work, Agents and Health, whose keys and links open their drawers.
  */
 withDom();
 beforeEach(() => {
@@ -17,13 +17,15 @@ afterEach(() => {
   Reflect.deleteProperty(document, "visibilityState");
 });
 
-test("Now is the sentence, Needs you and In progress: no map, no tabs, no other pane", async () => {
+test("on a computer Now is the field: the sentence, Needs you, In progress and Today, no tabs, no other pane", async () => {
   const { App } = await import("@/App");
   const body = await render(() => <App />);
   const main = body.querySelector("main");
-  expect(main?.querySelector("#jump-now")?.textContent).toContain(w.briefMe);
+  expect(main?.querySelector(".field-home canvas")).not.toBeNull();
+  expect(main?.querySelector("#jump-now")).not.toBeNull();
   const panes = [...(main?.querySelectorAll("section.hud-pane") ?? [])].map((p) => p.getAttribute("data-id"));
   expect(panes.filter((id) => id !== "first-win")).toEqual(["needs", "in-progress"]);
+  expect(main?.querySelector(`section[aria-label="${w.stripTitle}"] [role="slider"]`)).not.toBeNull();
   expect(main?.querySelector("[data-scene-window]")).toBeNull();
   expect(body.querySelector(`nav[aria-label="${w.places}"]`)).toBeNull();
   // the header keeps the Night report, Pause, the command bar and Settings
@@ -32,11 +34,15 @@ test("Now is the sentence, Needs you and In progress: no map, no tabs, no other 
     expect(header?.querySelector(`button[aria-label="${label}"]`), label).not.toBeNull();
 });
 
-test("the map is a look: switched on in Settings, it shows on Now", async () => {
-  localStorage.setItem("overhand-map", "still");
+test("with the field off in Settings, Now is the plain lists under the sentence", async () => {
+  localStorage.setItem("overhand-map", "off");
   const { App } = await import("@/App");
   const body = await render(() => <App />);
-  expect(body.querySelector("main [data-scene-window]")).not.toBeNull();
+  const main = body.querySelector("main");
+  expect(main?.querySelector(".field-home")).toBeNull();
+  expect(main?.querySelector("#jump-now")?.textContent).toContain(w.briefMe);
+  const panes = [...(main?.querySelectorAll("section.hud-pane") ?? [])].map((p) => p.getAttribute("data-id"));
+  expect(panes.filter((id) => id !== "first-win")).toEqual(["needs", "in-progress"]);
 });
 
 /** What drawer is open, as text, for the keys below. */

@@ -39,7 +39,7 @@ import "./map.css";
 /** The map's width in map units: the outer ring, the captions outside it, and a margin. */
 const SPAN = 1040;
 
-const subscribeHidden = (f: () => void) => {
+export const subscribeHidden = (f: () => void) => {
   document.addEventListener("visibilitychange", f);
   return () => document.removeEventListener("visibilitychange", f);
 };
@@ -114,10 +114,10 @@ export function AttentionMap({ m, world, still }: { m: Model; world: WorldId; st
  * atmosphere on one frame) until something happens. A question left open overnight kept it moving for hours: CPU in a
  * tab that's meant to stay open all day (release/soak.ts). Same as the scene engine's `LIVE_MS`.
  */
-const LIVE_MS = 60_000;
+export const LIVE_MS = 60_000;
 
 /** Whether the map is resting, and the pointer handler that wakes it. */
-function useResting(sig: string): [boolean, (e: React.PointerEvent) => void] {
+export function useResting(sig: string): [boolean, (e: React.PointerEvent) => void] {
   const [resting, setResting] = useState(false);
   const [woken, setWoken] = useState(0);
   const last = useRef("");
@@ -137,8 +137,8 @@ function useResting(sig: string): [boolean, (e: React.PointerEvent) => void] {
   return [resting, stir];
 }
 
-const REDUCED = "(prefers-reduced-motion: reduce)";
-const subscribeReduced = (f: () => void) => {
+export const REDUCED = "(prefers-reduced-motion: reduce)";
+export const subscribeReduced = (f: () => void) => {
   const q = matchMedia(REDUCED);
   q.addEventListener("change", f);
   return () => q.removeEventListener("change", f);

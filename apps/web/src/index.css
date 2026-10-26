@@ -1117,3 +1117,8 @@
     border-radius: var(--radius-tile);
   }
 }
+
+/* Today's quiet stretches on Now (DayStrip): a fine hatch in the line colour, under the "quiet" label */
+.field-quiet {
+  background: repeating-linear-gradient(135deg, var(--border) 0 1px, transparent 1px 7px);
+}

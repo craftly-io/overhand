@@ -19,6 +19,7 @@ import { explainCalls } from "@/lib/explain";
 import { ago, fmt, hm } from "@/lib/format";
 import type { InboxItem } from "@/lib/plan";
 import { cn } from "@/lib/utils";
+import { cardThread } from "@/map/fieldModel";
 import { AssignButton } from "../AssignButton";
 import { DecisionCard, InsightLine, useBrief } from "../DecisionCard";
 import { Explain } from "../Explain";
@@ -483,7 +484,13 @@ export function NeedsList({ list }: { list: readonly Need[] }) {
     <ul className="grid gap-4">
       {list.map((n, i) =>
         "alert" in n ? (
-          <li key={keyOf(n.alert)} data-id={n.alert.item} className="m-enter grid gap-2" style={{ "--i": Math.min(i, 6) } as CSSProperties}>
+          <li
+            key={keyOf(n.alert)}
+            data-id={n.alert.item}
+            data-thread={cardThread(n.alert.target) ?? undefined}
+            className="m-enter grid gap-2"
+            style={{ "--i": Math.min(i, 6) } as CSSProperties}
+          >
             {n.alert.explain ? (
               // the ? sits beside the card, not in it: the card is itself a button
               <div className="flex min-w-0 items-start gap-2">

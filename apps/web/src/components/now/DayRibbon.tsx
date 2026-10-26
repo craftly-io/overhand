@@ -43,7 +43,7 @@ export function dayTicks(reports: readonly string[], bucketMin = MARK_MIN): { at
   }));
 }
 
-interface Bar {
+export interface Bar {
   name: string;
   account?: string;
   start: number;
@@ -71,6 +71,14 @@ export function runBars(runs: readonly Bar[], gapMin = MARK_MIN): (Bar & { count
   return out;
 }
 
+/** Today's runs as spans: the finished ones, and each one under way running to `now`. */
+export function dayRuns(m: Model, now: number): Bar[] {
+  const runs: Bar[] = m.s.runs.flatMap((r) => (r.start && r.end ? [{ ...r, start: r.start, end: r.end, live: false }] : []));
+  for (const cur of m.s.running)
+    runs.push({ name: cur.name, account: cur.account, start: cur.startedAt, end: now, cost: 0, ok: true, live: true });
+  return runs;
+}
+
 /**
  * One mark on the ribbon: named for screen readers and on hover, but not a control. The marks sit a few pixels apart,
  * so as buttons they were dozens of overlapping tab stops and too small to tap; every line is also in the day so far.
@@ -91,9 +99,7 @@ export function DayRibbon({ m }: { m: Model }) {
   const now = useNow(30_000);
   const w = useWords();
   const cal = Array.isArray(m.s.status.calendar) ? m.s.status.calendar.filter((e) => !e.allDay) : [];
-  const runs = m.s.runs.flatMap((r) => (r.start && r.end ? [{ ...r, start: r.start, end: r.end, live: false }] : []));
-  for (const cur of m.s.running)
-    runs.push({ name: cur.name, account: cur.account, start: cur.startedAt, end: now, cost: 0, ok: true, live: true });
+  const runs = dayRuns(m, now);
   const ticks = dayTicks(m.s.reports);
   const bars = runBars(runs);
   return (

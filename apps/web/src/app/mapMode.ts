@@ -1,11 +1,11 @@
 import { useSyncExternalStore } from "react";
 import { store } from "./store";
 
-/** The map on Now: off (the default), moving, or one still frame per change. Kept in this browser. */
+/** The field on Now: moving (the default), one still frame per change, or off (the plain lists). Kept in this browser. */
 export type MapMode = "off" | "on" | "still";
 // a key of its own: the map was always shown before, and that old setting only said whether it moved
 const KEY = "overhand-map";
-const toMode = (v: string | null): MapMode => (v === "on" || v === "still" ? v : "off");
+const toMode = (v: string | null): MapMode => (v === "off" || v === "still" ? v : "on");
 const listeners = new Set<() => void>();
 
 /** The map setting (Settings › You), shared by Now and the setting. */

@@ -59,9 +59,9 @@ export const plainWords = {
   appearanceSystem: "System",
   appearanceLight: "Light",
   appearanceDark: "Dark",
-  sceneSetting: "The map on Now",
+  sceneSetting: "The field on Now",
   sceneSettingHint:
-    "A map of your projects above Needs you, each lit where something waits on you. Off by default. Moving follows agents as they work; Still draws one frame per change; reduced motion always keeps it still.",
+    "On a computer, Now is one screen: your projects behind Needs you and In progress, and a thread from everything that waits on you to its card. Moving follows agents as they work; Still draws one frame per change; Off shows the plain lists. Reduced motion always keeps it still.",
   sceneOff: "Off",
   sceneOn: "Moving",
   sceneStill: "Still",
@@ -2031,6 +2031,25 @@ export const plainWords = {
   mapCrew: "{n} more",
   mapCrewOf: "{n} more on {project}: {working} working, {idle} idle or done",
   mapHelpers: "{n} helpers",
+
+  // the field: Now on a computer, each project a place, what waits on you holding a thread to its card
+  fieldForYou: "{n} for you",
+  fieldWorking: "{n} working",
+  fieldDone: "{n} done",
+  fieldQuiet: "quiet",
+  fieldHide: "Hide",
+  fieldShow: "In progress · {n}",
+  // Today along the foot of Now: the day on an elastic track, and the field as it was at any minute
+  stripTitle: "Today",
+  stripReplay: "Replay the day",
+  stripLive: "Back to live",
+  stripLine: "{done} done · {working} working",
+  stripHint: "Drag along the day to see the field as it was then.",
+  stripSlider: "The day: drag to see the field as it was",
+  stripQuiet: "quiet",
+  stripWorkingAt: "{n} working",
+  stripNothing: "Nothing finished in this stretch",
+  stripLater: "Later today",
 
   // decision cards: what it is, why it waits on you, what Overhand recommends, the facts, and what happens if you don't
   decWhy: "Why it waits",

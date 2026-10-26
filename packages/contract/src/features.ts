@@ -365,6 +365,16 @@ export const FEATURES: readonly Feature[] = [
     docs: "docs/plugins.html#plugins",
   },
   {
+    id: "now-field",
+    name: "Now as one screen",
+    line: "On a computer Now never scrolls: your projects on one field, a thread from each thing that waits on you to its card, and today along the foot to replay.",
+    area: "overhand",
+    since: "2026-10-26",
+    source: "apps/web/src/components/now/FieldHome.tsx",
+    docs: "docs/everyday.html#now",
+    tip: { text: "New: Now is one screen. Drag along Today to see the field as it was.", where: "now-field" },
+  },
+  {
     id: "now-three-blocks",
     name: "Now in three blocks",
     line: "The home screen is one sentence, Needs you and In progress; every number in the sentence opens what it counts.",

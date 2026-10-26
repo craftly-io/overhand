@@ -1,7 +1,7 @@
 import type { Client, DashboardState } from "@overhand/contract";
 import type { Words } from "@overhand/themes";
 import { ChevronRight } from "lucide-react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useActions } from "@/app/actions";
 import { type Model, useNow } from "@/app/data";
 import { useWords } from "@/app/theme";
@@ -164,7 +164,7 @@ function Line({ r, m }: { r: Row; m: Model }) {
  * task run's row carries its Stop. Queued tasks are one line that opens Work; today's finished runs fold into "Done
  * today (N)".
  */
-export function InProgress({ m }: { m: Model }) {
+export function InProgress({ m, extra }: { m: Model /** Beside the count: the field's Hide. */; extra?: ReactNode }) {
   const w = useWords();
   const ui = useUi();
   const now = useNow(60_000);
@@ -172,7 +172,7 @@ export function InProgress({ m }: { m: Model }) {
   const done = doneOf(m, now);
   const queued = readyItems(m.plan, m.s).length;
   return (
-    <Pane title="paneInProgress" dataId="in-progress" count={rows.length} countTone="var(--primary)">
+    <Pane title="paneInProgress" dataId="in-progress" count={rows.length} countTone="var(--primary)" extra={extra}>
       {rows.length ? (
         <ul className="grid">
           {rows.map((r) => (
