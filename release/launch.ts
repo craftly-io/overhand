@@ -267,9 +267,16 @@ function npm(): void {
   }
   const home = mkdtempSync(join(tmpdir(), "overhand-npx-"));
   try {
-    const got = read(["npx", "-y", `overhand@${version}`, "version"], home, { HOME: home })
-      .out.split("\n")
-      .pop();
+    // npm view answers from the registry before its CDN serves the tarball to npx: a fresh version can fail a few times
+    const run = () =>
+      read(["npx", "-y", `overhand@${version}`, "version"], home, { HOME: home })
+        .out.split("\n")
+        .pop();
+    let got = run();
+    for (let i = 0; i < 6 && got !== version; i++) {
+      Bun.sleepSync(10_000);
+      got = run();
+    }
     need(got === version, `npx overhand@${version} runs`, `got ${got}`);
   } finally {
     rmSync(home, { recursive: true, force: true });
