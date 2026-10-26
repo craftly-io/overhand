@@ -438,11 +438,14 @@ export function audit(opts: {
     }
 
   // 6b. panes stacked in one column keep the system's gap: each pane against the nearest one below it in the same layer
-  // (the page, or a drawer); a pane inside another pane is part of it, not a neighbour
+  // (the page, or a drawer); a pane inside another pane is part of it, not a neighbour. Each is measured where it shows:
+  // a pane scrolled out of its own column (Now's field keeps its lists in columns that scroll) isn't under the next one
   const stack = [...document.querySelectorAll(".hud-pane")]
     .filter((el) => !hidden(el) && !el.parentElement?.closest(".hud-pane"))
-    .map((el) => ({ el, r: el.getBoundingClientRect(), layer: el.closest("[role=dialog]") }))
-    .filter((p) => p.r.width > 0 && p.r.height > 0);
+    .flatMap((el) => {
+      const r = visibleRect(el);
+      return r && r.width > 0 && r.height > 0 ? [{ el, r, layer: el.closest("[role=dialog]") }] : [];
+    });
   for (const a of stack) {
     const below = stack
       .filter(
