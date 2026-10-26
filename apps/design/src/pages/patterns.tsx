@@ -26,6 +26,7 @@ import { AnsweredElsewhere, NeedsList, NeedsYou, needs } from "@/components/now/
 import { Cast } from "@/components/now/Cast";
 import { ControlRoom } from "@/components/now/ControlRoom";
 import { DayRibbon } from "@/components/now/DayRibbon";
+import { FieldHome } from "@/components/now/FieldHome";
 import { FirstRun } from "@/components/now/FirstRun";
 import { FirstWin } from "@/components/now/FirstWin";
 import { InProgress } from "@/components/now/InProgress";
@@ -212,10 +213,24 @@ export const PATTERNS: Entry[] = [
     (m) => <Worktrees m={m} project="Online shop" />,
   ),
   {
+    id: "field",
+    group: "patterns",
+    title: "The field",
+    about:
+      "Now on a computer, one screen that never scrolls: each project a named place, agents on threads, and an orange thread from everything that waits on you to its card. Today runs along the foot; dragging along it shows the field as it was.",
+    covers: ["FieldHome", "DayStrip"],
+    states: {
+      morning: () => <Live>{(m) => <Sized>{<FieldHome m={m} still={false} />}</Sized>}</Live>,
+      "at work": () => <Live seed={working()}>{(m) => <Sized>{<FieldHome m={m} still={false} />}</Sized>}</Live>,
+    },
+    frame: { height: 760 },
+  },
+  {
     id: "attention-map",
     group: "patterns",
     title: "Attention map",
-    about: "An optional look on Now, off by default (Settings › Look & sound): each project in its place, lit where something needs you.",
+    about:
+      "The rings picture on overhand.dev: you at the centre, what needs you close, what's working round it. Now on a computer draws the field instead.",
     covers: ["MapWindow"],
     states: {
       morning: function Morning() {

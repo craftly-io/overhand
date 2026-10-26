@@ -92,9 +92,20 @@ A pane is a surface step and a 1px hairline, never a shadow. Inset panels (input
 - Counts: square, mono 12px, 22px tall, ink 12 outline; a count of what waits on you is a `you-fill` square.
 - Focus: the viewfinder, a 1px ink 12 outline 4px out from the control (no glow, no colour).
 
+## The field
+
+Now on a computer is one screen that never scrolls (`components/now/FieldHome.tsx`): the field fills it, the sentence and Needs you sit on the left, In progress on the right (it hides to a button), and Today runs along the foot. Each list scrolls on its own; the page stays put. Nothing holds room it doesn't need: with nothing waiting, the left keeps only the sentence and today's plan, and the field takes the space. On a phone, Now stays the sentence and the two lists, stacked.
+
+- **Places** (`map/fieldModel.ts`, pure and tested): each project is a named place on a staggered grid over the room the panes leave, at least a place's width from any pane. The projects busiest today take the slots nearest the middle and keep them all day, so nothing moves when you answer something. Projects are named, never coloured; a failing one's name is crimson.
+- **Agents**: the same agents, states and places to open as the attention map (`mapFrom`). Working ones orbit their place with a progress arc and travel marks on their thread; idle and done ones rest further out (done with a green ring); a lead is a square. Past 7 the quiet ones gather into a crew, a count in a box.
+- **Threads to you**: what waits on you leans out of its place toward its card, and an orange thread runs to the card's edge in Needs you (`data-thread`, from the card's target). The front card's agent is named; the rest on hover. Settling a card lets its thread go: it springs back over 0.8s and a green ring opens on the agent.
+- **Light is live**: a place glows by how much is moving there; the dot field leans toward working agents and warms orange only around what waits on you.
+- **Today** (`components/now/DayStrip.tsx`): the day on an elastic track (`lib/dayScale.ts`): each quarter hour gets room by how many runs it held, quiet stretches fold and are marked quiet. Meetings sit above it, agents at work per quarter hour below, the day's events as marks. Dragging along it, the keys, or Replay the day (8 s, start of the day's work to now) set the field's minute (`app/fieldTime.ts`): the field shows the runs as they were; questions keep no history, so the cards stay live.
+- **Budget**: one 2D canvas in the theme's own colours, at most 30 frames a second while something changed in the last minute or the pointer moved over it, then one frame and rest; none in a hidden tab; one frame per change under reduced motion or Settings › You › Still. Off shows the plain lists. Every agent is also a button in a list for screen readers and the keyboard.
+
 ## The attention map
 
-Now has one picture: the attention map (`apps/web/src/map`), in the clear centre column under the greeting and the story. You are at the centre, the logo's square: paper while nothing waits, the one orange with your count (the same count as Needs you) and a soft halo when something does. The inner ring is what needs you, the middle ring what's working, the outer ring what's idle or done. Each project owns a sector, named at the rim; a failing project's name is crimson with a short scar mark; merges today are green text under the name, never marks on the dial.
+overhand.dev's picture, and the design catalog's: the attention map (`apps/web/src/map`). You are at the centre, the logo's square: paper while nothing waits, the one orange with your count (the same count as Needs you) and a soft halo when something does. The inner ring is what needs you, the middle ring what's working, the outer ring what's idle or done. Each project owns a sector, named at the rim; a failing project's name is crimson with a short scar mark; merges today are green text under the name, never marks on the dial.
 
 - **Placement** (`map/model.ts`, pure and tested): agents spread evenly across their sector's arc on their ring, stepping in and out when they don't fit. Past 7 agents in a sector the quiet ones gather into a crew (a square count with a dot per state, its words on hover); what waits on you is never gathered. Subagents orbit their parent on hairlines.
 - **Motion**: an agent that starts waiting drifts inward over 2.8s, a tether draws to you and an orange arc appears on your rim pointing at it; a merge closes a green ring on the agent, which drifts out. Waiting objects breathe; links to working agents carry a slow pulse. Transform and opacity only.
@@ -153,7 +164,7 @@ Five places, one job each. On a computer they're the switcher in the header (the
 
 | Place | Job | Holds |
 | --- | --- | --- |
-| Now | What needs me, and what's the story? | The bridge: Needs you (alerts, lead questions, reviews and Slack in one list; All N opens every item), the story and the world, What matters today, the ribbon and the day so far. On a computer its right wing glances at Crew, Work and Health |
+| Now | What needs me, and what's the story? | On a computer one screen: the field, the sentence and Needs you (alerts, lead questions, reviews and Slack in one list; All N opens every item) with What matters today, In progress, and Today along the foot. On a phone the sentence and the two lists |
 | Work | Where is every ticket? | One pipeline, Planned → Queued → Running → In review → Merged, one card per ticket key, plus Yours. A card opens its ticket, or Review when it has a PR. Start N now is the primary; Overdrive… is secondary |
 | Crew | Who is working, on what, under which instructions? | The agent run, leads, ready-made leads, your sessions, places, agent instructions, onboarding guides |
 | Health | Is anything broken, and is it worth it? | Systems per client, This week, Spend (every dollar and the daily budget in one block), Agent accounts (usage windows and cooldowns, Manage agent accounts), Guardrails, Status updates, Scorecard |
@@ -247,7 +258,7 @@ Rules:
 - Under `prefers-reduced-motion` every pattern becomes an instant state change carrying the same information; JS checks `reduced()`.
 - Copy stays plain; the game feel comes from motion, optional sound (off by default, Settings › You) and feedback.
 
-The attention map is the one thing that moves without being asked, so it lives on its own, slower clock: drifts take 2.8s, breathing 3.4s, a link's pulse 4.8s, and nothing flashes. Settings › You sets it to Moving or Still (one frame per change, as under reduced motion).
+The field (and the attention map on the site) is the one thing that moves without being asked, so it lives on its own, slower clock: places glide, agents spring, a waiting agent breathes over 2.8s, threads carry a slow travel, and nothing flashes. Settings › You sets it to Moving, Still (one frame per change, as under reduced motion) or Off.
 
 The onboarding launch sequence uses all of it: a boot line with the loader beside it, a scan that reveals one line every 340ms (≤2.5s, any key or click skips) with a lock-on per confirmed line and a climbing repo count, a loadout of four slots that fill (scaleX) as they lock on or turn amber with one action, and on launch a charge fills the Start button; the page holds until the dashboard's state arrives (never an empty frame), then its panes enter in their `--i` order.
 
@@ -260,6 +271,6 @@ The onboarding launch sequence uses all of it: a boot line with the loader besid
 | Separate layers with an ink step and a hairline | Add a grey drop shadow or round a pane |
 | Set numbers in mono | Set running text in mono, or numbers in the story serif |
 | Write labels in sentence case | Use all caps or letter-spacing |
-| Let the attention map carry the mood | Add glows, gradient text or a second flourish |
+| Let the field carry the mood | Add glows, gradient text or a second flourish |
 | Animate transform and opacity on the motion tokens | Animate layout, or invent a duration |
 | Pulse only what is live or working | Loop anything for decoration |
