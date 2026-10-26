@@ -579,11 +579,12 @@
     animation-timing-function: ease-in-out;
   }
 
-  /* focus: the viewfinder, a 1px ink frame standing 4px off the control */
+  /* focus: the viewfinder, a 1px ink frame standing 4px off the control; never the library's ring glow, which its
+     utility classes would otherwise draw over this */
   :focus-visible {
     outline: 1px solid var(--ink-12);
     outline-offset: 4px;
-    box-shadow: none;
+    box-shadow: none !important;
   }
 
   /* the bar: ink 1, ruled off in ink 12 */

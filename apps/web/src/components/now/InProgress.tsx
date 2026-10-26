@@ -26,6 +26,8 @@ export interface Row {
   color?: string;
   /** A task run's name: the row carries its Stop. */
   stop?: string;
+  /** A task run's share of its time limit used, 0 to 1: the field's In progress draws it as a bar. */
+  used?: number;
 }
 
 /** A task key at the start of a run's name ("SHOP-142 fix round" → "SHOP-142"). */
@@ -54,6 +56,7 @@ export function rowsOf(m: Model, now: number, w: Words): Row[] {
       meta: uptime(Math.max(0, (now - cur.startedAt) / 1000)),
       open: key ? { kind: "ticket", key } : { kind: "crew" },
       stop: cur.name,
+      used: Math.min(1, Math.max(0, (now - cur.startedAt) / (s.taskTimeoutMin * 60_000))),
     };
   });
   const leads = listedLeads(s.godmode)
@@ -107,6 +110,13 @@ export function rowsOf(m: Model, now: number, w: Words): Row[] {
   return [...runs, ...leads, ...mine, ...prs, ...guides];
 }
 
+/** Rows by project, in the order each project first appears; rows in no project come last. */
+export function groupsOf(rows: Row[]): [string, Row[]][] {
+  const by = new Map<string, Row[]>();
+  for (const r of rows) by.set(r.project, [...(by.get(r.project) ?? []), r]);
+  return [...by].sort((a, b) => Number(!a[0]) - Number(!b[0]));
+}
+
 /** Today's finished runs, newest first: what folds into "Done today". */
 export function doneOf(m: Model, now: number): Row[] {
   const s = m.s;
@@ -128,11 +138,47 @@ export function doneOf(m: Model, now: number): Row[] {
     });
 }
 
-function Line({ r, m }: { r: Row; m: Model }) {
+function Line({ r, m, grouped }: { r: Row; m: Model; grouped?: boolean }) {
   const w = useWords();
   const ui = useUi();
   const { runStop } = useActions();
   const hue = r.project ? m.hue(r.project) : "var(--primary)";
+  const actions = (
+    <span className="flex shrink-0 gap-1">
+      {r.stop ? (
+        <Button variant="danger" size="xs" onClick={() => void runStop(r.stop ?? "")}>
+          {w.stopLead}
+        </Button>
+      ) : null}
+      <Button variant="ghost" size="xs" onClick={() => ui.openDrawer(r.open)}>
+        {w.open}
+      </Button>
+    </span>
+  );
+  // under its project's heading a row needs no project name, so the task gets the room to read whole
+  if (grouped)
+    return (
+      <li
+        data-id={r.id}
+        className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2 border-t border-border py-2 text-sm first:border-0"
+      >
+        <span className="pt-1.5">
+          <Dot color={r.color ?? hue} />
+        </span>
+        <span className="grid min-w-0 gap-1">
+          <span className="line-clamp-2 break-words">{r.text}</span>
+          <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+            {r.used !== undefined ? (
+              <span className="h-[3px] min-w-0 flex-1 overflow-hidden rounded-full bg-border" aria-hidden="true">
+                <span className="block h-full bg-foreground transition-[width] duration-500" style={{ width: `${r.used * 100}%` }} />
+              </span>
+            ) : null}
+            {r.meta}
+          </span>
+        </span>
+        {actions}
+      </li>
+    );
   return (
     <li
       data-id={r.id}
@@ -145,16 +191,7 @@ function Line({ r, m }: { r: Row; m: Model }) {
         {r.text}
         <span className="text-muted-foreground"> · {r.meta}</span>
       </span>
-      <span className="flex shrink-0 gap-1">
-        {r.stop ? (
-          <Button variant="danger" size="xs" onClick={() => void runStop(r.stop ?? "")}>
-            {w.stopLead}
-          </Button>
-        ) : null}
-        <Button variant="ghost" size="xs" onClick={() => ui.openDrawer(r.open)}>
-          {w.open}
-        </Button>
-      </span>
+      {actions}
     </li>
   );
 }
@@ -162,9 +199,19 @@ function Line({ r, m }: { r: Row; m: Model }) {
 /**
  * Now's third block: every agent at work in one list, each row its project, what it's doing, for how long and Open; a
  * task run's row carries its Stop. Queued tasks are one line that opens Work; today's finished runs fold into "Done
- * today (N)".
+ * today (N)". `grouped` (the field's side pane) puts the rows under their project's name, a heading that stays put as
+ * the pane scrolls, and gives each task run a bar of its time limit used.
  */
-export function InProgress({ m, extra }: { m: Model /** Beside the count: the field's Hide. */; extra?: ReactNode }) {
+export function InProgress({
+  m,
+  extra,
+  grouped,
+}: {
+  m: Model;
+  /** Beside the count: the field's Hide. */
+  extra?: ReactNode;
+  grouped?: boolean;
+}) {
   const w = useWords();
   const ui = useUi();
   const now = useNow(60_000);
@@ -173,7 +220,25 @@ export function InProgress({ m, extra }: { m: Model /** Beside the count: the fi
   const queued = readyItems(m.plan, m.s).length;
   return (
     <Pane title="paneInProgress" dataId="in-progress" count={rows.length} countTone="var(--primary)" extra={extra}>
-      {rows.length ? (
+      {rows.length && grouped ? (
+        <div className="grid gap-1">
+          {groupsOf(rows).map(([project, list]) => (
+            <section key={project} aria-label={project || w.otherWork}>
+              <h3
+                className="sticky top-0 z-[1] bg-[var(--pane,var(--card))] py-1 text-xs font-semibold"
+                style={{ color: project ? m.hue(project) : "var(--muted-foreground)" }}
+              >
+                {project || w.otherWork}
+              </h3>
+              <ul className="grid">
+                {list.map((r) => (
+                  <Line key={r.id} r={r} m={m} grouped />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      ) : rows.length ? (
         <ul className="grid">
           {rows.map((r) => (
             <Line key={r.id} r={r} m={m} />

@@ -56,7 +56,7 @@ export function FieldHome({ m, still }: { m: Model; still: boolean }) {
           className="field-col pointer-events-auto grid max-h-full w-[clamp(23rem,27vw,26rem)] shrink-0 gap-(--space-gap) overflow-x-hidden overflow-y-auto overscroll-contain"
         >
           <section id="jump-now" className="grid gap-3">
-            <Prologue m={m} />
+            <Prologue m={m} brief />
           </section>
           <MeTeam
             m={m}
@@ -84,6 +84,7 @@ export function FieldHome({ m, still }: { m: Model; still: boolean }) {
           >
             <InProgress
               m={m}
+              grouped
               extra={
                 <Button variant="ghost" size="xs" className="-mr-1 text-muted-foreground" onClick={() => setSide(false)}>
                   {w.fieldHide}

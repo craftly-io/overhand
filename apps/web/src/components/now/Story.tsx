@@ -12,6 +12,7 @@ import { nth, useCountUp } from "@/lib/motion";
 import { resumesAt } from "@/lib/pipeline";
 import { leadName, leadNamed, withNames } from "@/lib/sessions";
 import { spendKind } from "@/lib/spend";
+import { cn } from "@/lib/utils";
 import { leadsIn, newestBeat } from "@/lib/world";
 import { TONE } from "./Activity";
 import { needs, needsTone } from "./Alerts";
@@ -80,9 +81,10 @@ function crewAt(m: Model): Map<string, number> {
 
 /**
  * The opening of the Now view: who's at work and where, what waits on you, what the week delivered and what it cost,
- * told as sentences built from live state, over a ribbon of the day.
+ * told as sentences built from live state, over a ribbon of the day. `brief` (the field) keeps what matters now and
+ * leaves the week and the money to Health and the Night report.
  */
-export function Prologue({ m, greeting = true }: { m: Model; greeting?: boolean }) {
+export function Prologue({ m, greeting = true, brief = false }: { m: Model; greeting?: boolean; brief?: boolean }) {
   const w = useWords();
   const ui = useUi();
   const s = m.s;
@@ -150,7 +152,7 @@ export function Prologue({ m, greeting = true }: { m: Model; greeting?: boolean 
       }),
     );
 
-  if (s.week.opened)
+  if (s.week.opened && !brief)
     sentences.push(
       fill(w.storyWeek, {
         prs: <Fact onClick={() => ui.openDrawer({ kind: "work" })}>{fmt(w.storyPrs, { n: s.week.opened })}</Fact>,
@@ -203,17 +205,18 @@ export function Prologue({ m, greeting = true }: { m: Model; greeting?: boolean 
 
   // billed money is a bill (an estimate); on plans the work is included, its API price only a comparison
   const kind = spendKind(s);
-  sentences.push(
-    kind === "local"
-      ? w.storyLocal
-      : fill(kind === "billed" ? w.storyBilled : w.storyInPlans, {
-          cost: (
-            <Fact onClick={() => ui.openDrawer({ kind: "health" })}>
-              <Count to={kind === "billed" ? s.billed : s.cost} show={money} />
-            </Fact>
-          ),
-        }),
-  );
+  if (!brief)
+    sentences.push(
+      kind === "local"
+        ? w.storyLocal
+        : fill(kind === "billed" ? w.storyBilled : w.storyInPlans, {
+            cost: (
+              <Fact onClick={() => ui.openDrawer({ kind: "health" })}>
+                <Count to={kind === "billed" ? s.billed : s.cost} show={money} />
+              </Fact>
+            ),
+          }),
+    );
 
   const story = sentences.map((x, i) => (
     // biome-ignore lint/suspicious/noArrayIndexKey: sentence order is fixed; keying by index keeps them still between polls
@@ -236,7 +239,7 @@ export function Prologue({ m, greeting = true }: { m: Model; greeting?: boolean 
       >
         {fmt(first(hello), { name: s.owner || "there" })}
       </h1>
-      <p className="story-text mt-2 max-w-[56ch]">{story}</p>
+      <p className={cn("story-text mt-2 max-w-[56ch]", brief && "text-[15px]")}>{story}</p>
     </section>
   );
 }

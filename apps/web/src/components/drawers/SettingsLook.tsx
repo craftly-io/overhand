@@ -70,6 +70,17 @@ function Act({ line, children }: { line: ReactNode; children: ReactNode }) {
  * Overhand itself (update, restart, turn off, each asking first) and Send feedback; and the team, folded (it works
  * through your Overhand account, and says so until this computer is signed in).
  */
+/** The night report's hour as a choice of times, and Off (-1 in the config). */
+const BRIEF_HOURS = {
+  num: true,
+  fallback: "8",
+  options: ["-1", ...Array.from({ length: 24 }, (_, h) => String(h))],
+  labels: Object.fromEntries([
+    ["-1", w.setBriefOff],
+    ...Array.from({ length: 24 }, (_, h) => [String(h), `${String(h).padStart(2, "0")}:00`]),
+  ]),
+};
+
 export function YouSection() {
   const { theme, setTheme, appearance, setAppearance, light } = useTheme();
   const m = useModel();
@@ -86,7 +97,7 @@ export function YouSection() {
     <>
       <FieldCard title={w.setYou}>
         <Field label={w.setName} path="owner.name" />
-        <Field label={w.setBriefHour} path="schedule.briefAtHour" kind="num" />
+        <Field label={w.setBriefHour} path="schedule.briefAtHour" kind={BRIEF_HOURS} />
         {/* only where this computer has one: a Mac with the helper installed */}
         {typeof menubar === "boolean" ? <Field label={w.menubar} path="menubar" kind="bool" /> : null}
       </FieldCard>
