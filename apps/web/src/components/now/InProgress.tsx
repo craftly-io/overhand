@@ -225,7 +225,7 @@ export function InProgress({
           {groupsOf(rows).map(([project, list]) => (
             <section key={project} aria-label={project || w.otherWork}>
               <h3
-                className="sticky top-0 z-[1] bg-card py-1 text-xs font-semibold"
+                className="sticky top-0 z-[1] bg-[var(--pane,var(--card))] py-1 text-xs font-semibold"
                 style={{ color: project ? m.hue(project) : "var(--muted-foreground)" }}
               >
                 {project || w.otherWork}
