@@ -1,5 +1,7 @@
 [test]
 # every test run gets a scratch OVERHAND_HOME, never the checkout's live state
 preload = ["./test-home.ts"]
-# a bare `bun test` keeps to the repo's own tests: agent-home holds plugin checkouts, .claude/worktrees whole repo copies
-pathIgnorePatterns = ["agent-home/**", ".claude/**"]
+# a bare `bun test` keeps to the repo's own tests: agent-home holds plugin checkouts, .claude/worktrees whole repo copies,
+# run-caches each run's caches (tens of thousands of folders in a live checkout: walking them holds a file descriptor per
+# folder, and with that many open a test's Bun.spawnSync comes back empty, #170)
+pathIgnorePatterns = ["agent-home/**", ".claude/**", "run-caches/**"]
