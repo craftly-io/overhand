@@ -53,7 +53,7 @@ export function FieldHome({ m, still }: { m: Model; still: boolean }) {
       <div className="pointer-events-none relative z-10 flex min-h-0 items-start gap-(--space-gap)">
         <div
           data-field-avoid=""
-          className="field-col pointer-events-auto grid max-h-full w-[clamp(20rem,27vw,26rem)] shrink-0 gap-(--space-gap) overflow-y-auto overscroll-contain"
+          className="field-col pointer-events-auto grid max-h-full w-[clamp(23rem,27vw,26rem)] shrink-0 gap-(--space-gap) overflow-x-hidden overflow-y-auto overscroll-contain"
         >
           <section id="jump-now" className="grid gap-3">
             <Prologue m={m} />
@@ -80,7 +80,7 @@ export function FieldHome({ m, still }: { m: Model; still: boolean }) {
           <div
             id="jump-progress"
             data-field-avoid=""
-            className="field-col pointer-events-auto max-h-full w-[clamp(18rem,22vw,22rem)] shrink-0 overflow-y-auto overscroll-contain"
+            className="field-col pointer-events-auto max-h-full w-[clamp(18rem,22vw,22rem)] shrink-0 overflow-x-hidden overflow-y-auto overscroll-contain"
           >
             <InProgress
               m={m}

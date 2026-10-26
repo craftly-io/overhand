@@ -159,13 +159,18 @@ const PAD = { x: 96, y: 74 } as const;
 
 const inside = (p: Point, b: Box) => p.x > b.x - PAD.x && p.x < b.x + b.w + PAD.x && p.y > b.y - PAD.y && p.y < b.y + b.h + PAD.y;
 
+/** The widest a place's name is drawn before it ends in an ellipsis: about its cell, less the air between. */
+export const NAME_MAX = CELL.w - 24;
+
 /**
  * Slots on a staggered grid over `area`, none closer to a box in `avoid` than a place needs, nearest the middle of the
  * free room first. When the room is tight the grid gets finer until there are `n` slots, or as many as fit.
  */
 export function slots(n: number, area: Box, avoid: readonly Box[]): Point[] {
   let best: Point[] = [];
-  for (let scale = 1; scale >= 0.6; scale -= 0.1) {
+  // a big screen spreads the places out (up to nearly twice the room); a small one packs them closer
+  const big = Math.min(1.8, Math.max(1, Math.min(area.w / 1100, area.h / 640)));
+  for (let scale = big; scale >= 0.6; scale -= 0.1) {
     const cw = CELL.w * scale;
     const ch = CELL.h * scale;
     const cols = Math.max(1, Math.floor(area.w / cw));

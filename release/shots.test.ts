@@ -163,6 +163,12 @@ test("two panes stacked in a column closer than the system gap are a hard findin
     await gapFindings(`<div style="display:flex;gap:${SYSTEM.space.gap}px">${pane(100, "width:300px")}${pane(100, "width:300px")}</div>`),
   ).toEqual([]);
   expect(await gapFindings(`<section class="hud-pane" style="width:400px">${pane(100)}</section>`)).toEqual([]);
+  // a pane in a column that scrolls ends where the column does: what's scrolled out of it is under nothing
+  expect(
+    await gapFindings(
+      `<div style="width:400px;height:300px;overflow-y:auto">${pane(600)}</div><div style="width:400px;margin-top:${SYSTEM.space.gap}px">${pane(100)}</div>`,
+    ),
+  ).toEqual([]);
 });
 
 /** The hard layout findings (audit's section 8) on a snippet at 1200×900, in the real browser, as "check: where". */

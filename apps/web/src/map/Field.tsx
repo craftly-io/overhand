@@ -26,6 +26,7 @@ import {
   type FieldProject,
   fieldAt,
   fieldFrom,
+  NAME_MAX,
   type Point,
   radiusOf,
 } from "./fieldModel";
@@ -38,6 +39,8 @@ interface Scene {
   still: boolean;
   /** Replaying the day: agents move quickly to where they were, and no thread is drawn to a card. */
   replay: boolean;
+  /** The panes, so a name never runs under one. */
+  avoid: Box[];
   labels: { crew: (n: number) => string; project: (p: FieldProject) => string; sub: (ask: number, work: number, done: number) => string };
 }
 
@@ -92,6 +95,14 @@ const along = (ax: number, ay: number, cx: number, cy: number, bx: number, by: n
   (1 - u) * (1 - u) * ay + 2 * (1 - u) * u * cy + u * u * by,
 ];
 const seedOf = (id: string) => [...id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 997, 7) / 97;
+
+/** `text` cut to `max` px in the canvas's current font, ending in an ellipsis when it had to be cut. */
+function clipText(ctx: CanvasRenderingContext2D, text: string, max: number): string {
+  if (ctx.measureText(text).width <= max) return text;
+  let n = text.length;
+  while (n > 1 && ctx.measureText(`${text.slice(0, n).trimEnd()}…`).width > max) n--;
+  return `${text.slice(0, n).trimEnd()}…`;
+}
 
 /** Where each card's thread ends: its right edge, held inside the pane that scrolls it, relative to the field. */
 function anchors(root: HTMLElement): Map<string, Point> {
@@ -178,6 +189,7 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
     places,
     still: still || reduced,
     replay: at !== null,
+    avoid,
     labels: {
       crew: (n) => fmt(w.mapCrew, { n }),
       sub: (ask, work, done) =>
@@ -458,9 +470,10 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
         ctx.font = `600 14px ${pal.sans}`;
         ctx.lineWidth = 6;
         ctx.strokeStyle = pal.bg;
-        ctx.strokeText(p.name, h.x, h.y);
+        const name = clipText(ctx, p.name, NAME_MAX);
+        ctx.strokeText(name, h.x, h.y);
         ctx.fillStyle = p.broken ? pal.bad : pal.fg;
-        ctx.fillText(p.name, h.x, h.y);
+        ctx.fillText(name, h.x, h.y);
         ctx.font = `400 11px ${pal.mono}`;
         ctx.strokeText(sub, h.x, h.y + 15);
         ctx.fillStyle = ask ? pal.you : done && !work ? pal.ok : pal.muted;
@@ -528,9 +541,12 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
         // only the front card's agent is named (and whatever is under the pointer), on the side away from its place
         if ((a.state === "waiting" && agentThread(a.open) === front) || hot(a)) {
           const h = hubs.get(a.project);
-          const away = h ? b.x < h.x : false;
-          ctx.textAlign = away ? "right" : "left";
           ctx.font = `500 12px ${pal.mono}`;
+          const tw = ctx.measureText(a.label).width;
+          // on the side away from its place, unless a pane is there
+          const under = (x0: number, x1: number) => s.avoid.some((p) => x1 > p.x && x0 < p.x + p.w && b.y > p.y && b.y < p.y + p.h);
+          const away = (h ? b.x < h.x : false) && !under(b.x - 15 - tw, b.x - 15);
+          ctx.textAlign = away ? "right" : "left";
           ctx.lineWidth = 5;
           ctx.strokeStyle = pal.bg;
           ctx.strokeText(a.label, b.x + (away ? -15 : 15), b.y + 4);
