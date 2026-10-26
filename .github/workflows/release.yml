@@ -18,7 +18,7 @@ jobs:
         with:
           persist-credentials: false
       - run: swift build -c release --arch arm64 --arch x86_64 --package-path apps/menubar
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: menubar
           path: apps/menubar/.build/apple/Products/Release/overhand-menubar
@@ -49,7 +49,7 @@ jobs:
         env:
           MENUBAR: release/menubar/overhand-menubar
       - run: bash release/smoke.sh release/out/overhand-linux-x64
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: packages
           path: |
@@ -73,7 +73,7 @@ jobs:
           cosign verify-blob --bundle out/SHA256SUMS.sigstore.json \
             --certificate-identity-regexp "^${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/\.github/workflows/release\.yml@refs/tags/v" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com out/SHA256SUMS
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: signature
           path: out/SHA256SUMS.sigstore.json
