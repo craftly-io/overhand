@@ -216,6 +216,7 @@ export function AddAccount({ onAdded }: { onAdded?: () => void }) {
         <div className="grid gap-2">
           {how ? <p className="text-sm text-muted-foreground">{how}</p> : null}
           {agent.id === "claude-code" ? <PlanUse /> : null}
+          {agent.id === "claude-code" ? <p className="text-sm text-muted-foreground">{w.claudeLoginNote}</p> : null}
           {keyStep ? (
             <form
               className="flex flex-wrap items-center gap-2"
