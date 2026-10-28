@@ -3,10 +3,11 @@ import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { QuickSettingSchema } from "@overhand/contract";
+import { unlistedMcp } from "../src/agent-home";
 import { blankConfig, deniedFlags, loadConfig, saveConfig, withQuick } from "../src/config";
 import { RUNTIMES } from "../src/runtimes";
 import type { RunInput } from "../src/runtimes/runtime";
-import { cursorModel, tuneArgs, unlistedMcp } from "../src/runtimes/tune";
+import { cursorModel, tuneArgs } from "../src/runtimes/tune";
 import { exhaustedUntil } from "../src/usage";
 
 const input = (over: Partial<RunInput> = {}): RunInput => ({

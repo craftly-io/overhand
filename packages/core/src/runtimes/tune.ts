@@ -3,9 +3,7 @@
  * against its `--help` and docs (see each runtime's header). Nothing here can loosen the guard: the fields only pick a
  * model's effort, narrow tools, add a sandbox, or cap a run; extra flags that would loosen it are dropped.
  */
-import { agentMcpServers } from "../agent-home";
 import { deniedFlags, type Runtime, type RuntimeId } from "../config";
-import { HOME } from "../env";
 
 /** The account's extra flags, or none at all when any of them is denied (the config check refuses those on save too). */
 const extra = (id: RuntimeId, t: Partial<Runtime>): string[] => {
@@ -48,23 +46,3 @@ export function tuneArgs(id: RuntimeId, t: Partial<Runtime> | undefined, task: b
  */
 export const cursorModel = (model: string, effort = ""): string =>
   model && effort.trim() && !model.includes("[") ? `${model}[effort=${effort.trim()}]` : model;
-
-/**
- * The servers set up in `cli`'s own config ("Codex", "OpenCode": the ones that read it, not Overhand's flags) that the
- * account's allowlist leaves out, for the run to switch off; none when the account has no allowlist. A name Codex's `-c`
- * can't carry (it splits keys at dots) throws: a run never starts with a server it was told to leave out.
- */
-export function unlistedMcp(cli: "Codex" | "OpenCode", allowed: readonly string[] = [], home = HOME): string[] {
-  if (!allowed.length) return [];
-  const names = [
-    ...new Set(
-      agentMcpServers(home)
-        .filter((s) => s.cli === cli)
-        .map((s) => s.name),
-    ),
-  ];
-  const left = names.filter((n) => !allowed.includes(n));
-  const odd = cli === "Codex" ? left.filter((n) => !/^[A-Za-z0-9_-]+$/.test(n)) : [];
-  if (odd.length) throw new Error(`can't leave out the MCP server ${odd.join(", ")} for ${cli}: rename it to letters, digits, - and _`);
-  return left;
-}

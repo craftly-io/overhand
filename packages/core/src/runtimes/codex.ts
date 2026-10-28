@@ -11,7 +11,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { dialectHook } from "../agent-home";
+import { dialectHook, unlistedMcp } from "../agent-home";
 import { OPS } from "../env";
 import { SECRET_STORE } from "../platform";
 import {
@@ -27,7 +27,7 @@ import {
   type RunInput,
   readOnly,
 } from "./runtime";
-import { tuneArgs, unlistedMcp } from "./tune";
+import { tuneArgs } from "./tune";
 
 /** The model to ask for: a gateway account's own model, else the account's runtime model. */
 const modelOf = (r: RunInput): string => (r.provider.kind === "gateway" && r.provider.model) || r.model;

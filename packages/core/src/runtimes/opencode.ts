@@ -9,11 +9,11 @@
  * loads on top of your own config.
  */
 
-import { GUARD_CONFIG } from "../agent-home";
+import { GUARD_CONFIG, unlistedMcp } from "../agent-home";
 import { SECRET_STORE } from "../platform";
 import { repoRefusal } from "./repo-config";
 import { type AgentRuntime, at, baseEnv, guardEnv, jsonLines, promptFor, type RunInput, readOnly } from "./runtime";
-import { tuneArgs, unlistedMcp } from "./tune";
+import { tuneArgs } from "./tune";
 
 function spawn(r: RunInput) {
   const refused = repoRefusal("opencode", r.cwd);

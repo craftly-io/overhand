@@ -282,6 +282,26 @@ export function agentMcpServers(home = HOME): AgentMcpServer[] {
 }
 
 /**
+ * The servers set up in `cli`'s own config ("Codex", "OpenCode": the ones that read it, not Overhand's flags) that the
+ * account's allowlist leaves out, for the run to switch off; none when the account has no allowlist. A name Codex's `-c`
+ * can't carry (it splits keys at dots) throws: a run never starts with a server it was told to leave out.
+ */
+export function unlistedMcp(cli: "Codex" | "OpenCode", allowed: readonly string[] = [], home = HOME): string[] {
+  if (!allowed.length) return [];
+  const names = [
+    ...new Set(
+      agentMcpServers(home)
+        .filter((s) => s.cli === cli)
+        .map((s) => s.name),
+    ),
+  ];
+  const left = names.filter((n) => !allowed.includes(n));
+  const odd = cli === "Codex" ? left.filter((n) => !/^[A-Za-z0-9_-]+$/.test(n)) : [];
+  if (odd.length) throw new Error(`can't leave out the MCP server ${odd.join(", ")} for ${cli}: rename it to letters, digits, - and _`);
+  return left;
+}
+
+/**
  * Writes the settings and, with `instructions` on, the agent instructions into `dir`; settings keys of your own stay,
  * Overhand's are replaced. An account's own sign-in folder gets no instructions file: leads run there too, and ticket
  * runs get the instructions by flag.
