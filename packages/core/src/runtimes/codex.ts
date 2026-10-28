@@ -11,7 +11,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { dialectHook } from "../agent-home";
+import { dialectHook, unlistedMcp } from "../agent-home";
 import { OPS } from "../env";
 import { SECRET_STORE } from "../platform";
 import {
@@ -75,6 +75,8 @@ function argv(r: RunInput, schema: boolean): string[] {
   const model = modelOf(r);
   if (model) a.push("-m", model);
   a.push(...tuneArgs("codex", r.tune, true));
+  // an account's own CODEX_HOME holds no servers of yours, so there is nothing of yours to leave out there
+  if (!r.configDir) for (const n of unlistedMcp("Codex", r.tune?.mcpServers)) a.push("-c", `mcp_servers.${n}.enabled=false`);
   return [...a, r.schema && !schema ? [r.prompt, jsonAsk(r.schema)].join("") : r.prompt];
 }
 

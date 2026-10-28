@@ -111,7 +111,7 @@ const RuntimeSchema = z.object({
   timeoutMin: z.number().int().min(5).optional(),
   /** Tools the agent may not use (Claude Code --disallowedTools, e.g. WebFetch or mcp__slack). Only ever narrows. */
   blockedTools: z.array(z.string()).optional(),
-  /** The only MCP servers the agent may use (Gemini CLI --allowed-mcp-server-names); absent = all. */
+  /** The only MCP servers the agent may use (Claude Code: the servers Overhand hands the run; Gemini CLI --allowed-mcp-server-names; Codex and OpenCode: the others in their config are switched off); absent = all. */
   mcpServers: z.array(z.string()).optional(),
   /** false: no skills or slash commands in runs (Claude Code --disable-slash-commands). */
   skills: z.boolean().optional(),

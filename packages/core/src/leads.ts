@@ -677,7 +677,7 @@ function leadSpawn(g: Godmode, account: string, brief: string, osSandbox: boolea
     // your MCP servers by flag, strictly, whatever the folder; a config folder of Overhand's (runHome) has the guard
     // written in, your own config (an account still waiting for its own sign-in) gets it by flag
     configDir,
-    mcpServers: runMcpServers(mainCheckout(leadDir(g))),
+    mcpServers: runMcpServers(mainCheckout(leadDir(g)), undefined, runtimeOf(account).mcpServers),
     ...(configDir.startsWith(`${AGENT_HOMES}/`) ? {} : { hooks: guardHooks() }),
     instructions: "",
     read: readSecret,

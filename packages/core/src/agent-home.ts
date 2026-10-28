@@ -226,11 +226,15 @@ export function overhandMcpServer(bundled = BUNDLED, exec = SELF_EXEC, src = SRC
 /** What runs Overhand's CLI from inside a run: the binary itself when bundled, else run.ts with the bun running this. */
 export const selfCommand = (bundled = BUNDLED, exec = SELF_EXEC, src = SRC): string[] => (bundled ? [exec] : [exec, join(src, "run.ts")]);
 
-/** The MCP servers a run starts with: yours (claudeMcpServers), and Overhand's own. */
-export const runMcpServers = (repo: string, home = HOME): Record<string, unknown> => ({
-  ...claudeMcpServers(repo, home),
-  overhand: overhandMcpServer(),
-});
+/**
+ * The MCP servers a run starts with: yours (claudeMcpServers), and Overhand's own. `only`: the account's allowlist
+ * (`runtimes.<account>.mcpServers`), so one account per client reaches only that client's servers; empty or absent = all.
+ * The servers stay in your one ~/.claude.json, so no secret is copied between accounts.
+ */
+export function runMcpServers(repo: string, home = HOME, only: readonly string[] = []): Record<string, unknown> {
+  const mine = Object.entries(claudeMcpServers(repo, home)).filter(([name]) => !only.length || only.includes(name));
+  return { ...Object.fromEntries(mine), overhand: overhandMcpServer() };
+}
 
 /** An MCP server one of your agent CLIs is set up with: the CLI, the server's name, and its URL or command (for matching only). */
 export interface AgentMcpServer {
@@ -275,6 +279,26 @@ export function agentMcpServers(home = HOME): AgentMcpServer[] {
       return [{ cli, name, where }];
     }),
   );
+}
+
+/**
+ * The servers set up in `cli`'s own config ("Codex", "OpenCode": the ones that read it, not Overhand's flags) that the
+ * account's allowlist leaves out, for the run to switch off; none when the account has no allowlist. A name Codex's `-c`
+ * can't carry (it splits keys at dots) throws: a run never starts with a server it was told to leave out.
+ */
+export function unlistedMcp(cli: "Codex" | "OpenCode", allowed: readonly string[] = [], home = HOME): string[] {
+  if (!allowed.length) return [];
+  const names = [
+    ...new Set(
+      agentMcpServers(home)
+        .filter((s) => s.cli === cli)
+        .map((s) => s.name),
+    ),
+  ];
+  const left = names.filter((n) => !allowed.includes(n));
+  const odd = cli === "Codex" ? left.filter((n) => !/^[A-Za-z0-9_-]+$/.test(n)) : [];
+  if (odd.length) throw new Error(`can't leave out the MCP server ${odd.join(", ")} for ${cli}: rename it to letters, digits, - and _`);
+  return left;
 }
 
 /**

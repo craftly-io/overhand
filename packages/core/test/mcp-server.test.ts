@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { overhandMcpServer, runMcpServers } from "../src/agent-home";
 import { parseConfig } from "../src/config";
 import { forgetRun, RUN_KEY_ENV, recordSpawn, runKey } from "../src/control";
@@ -94,4 +97,12 @@ test("every run gets Overhand's server, a run on watch only that one", () => {
   const r = { ...base, provider: { kind: "claude" as const, auth: "login" as const }, attribution: false, args: [], read: () => null };
   const file = mcpConfig({ ...r, autonomy: "watch", mcpServers: { ...servers, mine: { command: "x" } } }, files, OPS).at(-1) ?? "";
   expect(Object.keys(JSON.parse(files[file] ?? "{}").mcpServers)).toEqual(["overhand"]);
+});
+
+test("an account's MCP allowlist hands a run only those servers, plus Overhand's own", () => {
+  const home = mkdtempSync(join(tmpdir(), "mcp-allow-"));
+  const def = { type: "http", url: "https://x.example/mcp" };
+  writeFileSync(join(home, ".claude.json"), JSON.stringify({ mcpServers: { linear: def, slack: def, google: def } }));
+  expect(Object.keys(runMcpServers("", home)).sort()).toEqual(["google", "linear", "overhand", "slack"]);
+  expect(Object.keys(runMcpServers("", home, ["linear", "google"])).sort()).toEqual(["google", "linear", "overhand"]);
 });

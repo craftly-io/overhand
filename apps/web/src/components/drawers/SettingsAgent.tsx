@@ -9,11 +9,11 @@ import { Field, FOLD, FoldMark, useForm } from "./SettingsFields";
  */
 type Tunable = "fallbackModel" | "maxRunUsd" | "blockedTools" | "skills" | "mcpServers" | "sandbox";
 const TUNABLE: Record<string, readonly Tunable[]> = {
-  "claude-code": ["fallbackModel", "maxRunUsd", "blockedTools", "skills"],
-  codex: [],
+  "claude-code": ["fallbackModel", "maxRunUsd", "blockedTools", "skills", "mcpServers"],
+  codex: ["mcpServers"],
   gemini: ["mcpServers", "sandbox"],
   cursor: ["sandbox"],
-  opencode: [],
+  opencode: ["mcpServers"],
   aider: [],
 };
 

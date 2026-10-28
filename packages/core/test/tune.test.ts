@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
-import { copyFileSync, mkdtempSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { QuickSettingSchema } from "@overhand/contract";
+import { unlistedMcp } from "../src/agent-home";
 import { blankConfig, deniedFlags, loadConfig, saveConfig, withQuick } from "../src/config";
 import { RUNTIMES } from "../src/runtimes";
 import type { RunInput } from "../src/runtimes/runtime";
@@ -136,4 +137,19 @@ test("Quick settings change one thing each: the budget, pacing, the look, a proj
   expect(watched.clients.slice(1)).toEqual(c.clients.slice(1));
   expect(saveConfig(dir, watched).clients[0]?.autonomy).toBe("watch"); // still a valid config
   expect(() => withQuick(c, { project: "nope", autonomy: "act" })).toThrow(/no project/);
+});
+
+test("an account's MCP allowlist switches off the other servers in Codex's and OpenCode's own config", () => {
+  const home = mkdtempSync(join(tmpdir(), "mcp-off-"));
+  mkdirSync(join(home, ".codex"));
+  writeFileSync(
+    join(home, ".codex", "config.toml"),
+    '[mcp_servers.linear]\nurl = "https://x/mcp"\n[mcp_servers.google]\ncommand = "g"\n[mcp_servers."a.b"]\ncommand = "c"\n',
+  );
+  mkdirSync(join(home, ".config", "opencode"), { recursive: true });
+  writeFileSync(join(home, ".config", "opencode", "opencode.json"), JSON.stringify({ mcp: { linear: {}, "a.b": {}, slack: {} } }));
+  expect(unlistedMcp("Codex", [], home)).toEqual([]); // no allowlist: nothing is switched off
+  expect(unlistedMcp("OpenCode", ["linear", "a.b"], home)).toEqual(["slack"]);
+  expect(unlistedMcp("Codex", ["linear", "google", "a.b"], home)).toEqual([]);
+  expect(() => unlistedMcp("Codex", ["linear", "google"], home)).toThrow("rename it");
 });
