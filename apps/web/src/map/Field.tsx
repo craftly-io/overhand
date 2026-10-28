@@ -12,11 +12,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Model } from "@/app/data";
 import { useFieldTime } from "@/app/fieldTime";
-import { useWords } from "@/app/theme";
+import { useTheme, useWords } from "@/app/theme";
 import { useUi } from "@/app/ui";
 import { needs } from "@/components/now/Alerts";
 import { fmt } from "@/lib/format";
-import { LIVE_MS, REDUCED, subscribeHidden, subscribeReduced } from "./AttentionMap";
+import { AgentGlyph, LIVE_MS, REDUCED, subscribeHidden, subscribeReduced, WorldGround } from "./AttentionMap";
 import {
   agentThread,
   arrange,
@@ -41,6 +41,8 @@ interface Scene {
   replay: boolean;
   /** The panes, so a name never runs under one. */
   avoid: Box[];
+  /** The world draws each agent itself (a cat, a train, a koi), as a glyph over the canvas: the canvas draws no body. */
+  art: boolean;
   labels: { crew: (n: number) => string; project: (p: FieldProject) => string; sub: (ask: number, work: number, done: number) => string };
 }
 
@@ -140,6 +142,10 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
   const canvas = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [avoid, setAvoid] = useState<Box[]>([]);
+  const { theme, light } = useTheme();
+  // Instrument is the plain field; every other world brings its ground and its characters
+  const art = theme.world !== "instrument";
+  const glyphs = useRef(new Map<string, HTMLElement>());
 
   const live = mapFrom(m.s, m.alerts, needs(m).length, m.s.now);
   const sig = `${signature(live)}|${at ?? ""}`;
@@ -188,6 +194,7 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
     projects,
     places,
     still: still || reduced,
+    art,
     replay: at !== null,
     avoid,
     labels: {
@@ -514,30 +521,33 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
           ctx.textAlign = "left";
           continue;
         }
-        if (a.state === "working" || a.state === "done") {
+        // with art, the world's own glyph stands here (the canvas keeps its glow, thread and name); without, a plain body
+        if (!s.art) {
+          if (a.state === "working" || a.state === "done") {
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, 10 * big, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (a.state === "done" ? 1 : Math.max(0.05, a.progress)));
+            ctx.strokeStyle = a.state === "done" ? (a.bad ? pal.bad : pal.ok) : pal.fg;
+            ctx.lineWidth = 1.4;
+            ctx.stroke();
+          }
+          if (a.state === "working" && !s.still) {
+            const t = tm * 2.6 + seedOf(a.id);
+            ctx.fillStyle = pal.fg;
+            ctx.beginPath();
+            ctx.arc(b.x + Math.cos(t) * 10 * big, b.y + Math.sin(t) * 10 * big, 1.6, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          const r = (a.lead ? 6 : 5) * big;
           ctx.beginPath();
-          ctx.arc(b.x, b.y, 10 * big, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (a.state === "done" ? 1 : Math.max(0.05, a.progress)));
-          ctx.strokeStyle = a.state === "done" ? (a.bad ? pal.bad : pal.ok) : pal.fg;
-          ctx.lineWidth = 1.4;
+          if (a.lead) ctx.rect(b.x - r, b.y - r, r * 2, r * 2);
+          else ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = a.state === "waiting" ? pal.you : a.state === "working" ? pal.fg : pal.bg;
+          ctx.fill();
+          ctx.strokeStyle =
+            a.state === "waiting" ? pal.you : a.state === "done" ? (a.bad ? pal.bad : pal.ok) : a.state === "idle" ? pal.muted : pal.fg;
+          ctx.lineWidth = 1.5;
           ctx.stroke();
         }
-        if (a.state === "working" && !s.still) {
-          const t = tm * 2.6 + seedOf(a.id);
-          ctx.fillStyle = pal.fg;
-          ctx.beginPath();
-          ctx.arc(b.x + Math.cos(t) * 10 * big, b.y + Math.sin(t) * 10 * big, 1.6, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        const r = (a.lead ? 6 : 5) * big;
-        ctx.beginPath();
-        if (a.lead) ctx.rect(b.x - r, b.y - r, r * 2, r * 2);
-        else ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = a.state === "waiting" ? pal.you : a.state === "working" ? pal.fg : pal.bg;
-        ctx.fill();
-        ctx.strokeStyle =
-          a.state === "waiting" ? pal.you : a.state === "done" ? (a.bad ? pal.bad : pal.ok) : a.state === "idle" ? pal.muted : pal.fg;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
         // only the front card's agent is named (and whatever is under the pointer), on the side away from its place
         if ((a.state === "waiting" && agentThread(a.open) === front) || hot(a)) {
           const h = hubs.get(a.project);
@@ -554,6 +564,18 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
           ctx.fillText(a.label, b.x + (away ? -15 : 15), b.y + 4);
           ctx.textAlign = "left";
         }
+      }
+      // each glyph follows its body (hidden when it has none, or while the day replays out of its place)
+      for (const [id, el] of glyphs.current) {
+        const b = bodies.get(id);
+        const a = agents.find((x) => x.id === id);
+        if (!b || !a) {
+          el.style.opacity = "0";
+          continue;
+        }
+        const big = hot(a) ? 1.35 : 1;
+        el.style.transform = `translate(${b.x.toFixed(1)}px, ${b.y.toFixed(1)}px) scale(${big})`;
+        el.style.opacity = String(b.a * (a.state === "idle" || a.state === "done" ? 0.8 : 1));
       }
       ctx.globalAlpha = 1;
       // the one plain line about what's under the pointer, beside it
@@ -644,7 +666,27 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
   const state = { waiting: w.mapWaiting, working: w.mapWorking, idle: w.mapIdle, done: w.mapDone };
   return (
     <>
+      {art ? <WorldGround world={theme.world} light={light} /> : null}
       <canvas ref={canvas} className="absolute inset-0 size-full" />
+      {art ? (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          {agents
+            .filter((a) => !a.count)
+            .map((a) => (
+              <div
+                key={a.id}
+                ref={(el) => {
+                  if (el) glyphs.current.set(a.id, el);
+                  else glyphs.current.delete(a.id);
+                }}
+                className="absolute top-0 left-0 -mt-5 -ml-5 size-10 will-change-transform"
+                style={{ opacity: 0 }}
+              >
+                <AgentGlyph world={theme.world} state={a.state} lead={a.lead} name={a.label} progress={a.progress} size={40} />
+              </div>
+            ))}
+        </div>
+      ) : null}
       <ul
         className="sr-only"
         aria-label={fmt(w.mapSummary, {

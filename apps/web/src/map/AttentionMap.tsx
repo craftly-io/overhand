@@ -237,6 +237,41 @@ const Ground = memo(function Ground({ c, world }: { c: WorldCtx; world: World })
   );
 });
 
+/**
+ * A world's ground alone, behind something else (the field): its floor, light and atmosphere, scaled to cover the box
+ * it fills, still, decorative. Instrument draws none: its field is the plain canvas.
+ */
+export function WorldGround({ world, light }: { world: WorldId; light: boolean }) {
+  const id = useId().replace(/:/g, "");
+  const w = WORLDS[world];
+  const c: WorldCtx = {
+    model: { waiting: 0, sectors: [], agents: [], crews: [] },
+    k: 1,
+    u: w.big ? 58 : 76,
+    lod: "full",
+    light,
+    id,
+    you: "",
+  };
+  return (
+    <svg
+      viewBox={`${-SPAN / 2} ${-SPAN / 2} ${SPAN} ${SPAN}`}
+      preserveAspectRatio="xMidYMid meet"
+      className="attention-map still map-ground field-ground pointer-events-none absolute inset-0 size-full"
+      data-world={world}
+      aria-hidden="true"
+    >
+      <defs>
+        <Atlas c={c} />
+        {w.atlas(c)}
+      </defs>
+      {w.ground(c)}
+      {/* your place at the centre (a cushion, a stone, a star), with no count or word: the ground has a hole without it */}
+      {w.centre(c)}
+    </svg>
+  );
+}
+
 /** The drawing, memoised: a poll that changes nothing on the map draws nothing. A teammate's hub draws it too. */
 export const MapSvg = memo(function MapSvg({
   model: raw,

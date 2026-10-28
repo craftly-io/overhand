@@ -752,3 +752,8 @@
 .attention-map[data-world="instrument"] .halo-done {
   opacity: 0.35;
 }
+
+/* In the field there is no seat for you, so Koi's stepping stones round it have nothing to circle and only weigh on the water */
+.field-ground .step {
+  display: none;
+}
