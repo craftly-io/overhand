@@ -17,7 +17,7 @@ function Ticks({ title, names, picked, onToggle }: { title: string; names: strin
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {names.map((n) => (
           <label key={n} className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={picked.includes(n)} onChange={() => onToggle(n)} />
+            <input type="checkbox" className="size-4 accent-(--primary)" checked={picked.includes(n)} onChange={() => onToggle(n)} />
             {n}
           </label>
         ))}
