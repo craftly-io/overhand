@@ -103,8 +103,8 @@ export const signInHome = (account: string, root = AGENT_HOMES): string => join(
 
 /** The shell command that signs an account in through Claude Code's own flow, in that account's config folder. */
 export const claudeLoginCommand = (home: string): string => `CLAUDE_CONFIG_DIR=${quote(home)} claude auth login`;
-/** Claude Code where the Slack inbox reads Slack, with only its Slack servers: `/mcp` in it signs them in again. */
-export const slackLoginCommand = (home: string, mcp: string): string =>
+/** Claude Code in a config folder with only the servers of one MCP config file: `/mcp` in it signs them in (again). */
+export const mcpLoginCommand = (home: string, mcp: string): string =>
   `CLAUDE_CONFIG_DIR=${quote(home)} claude --mcp-config ${quote(mcp)} --strict-mcp-config`;
 
 /**
@@ -212,6 +212,19 @@ const obj = (x: unknown, key?: string): Record<string, unknown> => {
 export function claudeMcpServers(repo: string, home = HOME): Record<string, unknown> {
   const j = readJson(join(home, ".claude.json"));
   return { ...obj(j, "mcpServers"), ...(repo ? obj(obj(obj(j, "projects"), repo), "mcpServers") : {}) };
+}
+
+/**
+ * The command that signs `account` in to its MCP servers `names` (the ones its runs found not signed in): Claude Code in
+ * the account's own folder, where runs keep their OAuth, with just those servers. Their definitions go to a file of
+ * Overhand's, readable by you alone (a definition may hold a header or key of yours).
+ */
+export function mcpSignInCommand(account: string, names: readonly string[], home = HOME, root = OPS): string {
+  const mine = claudeMcpServers("", home);
+  const file = join(root, `mcp-signin-${account}.json`);
+  const only = Object.fromEntries(names.flatMap((n) => (n in mine ? [[n, mine[n]]] : [])));
+  writeFileSync(file, JSON.stringify({ mcpServers: only }), { mode: 0o600 });
+  return mcpLoginCommand(runHome(account), file);
 }
 
 /**

@@ -57,6 +57,7 @@ import {
   loadLocalCode,
   lockHolder,
   needsSignIn,
+  noteMcpSignIn,
   parseNewTickets,
   parsePlan,
   planFile,
@@ -131,6 +132,23 @@ test("needsSignIn names the Slack servers a run couldn't use", () => {
   });
   expect(needsSignIn([init, '{"type":"result"}'].join("\n"))).toEqual(["slack_dized"]);
   expect(needsSignIn("not json")).toEqual([]);
+});
+
+test("a run's init line sets and clears an account's MCP servers waiting for sign-in, only the ones handed to it", () => {
+  const init = (servers: object[]) => JSON.stringify({ type: "system", subtype: "init", mcp_servers: servers });
+  const state: { mcpSignIn?: Record<string, string[]> } = {};
+  const handed = { linear: {}, google: {} };
+  const out = init([
+    { name: "linear", status: "needs-auth" },
+    { name: "slack_x", status: "needs-auth" },
+    { name: "google", status: "connected" },
+  ]);
+  noteMcpSignIn(state, "work", out, handed);
+  expect(state.mcpSignIn).toEqual({ work: ["linear"] });
+  noteMcpSignIn(state, "work", '{"type":"result"}', handed); // no init line: says nothing
+  expect(state.mcpSignIn).toEqual({ work: ["linear"] });
+  noteMcpSignIn(state, "work", init([{ name: "linear", status: "connected" }]), handed);
+  expect(state.mcpSignIn).toEqual({});
 });
 
 test("parseNewTickets returns only checked Slack work items", () => {

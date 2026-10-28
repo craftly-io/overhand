@@ -203,6 +203,7 @@ export async function claude<T>(
     let run = await runOnce(rt, input, cwd, logName, meta, opts.onStep && stepReader(opts.onStep));
     let cost = run.out.cost;
     let transcript = run.stdout;
+    if (!opts.inbox) noteMcpSignIn(state, account, run.stdout, input.mcpServers ?? {});
     // an expired sign-in isn't the task's failure: the account waits for you to sign it in again (Needs you: Sign in)
     if (!run.out.ok && !run.stopped && signedOut(runOutput(run))) {
       markSignedOut(account, true);
@@ -270,6 +271,31 @@ export function readyHome(runtime: string, configDir: string): void {
 export function mainCheckout(cwd: string): string {
   const git = gitCommonDir(cwd);
   return git ? dirname(git) : "";
+}
+
+/** The MCP servers a run's stream-json init line reports as not signed in (OAuth not done in its config folder). */
+export function needsSignIn(transcript: string): string[] {
+  const init = transcript.split("\n").find((l) => l.includes('"subtype":"init"'));
+  if (!init) return [];
+  try {
+    const servers: unknown = JSON.parse(init).mcp_servers;
+    if (!Array.isArray(servers)) return [];
+    return servers.filter((s) => s?.status === "needs-auth" && typeof s.name === "string").map((s) => s.name);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Notes on `state` which of the MCP servers handed to an account's run still need signing in (OAuth is kept per config
+ * folder, so each account signs in once): set when the run's init line reports some, cleared when it reports none. A run
+ * with no init line (another CLI, or one that failed early) says nothing either way.
+ */
+export function noteMcpSignIn(state: Pick<State, "mcpSignIn">, account: string, transcript: string, handed: Record<string, unknown>): void {
+  if (!transcript.includes('"subtype":"init"')) return;
+  const names = needsSignIn(transcript).filter((n) => n in handed);
+  if (names.length) state.mcpSignIn = { ...state.mcpSignIn, [account]: names };
+  else if (state.mcpSignIn?.[account]) delete state.mcpSignIn[account];
 }
 
 /** What a runtime needs for one of this account's runs, from the live config. */

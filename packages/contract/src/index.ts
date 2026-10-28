@@ -705,6 +705,8 @@ export const DashboardStateSchema = z.object({
   gitBlocked: z.array(z.string()).default([]),
   /** The Slack inbox found these projects' Slack signed out (its own sign-in, in this account's folder); absent when it reads. */
   slackSignIn: z.object({ clients: z.array(z.string()), account: z.string() }).nullish(),
+  /** MCP servers of yours that an account's runs found not signed in (OAuth is per account folder), by account. */
+  mcpSignIn: z.record(z.string(), z.array(z.string())).default({}),
   /** Why no run can start on this computer when the OS sandbox can't run here and the config requires it; "" when runs can. */
   sandboxRefuse: z.string().default(""),
   /**

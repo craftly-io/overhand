@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { overhandMcpServer, runMcpServers } from "../src/agent-home";
+import { mcpSignInCommand, overhandMcpServer, runMcpServers } from "../src/agent-home";
 import { parseConfig } from "../src/config";
 import { forgetRun, RUN_KEY_ENV, recordSpawn, runKey } from "../src/control";
 import { CFG, OPS, UI_PORT } from "../src/env";
@@ -105,4 +105,16 @@ test("an account's MCP allowlist hands a run only those servers, plus Overhand's
   writeFileSync(join(home, ".claude.json"), JSON.stringify({ mcpServers: { linear: def, slack: def, google: def } }));
   expect(Object.keys(runMcpServers("", home)).sort()).toEqual(["google", "linear", "overhand", "slack"]);
   expect(Object.keys(runMcpServers("", home, ["linear", "google"])).sort()).toEqual(["google", "linear", "overhand"]);
+});
+
+test("an MCP sign-in opens Claude Code in the account's folder with only the servers waiting, in a file only you can read", () => {
+  const home = mkdtempSync(join(tmpdir(), "mcp-login-"));
+  const def = { type: "http", url: "https://x.example/mcp" };
+  writeFileSync(join(home, ".claude.json"), JSON.stringify({ mcpServers: { linear: def, slack: def } }));
+  const command = mcpSignInCommand("work", ["linear", "gone"], home, home);
+  const file = join(home, "mcp-signin-work.json");
+  expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({ mcpServers: { linear: def } });
+  expect(statSync(file).mode & 0o777).toBe(0o600);
+  expect(command).toContain("claude --mcp-config");
+  expect(command).toContain(file);
 });

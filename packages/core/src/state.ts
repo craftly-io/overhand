@@ -56,6 +56,8 @@ export interface State {
   slackCursor: number;
   /** The Slack inbox's last read found these projects' Slack signed out, on this account's folder; gone once it reads again. */
   slackSignIn?: { clients: string[]; account: string };
+  /** MCP servers of yours that account's last runs found not signed in, by account; gone once a run finds them signed in. */
+  mcpSignIn?: Record<string, string[]>;
   seen: string[];
   pending: Record<string, PendingTicket>;
 }

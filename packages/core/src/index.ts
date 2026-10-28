@@ -1,10 +1,10 @@
 /** @overhand/core: the ops daemon, its dashboard server and the pieces they're built from. */
 export { work } from "./agent";
-export { type AccountOrder, accountsFor, claude, loadLocalCode } from "./claude";
+export { type AccountOrder, accountsFor, claude, loadLocalCode, needsSignIn, noteMcpSignIn } from "./claude";
 export { daemon, main } from "./daemon";
 export { dashboardState, weekStats } from "./dashboard";
 export { applyConfig, CFG, OPS, SRC } from "./env";
-export { inbox, needsSignIn, parseNewTickets } from "./inbox";
+export { inbox, parseNewTickets } from "./inbox";
 export {
   demandBrief,
   leadAccount,

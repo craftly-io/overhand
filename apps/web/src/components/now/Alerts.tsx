@@ -200,6 +200,7 @@ function Actions({ a }: { a: Alert }) {
     run,
     selfUpdate,
     slackSignIn,
+    mcpSignIn,
     snooze,
     taskRetry,
     ticketsRefresh,
@@ -220,6 +221,7 @@ function Actions({ a }: { a: Alert }) {
   if (t.kind === "card") return <CardButtons card={t.card} />;
   if (t.kind === "restart") return one(w.confirmRestartGo, () => void run({ name: "restart" }));
   if (t.kind === "slack") return one(w.alSlackSignInGo, () => void slackSignIn());
+  if (t.kind === "mcp") return one(w.alMcpSignInGo, () => void mcpSignIn(t.account));
   if (t.kind === "quiet") return one(fmt(w.decQuiet, { h: t.hours }), () => void quiet(t.hours), "outline");
   if (t.kind === "replan") return one(w.signInRetry, () => void run({ name: "plan" }));
   if (t.kind === "plugin") return one(w.plRunAgain, () => void plugin({ do: "run", name: t.name }));
