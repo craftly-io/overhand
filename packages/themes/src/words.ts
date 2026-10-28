@@ -335,6 +335,8 @@ export const plainWords = {
   addAccountHint: "Pick the agent, then sign in. Overhand makes a quick test call.",
   addAccountYours: "Add only accounts that are yours, or that their owner has given you to use.",
   // a Claude plan, in setup and Add an agent account: Anthropic's own words on what its limits are for, with the link
+  claudeLoginNote:
+    "Use the full sign-in, not a token: a token login doesn't load claude.ai connectors such as Google Drive. A connector holds one Google identity per Claude account, so each client gets an account of its own. Runs use the MCP servers you pick for the account, not connectors.",
   planUseNote:
     "Anthropic says a Pro or Max plan's usage limits “assume ordinary, individual usage”. For overnight or many-project work, use an Anthropic API key.",
   planUseTerms: "Anthropic's terms",
