@@ -41,12 +41,23 @@ import {
 } from "@overhand/contract";
 import { plainWords } from "@overhand/themes";
 import { z } from "zod";
-import { AddAccountSchema, accountLabel, addAccount, budgetAfterAdd, KEY_ITEM, LOGIN_CLIS, onSharedLogin } from "./accounts";
+import {
+  AddAccountSchema,
+  accountLabel,
+  addAccount,
+  budgetAfterAdd,
+  KEY_ITEM,
+  LOGIN_CLIS,
+  onSharedLogin,
+  ScopeAccountSchema,
+  scopeAccount,
+} from "./accounts";
 import { activeRepos, reopenPr } from "./agent";
 import {
   AGENT_HOMES,
   accountLogin,
   accountLoginCommand,
+  agentMcpServers,
   claudeLoginCommand,
   configHome,
   inboxHome,
@@ -393,6 +404,22 @@ const forgetLogins = () => {
  * What the setup wizard needs to know about this machine: logins it can reuse, the projects it found, the agent CLIs and
  * local models there are, and what it proposes from them (the wizard shows that as one screen to confirm).
  */
+/**
+ * The MCP servers an account can be limited to: the ones set up in its CLI's own config (agentMcpServers). None for an
+ * account whose runs don't read them (Codex in a login folder of its own), where the picker would offer nothing real.
+ */
+function accountServers(account: string): string[] {
+  const kind = CFG.runtimes[account]?.kind ?? "claude-code";
+  if (kind === "codex" && CFG.runtimes[account]?.ownLogin) return [];
+  return [
+    ...new Set(
+      agentMcpServers()
+        .filter((s) => s.cli === RUNTIMES[kind].label)
+        .map((s) => s.name),
+    ),
+  ].sort();
+}
+
 async function accountOptions() {
   const hasKey = (item: string) => readSecret(item) !== null;
   const { logins } = await loginFacts();
@@ -792,6 +819,8 @@ async function route(req: Request): Promise<Response> {
   }
   if (req.method === "GET" && url.pathname === "/api/events") return events(device?.id ?? "");
   if (req.method === "GET" && url.pathname === "/api/accounts/options") return json(await accountOptions());
+  if (req.method === "GET" && url.pathname === "/api/accounts/servers")
+    return json({ servers: accountServers(url.searchParams.get("account") ?? "") });
   if (req.method === "GET" && url.pathname === "/api/accounts/login")
     return json(signInState(url.searchParams.get("id") ?? "", device?.id ?? "local") ?? { state: "failed", why: SIGNIN_GONE });
   if (req.method === "GET" && url.pathname === "/api/devices")
@@ -1288,6 +1317,20 @@ async function route(req: Request): Promise<Response> {
       if (!openTerminal(command)) return json({ error: NO_TERMINAL, command: withoutBrowser(command) }, 500);
       report(`🔑 ${installed ? "signing in to" : "installing and signing in to"} ${RUNTIMES[agent].label}`);
       return json({ ok: true, command });
+    }
+    case "/api/accounts/scope": {
+      // one account per client: the projects that run only on it, and the MCP servers it may use
+      const parsed = ScopeAccountSchema.safeParse(body);
+      if (!parsed.success) return json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, 400);
+      const scoped = scopeAccount(CFG, parsed.data);
+      if ("error" in scoped) return json({ error: scoped.error }, 400);
+      try {
+        applyConfig(saveConfig(OPS, { ...CFG, ...scoped }));
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : String(e) }, 400);
+      }
+      report(`🔒 agent account ${parsed.data.account} set up for ${parsed.data.projects.length} project(s)`);
+      return json({ ok: true });
     }
     case "/api/accounts/add": {
       // Add an agent account: a pasted key goes to the secret store, a sign-in opens the CLI's own flow in a terminal

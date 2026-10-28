@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type AddAccount, accountLabel, addAccount, budgetAfterAdd, onSharedLogin } from "../src/accounts";
+import { type AddAccount, accountLabel, addAccount, budgetAfterAdd, onSharedLogin, scopeAccount } from "../src/accounts";
 import { accountLoginCommand, ownSignInHome, runHome } from "../src/agent-home";
-import { blankConfig, type Config, FIRST_DAY_BUDGET_USD, saveConfig } from "../src/config";
+import { blankConfig, type Config, FIRST_DAY_BUDGET_USD, parseConfig, saveConfig } from "../src/config";
 import { RUNTIMES } from "../src/runtimes";
 import type { RunInput } from "../src/runtimes/runtime";
 
@@ -99,4 +99,19 @@ test("the first billed account added to an install with no cap brings the first-
   expect(budgetAfterAdd(0, true, true)).toBe(0); // billed accounts already ran without a cap: that was a choice
   expect(budgetAfterAdd(0, false, false)).toBe(0); // a sign-in isn't known to be billed here
   expect(budgetAfterAdd(25, false, true)).toBe(25);
+});
+
+test("setting an account up for a client keeps those projects on it alone and limits its MCP servers", () => {
+  const c = parseConfig(JSON.parse(readFileSync(join(import.meta.dir, "..", "..", "..", "overhand.config.example.json"), "utf8")));
+  const [first, second] = c.clients;
+  const account = c.accounts[0] ?? "";
+  if (!first || !second) throw new Error("the example config needs two projects");
+  const r = scopeAccount(c, { account, projects: [first.name], servers: ["linear"] });
+  if ("error" in r) throw new Error(r.error);
+  expect(r.clients.find((x) => x.name === first.name)).toMatchObject({ accounts: [account], fallbackToAll: false });
+  expect(r.clients.find((x) => x.name === second.name)?.accounts).toEqual(second.accounts); // the others are left as they were
+  expect(r.runtimes[account]?.mcpServers).toEqual(["linear"]);
+  expect(scopeAccount(c, { account, projects: [], servers: [] })).toMatchObject({ runtimes: { [account]: { mcpServers: undefined } } });
+  expect(scopeAccount(c, { account: "nope", projects: [], servers: [] })).toEqual({ error: "no agent account named nope" });
+  expect(scopeAccount(c, { account, projects: ["ghost"], servers: [] })).toEqual({ error: "no project named ghost" });
 });

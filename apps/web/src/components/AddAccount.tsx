@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
 import { useWords } from "@/app/theme";
+import { AccountScope } from "@/components/AccountScope";
 import { FeatureTip } from "@/components/FeatureTip";
 import { openTab, SignIn, Tested } from "@/components/SignIn";
 import { Button } from "@/components/ui/button";
@@ -348,6 +349,7 @@ export function AddAccount({ onAdded }: { onAdded?: () => void }) {
               )}
             </div>
           ) : null}
+          {test && test !== "running" && test.ok ? <AccountScope account={added.label} /> : null}
         </div>
       ) : null}
     </section>
