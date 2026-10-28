@@ -256,8 +256,8 @@ export function WorldGround({ world, light }: { world: WorldId; light: boolean }
   return (
     <svg
       viewBox={`${-SPAN / 2} ${-SPAN / 2} ${SPAN} ${SPAN}`}
-      preserveAspectRatio="xMidYMid slice"
-      className="map-ground field-ground pointer-events-none absolute inset-0 size-full"
+      preserveAspectRatio="xMidYMid meet"
+      className="attention-map still map-ground field-ground pointer-events-none absolute inset-0 size-full"
       data-world={world}
       aria-hidden="true"
     >
@@ -266,6 +266,8 @@ export function WorldGround({ world, light }: { world: WorldId; light: boolean }
         {w.atlas(c)}
       </defs>
       {w.ground(c)}
+      {/* your place at the centre (a cushion, a stone, a star), with no count or word: the ground has a hole without it */}
+      {w.centre(c)}
     </svg>
   );
 }
