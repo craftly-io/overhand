@@ -39,6 +39,11 @@ export interface World {
    * relative to it in map units, so the names placed round it keep clear of all of it.
    */
   reach?: (a: MapAgent, c: WorldCtx) => [number, number][];
+  /**
+   * A project's own place, drawn round the origin about 70 units across, for the field (Now on a computer), where each
+   * project sits under its name: a cushion, a lily pad, a station, a constellation. Absent: the world draws none.
+   */
+  hub?: (p: { name: string; index: number; broken: boolean; merged: number }, c: WorldCtx) => ReactNode;
   /** Where the `i`th subagent of `a` sits, relative to `a`, in map units. */
   orbit?: (a: MapAgent, i: number, c: WorldCtx) => [number, number];
   /** What the world draws with, once per map: gradients and patterns (the map's one atlas, in its <defs>). */

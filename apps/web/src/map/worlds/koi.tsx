@@ -15,6 +15,39 @@ const pick = <T,>(key: string, list: readonly T[]): T | undefined => list[Math.f
 const heading = (a: MapAgent) =>
   a.state === "waiting" ? a.angle + 180 : a.state === "idle" ? a.angle + 140 + seed(a.id) * 80 : a.angle + 90;
 
+/** One lily pad round the origin, its notch turned `notch` degrees; a lotus opens on it for a merge, murky water where a project is broken. */
+function Pad({ r, notch, broken, lotus }: { r: number; notch: number; broken: boolean; lotus: boolean }) {
+  const [ax, ay] = polar(r, notch - 14);
+  const [bx, by] = polar(r, notch + 14);
+  return (
+    <>
+      <path
+        className={broken ? "pad murky" : "pad"}
+        d={`M0 0L${ax.toFixed(1)} ${ay.toFixed(1)}A${r} ${r} 0 1 0 ${bx.toFixed(1)} ${by.toFixed(1)}Z`}
+      />
+      {lotus ? (
+        <g className="lotus">
+          {Array.from({ length: 8 }, (_, p) => {
+            const [px, py] = polar(9, p * 45);
+            return (
+              <ellipse
+                // biome-ignore lint/suspicious/noArrayIndexKey: petals never move
+                key={p}
+                cx={px}
+                cy={py}
+                rx={10}
+                ry={5}
+                transform={`rotate(${p * 45 + 90} ${px.toFixed(1)} ${py.toFixed(1)})`}
+              />
+            );
+          })}
+          <circle r={5} className="lotus-heart" />
+        </g>
+      ) : null}
+    </>
+  );
+}
+
 export const koi: World = {
   id: "koi",
   rings: "dash",
@@ -82,39 +115,16 @@ export const koi: World = {
           const [x, y] = polar(420 + (k % 2 ? -26 : 18), ang);
           const r = 34 + hash(si * 7 + k) * 20;
           const notch = hash(si + k) * 360;
-          const [ax, ay] = polar(r, notch - 14);
-          const [bx, by] = polar(r, notch + 14);
           return (
             <g key={`${s.name}${k}`} transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`}>
-              <path
-                className={s.broken ? "pad murky" : "pad"}
-                d={`M0 0L${ax.toFixed(1)} ${ay.toFixed(1)}A${r} ${r} 0 1 0 ${bx.toFixed(1)} ${by.toFixed(1)}Z`}
-              />
-              {k < s.merged ? (
-                <g className="lotus">
-                  {Array.from({ length: 8 }, (_, p) => {
-                    const [px, py] = polar(9, p * 45);
-                    return (
-                      <ellipse
-                        // biome-ignore lint/suspicious/noArrayIndexKey: petals never move
-                        key={p}
-                        cx={px}
-                        cy={py}
-                        rx={10}
-                        ry={5}
-                        transform={`rotate(${p * 45 + 90} ${px.toFixed(1)} ${py.toFixed(1)})`}
-                      />
-                    );
-                  })}
-                  <circle r={5} className="lotus-heart" />
-                </g>
-              ) : null}
+              <Pad r={r} notch={notch} broken={s.broken} lotus={k < s.merged} />
             </g>
           );
         }),
       )}
     </>
   ),
+  hub: (p) => <Pad r={30} notch={seed(p.name) * 360} broken={p.broken} lotus={p.merged > 0} />,
   centre: (c) => (
     <g className="you">
       <ellipse cx={3} cy={6} rx={R.you + 4} ry={R.you - 2} className="shadow" />

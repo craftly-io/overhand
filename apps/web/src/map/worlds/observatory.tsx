@@ -19,12 +19,34 @@ const STARS = (() => {
   return b.map((l, i) => ({ d: dots(l), o: [0.2, 0.38, 0.55][i] ?? 0.3 }));
 })();
 
+/** A project's constellation (DiceBear, picked by its name) in a 100 unit box centred on the origin, dimmer when it's broken. */
+function Constellation({ name, broken }: { name: string; broken: boolean }) {
+  const pick = CONSTELLATIONS[Math.floor(seed(name) * CONSTELLATIONS.length)];
+  if (!pick) return null;
+  return (
+    <g className="constellation" transform="translate(-50 -50)" opacity={broken ? 0.3 : 0.5}>
+      <path d={pick.lines} className="c-lines" />
+      {pick.stars.map(([cx, cy, r]) => (
+        <circle key={`${cx},${cy}`} cx={cx} cy={cy} r={r} className="c-star" />
+      ))}
+      {pick.rings.map(([cx, cy, r]) => (
+        <circle key={`r${cx},${cy}`} cx={cx} cy={cy} r={r} className="c-ring" />
+      ))}
+    </g>
+  );
+}
+
 export const observatory: World = {
   id: "observatory",
   rings: "dash",
   ticks: true,
   links: "trail",
   atmosphere: "sky",
+  hub: (p) => (
+    <g transform="scale(0.8)">
+      <Constellation name={p.name} broken={p.broken} />
+    </g>
+  ),
   atlas: (c) => (
     <>
       <radialGradient id={`${c.id}sky`} cx="0.5" cy="0.45" r="0.7">
@@ -55,24 +77,11 @@ export const observatory: World = {
       </g>
       {/* each project is a constellation in its sector, picked and turned by its name */}
       {c.model.sectors.map((s) => {
-        const pick = CONSTELLATIONS[Math.floor(seed(s.name) * CONSTELLATIONS.length)];
-        if (!pick) return null;
         const [x, y] = polar(392, s.a0 + s.span / 2);
         const turn = Math.round(seed(`${s.name}turn`) * 60 - 30);
         return (
-          <g
-            key={s.name}
-            className="constellation"
-            transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${turn}) scale(1.9) translate(-50 -50)`}
-            opacity={s.broken ? 0.3 : 0.5}
-          >
-            <path d={pick.lines} className="c-lines" />
-            {pick.stars.map(([cx, cy, r]) => (
-              <circle key={`${cx},${cy}`} cx={cx} cy={cy} r={r} className="c-star" />
-            ))}
-            {pick.rings.map(([cx, cy, r]) => (
-              <circle key={`r${cx},${cy}`} cx={cx} cy={cy} r={r} className="c-ring" />
-            ))}
+          <g key={s.name} transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${turn}) scale(1.9)`}>
+            <Constellation name={s.name} broken={s.broken} />
           </g>
         );
       })}
