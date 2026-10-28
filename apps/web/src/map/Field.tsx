@@ -16,7 +16,7 @@ import { useTheme, useWords } from "@/app/theme";
 import { useUi } from "@/app/ui";
 import { needs } from "@/components/now/Alerts";
 import { fmt } from "@/lib/format";
-import { AgentGlyph, LIVE_MS, REDUCED, subscribeHidden, subscribeReduced, WorldGround } from "./AttentionMap";
+import { AgentGlyph, HubGlyph, LIVE_MS, REDUCED, subscribeHidden, subscribeReduced, WorldGround } from "./AttentionMap";
 import {
   agentThread,
   arrange,
@@ -146,6 +146,7 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
   // Instrument is the plain field; every other world brings its ground and its characters
   const art = theme.world !== "instrument";
   const glyphs = useRef(new Map<string, HTMLElement>());
+  const hubEls = useRef(new Map<string, HTMLElement>());
 
   const live = mapFrom(m.s, m.alerts, needs(m).length, m.s.now);
   const sig = `${signature(live)}|${at ?? ""}`;
@@ -565,6 +566,16 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
           ctx.textAlign = "left";
         }
       }
+      // each project's own place sits over its name (the name is drawn on the canvas above it)
+      for (const [name, el] of hubEls.current) {
+        const h = hubs.get(name);
+        if (!h) {
+          el.style.opacity = "0";
+          continue;
+        }
+        el.style.transform = `translate(${h.x.toFixed(1)}px, ${(h.y - 40).toFixed(1)}px)`;
+        el.style.opacity = String(h.a);
+      }
       // each glyph follows its body (hidden when it has none, or while the day replays out of its place)
       for (const [id, el] of glyphs.current) {
         const b = bodies.get(id);
@@ -667,6 +678,23 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
   return (
     <>
       {art ? <WorldGround world={theme.world} light={light} /> : null}
+      {art ? (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          {projects.map((p, i) => (
+            <div
+              key={p.name}
+              ref={(el) => {
+                if (el) hubEls.current.set(p.name, el);
+                else hubEls.current.delete(p.name);
+              }}
+              className="absolute top-0 left-0 -mt-8 -ml-8 size-16 will-change-transform"
+              style={{ opacity: 0 }}
+            >
+              <HubGlyph world={theme.world} light={light} name={p.name} index={i} broken={p.broken} merged={p.merged} />
+            </div>
+          ))}
+        </div>
+      ) : null}
       <canvas ref={canvas} className="absolute inset-0 size-full" />
       {art ? (
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -682,7 +710,15 @@ export function Field({ m, still, root }: { m: Model; still: boolean; root: HTML
                 className="absolute top-0 left-0 -mt-5 -ml-5 size-10 will-change-transform"
                 style={{ opacity: 0 }}
               >
-                <AgentGlyph world={theme.world} state={a.state} lead={a.lead} name={a.label} progress={a.progress} size={40} />
+                <AgentGlyph
+                  world={theme.world}
+                  state={a.state}
+                  lead={a.lead}
+                  name={a.label}
+                  progress={a.progress}
+                  size={40}
+                  still={still || reduced}
+                />
               </div>
             ))}
         </div>

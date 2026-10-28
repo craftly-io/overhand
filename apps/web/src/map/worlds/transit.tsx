@@ -76,6 +76,14 @@ export const transit: World = {
   links: "none",
   big: true,
   place,
+  // a station on the project's own line colour: a terminus bar across it, ringed in green once something merged
+  hub: (p) => (
+    <g style={{ stroke: lineOf(p.index) }}>
+      <line className="terminus" x1={-26} y1={0} x2={26} y2={0} />
+      <circle className="station" r={9} />
+      {p.merged ? <circle className="terminus-ring" r={22} /> : null}
+    </g>
+  ),
   atlas: () => null,
   ground: (c) => (
     <>

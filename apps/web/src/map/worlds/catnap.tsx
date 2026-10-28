@@ -158,6 +158,19 @@ export const catnap: World = {
   rings: "faint",
   ticks: false,
   links: "trail",
+  // a project is a cushion on the rug (its colour from its name), flat and dim where it's broken
+  hub: (p, c) => {
+    const tone = c.light ? ROOM.day.pouf : ROOM.night.pouf;
+    const fur = coat(p.name)[0];
+    return (
+      <g opacity={p.broken ? 0.5 : 1}>
+        <ellipse cy={8} rx={30} ry={11} fill="#000" opacity={0.14} />
+        <ellipse rx={29} ry={17} fill={tone} />
+        <ellipse cy={-3} rx={21} ry={10} fill={fur} opacity={0.55} />
+        {p.merged ? <circle cx={16} cy={-6} r={3.2} fill="var(--ok)" /> : null}
+      </g>
+    );
+  },
   atlas: (c) => (
     <>
       <radialGradient id={`${c.id}lamp`}>

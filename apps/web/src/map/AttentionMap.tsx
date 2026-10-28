@@ -272,6 +272,34 @@ export function WorldGround({ world, light }: { world: WorldId; light: boolean }
   );
 }
 
+/** One project's own place as its world draws it (a cushion, a lily pad, a station, a constellation); nothing for a world with none. */
+export function HubGlyph({
+  world,
+  light,
+  name,
+  index,
+  broken,
+  merged,
+  size = 64,
+}: {
+  world: WorldId;
+  light: boolean;
+  name: string;
+  index: number;
+  broken: boolean;
+  merged: number;
+  size?: number;
+}) {
+  const w = WORLDS[world];
+  const model: MapModel = { waiting: 0, sectors: [], agents: [], crews: [] };
+  const c: WorldCtx = { model, k: 1, u: w.big ? 58 : 76, lod: "full", light, id: "hub", you: "" };
+  return (
+    <svg viewBox="-50 -50 100 100" width={size} height={size} className="attention-map still map-hub" data-world={world} aria-hidden="true">
+      {w.hub?.({ name, index, broken, merged }, c)}
+    </svg>
+  );
+}
+
 /** The drawing, memoised: a poll that changes nothing on the map draws nothing. A teammate's hub draws it too. */
 export const MapSvg = memo(function MapSvg({
   model: raw,
@@ -645,6 +673,7 @@ export function AgentGlyph({
   name,
   progress = 0.6,
   size = 40,
+  still = true,
 }: {
   world: WorldId;
   state: MapAgent["state"];
@@ -653,6 +682,8 @@ export function AgentGlyph({
   name: string;
   progress?: number;
   size?: number;
+  /** Nothing moves (the default, for a list); false lets the world's characters breathe, swish, swim. */
+  still?: boolean;
 }) {
   const { light } = useTheme();
   const id = useId().replace(/:/g, "");
@@ -680,7 +711,7 @@ export function AgentGlyph({
       viewBox="-40 -40 80 80"
       width={size}
       height={size}
-      className="attention-map glyph still shrink-0"
+      className={cn("attention-map glyph shrink-0", still && "still")}
       data-world={world}
       aria-hidden="true"
     >
