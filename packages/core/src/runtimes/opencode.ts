@@ -13,7 +13,7 @@ import { GUARD_CONFIG } from "../agent-home";
 import { SECRET_STORE } from "../platform";
 import { repoRefusal } from "./repo-config";
 import { type AgentRuntime, at, baseEnv, guardEnv, jsonLines, promptFor, type RunInput, readOnly } from "./runtime";
-import { tuneArgs } from "./tune";
+import { tuneArgs, unlistedMcp } from "./tune";
 
 function spawn(r: RunInput) {
   const refused = repoRefusal("opencode", r.cwd);
@@ -34,6 +34,8 @@ function spawn(r: RunInput) {
     config.provider = { overhand: provider };
     model = `overhand/${p.model}`;
   }
+  const off = unlistedMcp("OpenCode", r.tune?.mcpServers);
+  if (off.length) config.mcp = Object.fromEntries(off.map((n) => [n, { enabled: false }]));
   // on watch, edits and every shell command are denied outright, which `--auto` never approves; reads still run
   if (readOnly(r)) config.permission = { edit: "deny", bash: "deny" };
   if (Object.keys(config).length) env.OPENCODE_CONFIG_CONTENT = JSON.stringify(config);
