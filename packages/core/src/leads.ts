@@ -19,7 +19,7 @@ import { AGENT_HOMES, guardHooks, runHome, runMcpServers } from "./agent-home";
 import { leadRules } from "./autonomy";
 import { budgetUntil, recordedBilling } from "./billing";
 import { writeShims } from "./broker";
-import { accountsFor, mainCheckout, readyHome } from "./claude";
+import { accountsFor, mainCheckout, noteMcpSignIn, readyHome } from "./claude";
 import type { Config } from "./config";
 import { addRequest, type Beat, ingestOutboxes, recordSpawn } from "./control";
 import { ACCOUNTS, CFG, CLIENTS, CODE, clientOf, LABEL, MIN, OPS, OWNER, providerOf, runtimeOf, SRC, sh, shAsync, today } from "./env";
@@ -762,6 +762,13 @@ export function recordLeadExit(g: Godmode, st: LeadState, box: ReturnType<typeof
   if (opened.length) st.opened = [...(st.opened ?? []), ...opened];
   const pushed = log ? branchesPushed(whole).map((branch) => ({ branch, ...ran })) : [];
   if (pushed.length) st.pushed = [...(st.pushed ?? []), ...pushed];
+  if (st.account && whole.includes('"subtype":"init"') && existsSync(leadDir(g))) {
+    // the servers it was handed that its init line reports not signed in: Needs you has their Sign in (as for a ticket run)
+    const s = loadState();
+    const before = JSON.stringify(s.mcpSignIn);
+    noteMcpSignIn(s, st.account, whole, runMcpServers(mainCheckout(leadDir(g)), undefined, runtimeOf(st.account).mcpServers));
+    if (JSON.stringify(s.mcpSignIn) !== before) saveState(s); // only when it changed: a work pass's own save isn't overwritten for nothing
+  }
   const final = parsed.ok ? parsed.text.trim() : "";
   if (st.replyDue && final) {
     // its final message answers yours: filed as its reply (on watch too, instead of a report, so it isn't held), the
