@@ -2,8 +2,9 @@ import { expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CFG, MIN, OPS, today } from "../src/env";
-import { blankLead, type Godmode, leadAccount, limitBack, recordLeadExit } from "../src/leads";
+import { blankLead, type Godmode, leadAccount, leadDir, limitBack, recordLeadExit } from "../src/leads";
 import { backAt, bench, benched, benchedUntil, markSignedOut, outOfUsage, resetAt, signedOut, signedOutAccounts } from "../src/limits";
+import { loadState } from "../src/state";
 
 const lead = (key: string, account = "acct"): Godmode => ({
   key,
@@ -182,3 +183,13 @@ test("limitBack names the account back first only when every one is benched", ()
 
 /** Today's report lines so far (what the daemon log shows). */
 const readLog = (): string => readFileSync(join(OPS, "reports", `${today()}.md`), "utf8");
+
+test("a lead's init line sets and clears its account's MCP servers waiting for sign-in", () => {
+  // the one server every run is handed is Overhand's own, so it stands in for one of yours
+  const init = (status: string) => JSON.stringify({ type: "system", subtype: "init", mcp_servers: [{ name: "overhand", status }] });
+  mkdirSync(leadDir(lead("mcp")), { recursive: true });
+  exit(lead("mcp"), init("needs-auth"), blankLead(), "mcp-acct");
+  expect(loadState().mcpSignIn).toEqual({ "mcp-acct": ["overhand"] });
+  exit(lead("mcp"), init("connected"), blankLead(), "mcp-acct");
+  expect(loadState().mcpSignIn?.["mcp-acct"]).toBeUndefined();
+});
