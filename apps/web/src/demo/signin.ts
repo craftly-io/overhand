@@ -24,6 +24,7 @@ export function demoSignInPost(url: string, body: Record<string, unknown>): unkn
     return { ok: true, id: "demo", url: "https://github.com/login/device", code: "DEMO-2026" };
   }
   if (url === "/api/accounts/test") return { ok: true, message: "" };
+  if (url === "/api/accounts/scope") return { ok: true };
   return undefined;
 }
 

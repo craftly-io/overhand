@@ -59,6 +59,33 @@ export function accountLabel(agent: RuntimeId, taken: readonly string[]): string
   return `${base}-${n}`;
 }
 
+/** What "Keep a client's work on this account" submits: the projects that run only on it, and the MCP servers it may use. */
+export const ScopeAccountSchema = z.object({
+  account: z.string().min(1),
+  projects: z.array(z.string()).default([]),
+  servers: z.array(z.string()).default([]),
+});
+export type ScopeAccount = z.infer<typeof ScopeAccountSchema>;
+
+/**
+ * The config with `account` set up for a client: each listed project runs on it alone (never on another account, even
+ * when it's busy: that is the point of one account per client), and the account reaches only the listed MCP servers
+ * (none listed = all of yours). Or why it can't be.
+ */
+export function scopeAccount(
+  c: Pick<Config, "accounts" | "runtimes" | "clients">,
+  s: ScopeAccount,
+): Pick<Config, "runtimes" | "clients"> | { error: string } {
+  if (!c.accounts.includes(s.account)) return { error: `no agent account named ${s.account}` };
+  const unknown = s.projects.filter((p) => !c.clients.some((x) => x.name === p));
+  if (unknown.length) return { error: `no project named ${unknown.join(", ")}` };
+  const rt = c.runtimes[s.account] ?? { kind: "claude-code" as const, model: "" };
+  return {
+    runtimes: { ...c.runtimes, [s.account]: { ...rt, mcpServers: s.servers.length ? s.servers : undefined } },
+    clients: c.clients.map((x) => (s.projects.includes(x.name) ? { ...x, accounts: [s.account], fallbackToAll: false } : x)),
+  };
+}
+
 type Accounts = Pick<Config, "accounts" | "providers" | "runtimes"> & Partial<Pick<Config, "billing">>;
 
 /**

@@ -478,6 +478,7 @@ export function demoGet(url: string): unknown {
       folders: ["shop", "booking", "website", "mobile", "old-portfolio"],
     };
   }
+  if (u.pathname === "/api/accounts/servers") return { servers: ["github", "linear", "slack"] };
   if (u.pathname === "/api/accounts/options") {
     // Add an agent account: Claude Code and Codex signed in here, Codex's login already used by an account
     const agent = (id: string, label: string, over: object) => ({
