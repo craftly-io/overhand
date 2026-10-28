@@ -62,8 +62,9 @@ import {
   configHome,
   inboxHome,
   LOGIN_HOME_VAR,
+  mcpLoginCommand,
+  mcpSignInCommand,
   signInHome,
-  slackLoginCommand,
   writeAgentHome,
 } from "./agent-home";
 import { assign, dropFinding, loadFindings, unassign } from "./assign";
@@ -1444,11 +1445,20 @@ async function route(req: Request): Promise<Response> {
       markSignedOut(account, false); // as a terminal sign-in above: its next run tries
       return json({ ok: true, command: claudeLoginCommand(home) });
     }
+    case "/api/mcp-login": {
+      // an account's MCP servers its runs found not signed in: Claude Code in its folder with just those, to sign in once
+      const account = String(body.account ?? "");
+      const names = loadState().mcpSignIn?.[account] ?? [];
+      if (!CFG.accounts.includes(account) || !names.length) return json({ error: `${account} isn't waiting for an MCP sign-in` }, 404);
+      const command = mcpSignInCommand(account, names);
+      if (!openTerminal(command)) return json({ error: NO_TERMINAL, command }, 500);
+      return json({ ok: true, command });
+    }
     case "/api/slack-login": {
       // the Slack inbox's own sign-in (Claude Code's, per Slack server), in the folder the inbox reads Slack from
       const account = loadState().slackSignIn?.account ?? "";
       if (!CFG.accounts.includes(account)) return json({ error: "the Slack inbox isn't waiting for a sign-in" }, 404);
-      const command = slackLoginCommand(inboxHome(account), SLACK_MCP);
+      const command = mcpLoginCommand(inboxHome(account), SLACK_MCP);
       if (!openTerminal(command)) return json({ error: NO_TERMINAL, command }, 500);
       return json({ ok: true, command });
     }

@@ -513,6 +513,18 @@ test("a Slack inbox signed out of Slack says for which projects, with Sign in to
   expect(computeAlerts(base, parsePlan([]), plainWords, NOW).some((a) => a.target.kind === "slack")).toBe(false);
 });
 
+test("an account whose runs found MCP servers signed out gets one card to sign in, gone when none are", () => {
+  const base = state({});
+  const card = computeAlerts({ ...base, mcpSignIn: { work: ["linear", "google"] } }, parsePlan([]), plainWords, NOW).find(
+    (a) => a.target.kind === "mcp",
+  );
+  expect(card?.title).toBe("work can't use linear, google until it's signed in");
+  expect(card?.target).toEqual({ kind: "mcp", account: "work" });
+  expect(computeAlerts({ ...base, mcpSignIn: { work: [] } }, parsePlan([]), plainWords, NOW).some((a) => a.target.kind === "mcp")).toBe(
+    false,
+  );
+});
+
 test("alerts: a hosted run with no minutes offers buying them; one that stopped offers an agent here", () => {
   const run = { project: "Online shop", pr: "", branch: "", draft: false, minutes: 0, at: NOW };
   const s = state({

@@ -5,7 +5,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { holdFinding } from "./assign";
-import { claude } from "./claude";
+import { claude, needsSignIn } from "./claude";
 import { CFG, CLIENTS, LABEL, MIN, OPS, OWNER, SLACK, SLACK_MCP, today } from "./env";
 import { notify, report } from "./notify";
 import { HeldError } from "./outward";
@@ -57,19 +57,6 @@ const INBOX_SCHEMA = JSON.stringify({
   },
   required: ["items"],
 });
-
-/** The Slack servers a run's stream-json init line reports as not signed in. */
-export function needsSignIn(transcript: string): string[] {
-  const init = transcript.split("\n").find((l) => l.includes('"subtype":"init"'));
-  if (!init) return [];
-  try {
-    const servers: unknown = JSON.parse(init).mcp_servers;
-    if (!Array.isArray(servers)) return [];
-    return servers.filter((s) => s?.status === "needs-auth" && typeof s.name === "string").map((s) => s.name);
-  } catch {
-    return [];
-  }
-}
 
 /** Returns ids of checked `new-xxxxxx` lines (Slack work waiting to become tickets) in a plan file. */
 export function parseNewTickets(md: string): string[] {

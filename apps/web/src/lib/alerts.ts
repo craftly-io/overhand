@@ -38,6 +38,8 @@ type AlertTarget =
   | { kind: "signin"; account: string; tool: string }
   /** The Slack inbox's Slack sign-in expired: open it again in Claude Code. */
   | { kind: "slack" }
+  /** An account's MCP servers its runs found not signed in: open Claude Code in its folder with just those. */
+  | { kind: "mcp"; account: string }
   /** The daemon's work loop stopped: Restart Overhand. */
   | { kind: "restart" }
   /** Today's plan failed: plan again. */
@@ -554,6 +556,15 @@ export function computeAlerts(s: DashboardState, plan: Plan, w: Words, now: numb
       sub: w.alSlackSignInSub,
       target: { kind: "slack" },
     });
+  for (const [account, servers] of Object.entries(s.mcpSignIn))
+    if (servers.length)
+      a.push({
+        sev: 2,
+        broken: true,
+        title: fmt(w.alMcpSignIn, { servers: servers.join(", "), account }),
+        sub: w.alMcpSignInSub,
+        target: { kind: "mcp", account },
+      });
   // an account whose billing isn't known counts toward the budget until the person says: asked once, until they pick
   for (const acc of s.accounts.filter((x) => !x.billingSure))
     a.push({

@@ -497,6 +497,12 @@ export function useActions() {
         await post("/api/slack-login", {}, Ok);
         toast(w.saidSlackSignIn);
       }),
+    /** Opens Claude Code in an account's folder with the MCP servers its runs found not signed in (`/mcp`). */
+    mcpSignIn: (account: string) =>
+      guard(false, async () => {
+        await post("/api/mcp-login", { account }, Ok);
+        toast(w.saidMcpSignIn);
+      }),
     /** Sends a status update channel a test now (Settings, and Health beside a failed send). */
     updateTest: (id: string, name: string) =>
       guard(false, async () => {

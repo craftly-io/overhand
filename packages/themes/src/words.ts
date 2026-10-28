@@ -1109,6 +1109,11 @@ export const plainWords = {
   alSlackSignIn: "Slack needs signing in again for {clients}",
   alSlackSignInSub: "The Slack inbox can't read Slack until then. It opens Claude Code: type /mcp and sign in to Slack.",
   alSlackSignInGo: "Sign in to Slack",
+  alMcpSignIn: "{account} can't use {servers} until it's signed in",
+  alMcpSignInSub:
+    "Each account signs in to a remote MCP server once. It opens Claude Code in that account's folder: type /mcp and sign in.",
+  alMcpSignInGo: "Sign in",
+  saidMcpSignIn: "Claude Code opened in a terminal: type /mcp, then sign in to the server.",
   saidSlackSignIn: "Claude Code opened in a terminal: type /mcp, then sign in to Slack.",
   alBillingAsk: "Is {account} billed per use or part of a plan?",
   alBillingAskSub: "Until you say, its runs count toward the daily budget. It looks like {guess}.",
