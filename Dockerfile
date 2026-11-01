@@ -15,7 +15,7 @@ RUN p="linux-$([ "$TARGETARCH" = amd64 ] && echo x64 || echo arm64)" \
   && bun release/build.ts /out "$p" \
   && mv "/out/overhand-$p" /out/pkg
 
-FROM debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8
+FROM debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3
 # source links the GHCR package to its repo; release/launch.ts, which pushes it, passes the version and the commit
 ARG VERSION=dev
 ARG REVISION=unknown
