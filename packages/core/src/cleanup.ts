@@ -1333,8 +1333,9 @@ export function runCleanup(
       } else if (it.kind === "contents") {
         for (const f of readdirSync(it.path)) rmSync(join(it.path, f), { recursive: true, force: true });
       } else if (it.kind === "command") {
-        // fixed commands run as argv; the config's own cache commands may use the shell
-        ok = (it.category === "caches" ? run(["sh", "-c", it.path], undefined, 600_000) : run(it.path.split(" "), undefined, 600_000)).ok;
+        // fixed commands run as argv; the config's own cache commands may use the shell. From home: a project folder that pins
+        // another package manager makes corepack refuse (pnpm store prune failed from a bun checkout)
+        ok = (it.category === "caches" ? run(["sh", "-c", it.path], s.home, 600_000) : run(it.path.split(" "), s.home, 600_000)).ok;
       } else rmSync(it.path, { recursive: true, force: true });
       if (ok) result.removed++;
       else result.failed.push(it.path);
